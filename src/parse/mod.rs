@@ -134,7 +134,10 @@ mod tests {
         assert_eq!(parsed.sections[5].prev_anchor, Some("types".to_string()));
 
         // widget-example (dfn) should have examples as parent
-        assert_eq!(parsed.sections[6].parent_anchor, Some("examples".to_string()));
+        assert_eq!(
+            parsed.sections[6].parent_anchor,
+            Some("examples".to_string())
+        );
     }
 
     #[test]

@@ -56,7 +56,10 @@ impl SpecProvider for WhatwgProvider {
     }
 
     async fn fetch_latest_version(&self, spec: &SpecInfo) -> Result<(String, DateTime<Utc>)> {
-        let url = format!("https://api.github.com/repos/{}/commits?per_page=1", spec.github_repo);
+        let url = format!(
+            "https://api.github.com/repos/{}/commits?per_page=1",
+            spec.github_repo
+        );
 
         let client = reqwest::Client::new();
         let response = client
@@ -84,14 +87,16 @@ impl SpecProvider for WhatwgProvider {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing date in commit"))?;
 
-        let date = DateTime::parse_from_rfc3339(date_str)?
-            .with_timezone(&Utc);
+        let date = DateTime::parse_from_rfc3339(date_str)?.with_timezone(&Utc);
 
         Ok((sha, date))
     }
 
     async fn fetch_version_date(&self, spec: &SpecInfo, sha: &str) -> Result<DateTime<Utc>> {
-        let url = format!("https://api.github.com/repos/{}/commits/{}", spec.github_repo, sha);
+        let url = format!(
+            "https://api.github.com/repos/{}/commits/{}",
+            spec.github_repo, sha
+        );
 
         let client = reqwest::Client::new();
         let response = client
@@ -109,8 +114,7 @@ impl SpecProvider for WhatwgProvider {
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Missing date in commit"))?;
 
-        let date = DateTime::parse_from_rfc3339(date_str)?
-            .with_timezone(&Utc);
+        let date = DateTime::parse_from_rfc3339(date_str)?.with_timezone(&Utc);
 
         Ok(date)
     }

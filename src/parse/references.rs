@@ -23,7 +23,12 @@ pub fn extract_references(
     // sub-sections that shouldn't override the enclosing algorithm/heading.
     let scope_anchors: std::collections::HashSet<&str> = sections
         .iter()
-        .filter(|s| matches!(s.section_type, SectionType::Heading | SectionType::Algorithm))
+        .filter(|s| {
+            matches!(
+                s.section_type,
+                SectionType::Heading | SectionType::Algorithm
+            )
+        })
         .map(|s| s.anchor.as_str())
         .collect();
 
@@ -92,11 +97,7 @@ fn is_biblio_ref(link: &scraper::ElementRef) -> bool {
 }
 
 /// Parse an href attribute to determine the target spec and anchor
-fn parse_href(
-    href: &str,
-    from_anchor: &str,
-    registry: &SpecRegistry,
-) -> Option<ParsedReference> {
+fn parse_href(href: &str, from_anchor: &str, registry: &SpecRegistry) -> Option<ParsedReference> {
     // Intra-spec reference (starts with #)
     if href.starts_with('#') {
         let to_anchor = href.trim_start_matches('#').to_string();
@@ -362,8 +363,12 @@ mod tests {
         assert!(intra.contains(&"snapshotting-params"));
 
         // Check cross-spec refs
-        assert!(refs.iter().any(|r| r.to_spec == "URL" && r.to_anchor == "concept-url"));
-        assert!(refs.iter().any(|r| r.to_spec == "INFRA" && r.to_anchor == "assert"));
+        assert!(refs
+            .iter()
+            .any(|r| r.to_spec == "URL" && r.to_anchor == "concept-url"));
+        assert!(refs
+            .iter()
+            .any(|r| r.to_spec == "INFRA" && r.to_anchor == "assert"));
     }
 
     #[test]

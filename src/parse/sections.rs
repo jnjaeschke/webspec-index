@@ -149,7 +149,7 @@ pub fn parse_dfn_element(
     let has_dfn_type = element.value().attr("data-dfn-type").is_some();
     let has_direct_var_child = element
         .children()
-        .filter_map(|c| scraper::ElementRef::wrap(c))
+        .filter_map(scraper::ElementRef::wrap)
         .any(|c| c.value().name() == "var");
 
     // Skip if it's a parameter dfn
@@ -362,7 +362,9 @@ fn is_inside_algorithm_content(element: &scraper::ElementRef) -> bool {
                     if let Some(anc_elem) = scraper::ElementRef::wrap(anc_node) {
                         if anc_elem.value().name() == "div" {
                             let classes: Vec<_> = anc_elem.value().classes().collect();
-                            if classes.contains(&"algorithm") || anc_elem.value().attr("data-algorithm").is_some() {
+                            if classes.contains(&"algorithm")
+                                || anc_elem.value().attr("data-algorithm").is_some()
+                            {
                                 return true; // Inside Bikeshed/Wattsi div.algorithm pattern
                             }
                         }
@@ -383,7 +385,10 @@ fn is_inside_algorithm_content(element: &scraper::ElementRef) -> bool {
                             }
                         }
                         // Stop at block elements
-                        if matches!(prev_elem.value().name(), "p" | "div" | "h2" | "h3" | "h4" | "h5" | "h6") {
+                        if matches!(
+                            prev_elem.value().name(),
+                            "p" | "div" | "h2" | "h3" | "h4" | "h5" | "h6"
+                        ) {
                             break;
                         }
                     }
@@ -424,7 +429,10 @@ fn is_inside_algorithm_div(element: &scraper::ElementRef) -> bool {
                             return true;
                         }
                         // Stop if we hit another block element (not whitespace)
-                        if matches!(sib_elem.value().name(), "p" | "div" | "h2" | "h3" | "h4" | "h5" | "h6") {
+                        if matches!(
+                            sib_elem.value().name(),
+                            "p" | "div" | "h2" | "h3" | "h4" | "h5" | "h6"
+                        ) {
                             break;
                         }
                     }
@@ -533,8 +541,8 @@ pub fn collect_definitions(html: &str) -> Result<Vec<ParsedSection>> {
     let mut sections = Vec::new();
 
     // Select all definitions with an id attribute
-    let selector = Selector::parse("dfn[id]")
-        .map_err(|e| anyhow::anyhow!("Invalid selector: {:?}", e))?;
+    let selector =
+        Selector::parse("dfn[id]").map_err(|e| anyhow::anyhow!("Invalid selector: {:?}", e))?;
 
     for element in document.select(&selector) {
         // Skip definitions that are inside algorithm divs (those are algorithms)
@@ -650,7 +658,10 @@ mod tests {
         let section = &sections[0];
 
         assert_eq!(section.anchor, "abstract");
-        assert_eq!(section.title, Some("Where does this specification fit?".to_string()));
+        assert_eq!(
+            section.title,
+            Some("Where does this specification fit?".to_string())
+        );
         assert_eq!(section.section_type, SectionType::Heading);
         assert_eq!(section.depth, Some(3));
     }
@@ -872,7 +883,8 @@ mod tests {
 
     #[test]
     fn test_algorithm_vs_definition_distinction() {
-        let html = include_str!("../../tests/fixtures/algorithms/mixed_definitions_algorithms.html");
+        let html =
+            include_str!("../../tests/fixtures/algorithms/mixed_definitions_algorithms.html");
 
         // Collect algorithms (dfn inside div.algorithm)
         let algorithms = collect_algorithms(html).unwrap();
@@ -980,8 +992,7 @@ mod tests {
         // Test Wattsi-style algorithm: <p>To <dfn>foo</dfn>:</p><ol>...</ol>
         // (as opposed to Bikeshed's <div class="algorithm"><p>To <dfn>foo</dfn>:</p><ol>...</ol></div>)
         let html = include_str!("../../tests/fixtures/algorithms/wattsi_navigate.html");
-        let converter =
-            crate::parse::markdown::build_converter("https://html.spec.whatwg.org");
+        let converter = crate::parse::markdown::build_converter("https://html.spec.whatwg.org");
 
         let document = Html::parse_document(html);
         let selector = Selector::parse("dfn[id]").unwrap();
@@ -998,7 +1009,11 @@ mod tests {
 
         assert_eq!(algo.anchor, "navigate");
         assert_eq!(algo.title, Some("navigate".to_string()));
-        assert_eq!(algo.section_type, SectionType::Algorithm, "Should be classified as Algorithm, not Definition");
+        assert_eq!(
+            algo.section_type,
+            SectionType::Algorithm,
+            "Should be classified as Algorithm, not Definition"
+        );
 
         // Check that content includes both intro and steps (now markdown)
         let content = algo.content_text.as_ref().unwrap();
@@ -1006,7 +1021,10 @@ mod tests {
         assert!(content.contains("1. "), "Should include first step");
         assert!(content.contains("2. "), "Should include second step");
         // Check for nested step (step 4 has sub-steps in the fixture)
-        assert!(content.contains("    1. "), "Should include nested step with indentation");
+        assert!(
+            content.contains("    1. "),
+            "Should include nested step with indentation"
+        );
     }
 
     #[test]
@@ -1036,12 +1054,25 @@ mod tests {
 
         // Should only collect "do-something" (the algorithm) and "outside-def"
         // "helper" inside the <ol> should be skipped
-        assert_eq!(sections.len(), 2, "Should collect 2 sections (algorithm + outside def), not the helper inside <ol>");
+        assert_eq!(
+            sections.len(),
+            2,
+            "Should collect 2 sections (algorithm + outside def), not the helper inside <ol>"
+        );
 
         let anchors: Vec<_> = sections.iter().map(|s| s.anchor.as_str()).collect();
-        assert!(anchors.contains(&"do-something"), "Should include the algorithm-defining dfn");
-        assert!(anchors.contains(&"outside-def"), "Should include the outside definition");
-        assert!(!anchors.contains(&"helper"), "Should NOT include dfn inside algorithm <ol>");
+        assert!(
+            anchors.contains(&"do-something"),
+            "Should include the algorithm-defining dfn"
+        );
+        assert!(
+            anchors.contains(&"outside-def"),
+            "Should include the outside definition"
+        );
+        assert!(
+            !anchors.contains(&"helper"),
+            "Should NOT include dfn inside algorithm <ol>"
+        );
     }
 
     #[test]
@@ -1071,12 +1102,19 @@ mod tests {
         }
 
         // Should only collect "process" (the algorithm) and "external-term"
-        assert_eq!(sections.len(), 2, "Should collect 2 sections, not the internal-thing inside <ol>");
+        assert_eq!(
+            sections.len(),
+            2,
+            "Should collect 2 sections, not the internal-thing inside <ol>"
+        );
 
         let anchors: Vec<_> = sections.iter().map(|s| s.anchor.as_str()).collect();
         assert!(anchors.contains(&"process"));
         assert!(anchors.contains(&"external-term"));
-        assert!(!anchors.contains(&"internal-thing"), "Should NOT include dfn inside algorithm <ol>");
+        assert!(
+            !anchors.contains(&"internal-thing"),
+            "Should NOT include dfn inside algorithm <ol>"
+        );
     }
 
     #[test]
@@ -1106,12 +1144,28 @@ mod tests {
 
         // Should only collect "navigate" (algorithm) and "regular-def" (standalone definition)
         // Parameter dfns "param1" (has data-dfn-for) and "param2" (contains <var>) should be skipped
-        assert_eq!(sections.len(), 2, "Should collect 2 sections (algorithm + regular def)");
+        assert_eq!(
+            sections.len(),
+            2,
+            "Should collect 2 sections (algorithm + regular def)"
+        );
 
         let anchors: Vec<_> = sections.iter().map(|s| s.anchor.as_str()).collect();
-        assert!(anchors.contains(&"navigate"), "Should include the algorithm");
-        assert!(anchors.contains(&"regular-def"), "Should include standalone definition");
-        assert!(!anchors.contains(&"param1"), "Should NOT include parameter dfn with data-dfn-for");
-        assert!(!anchors.contains(&"param2"), "Should NOT include parameter dfn containing <var>");
+        assert!(
+            anchors.contains(&"navigate"),
+            "Should include the algorithm"
+        );
+        assert!(
+            anchors.contains(&"regular-def"),
+            "Should include standalone definition"
+        );
+        assert!(
+            !anchors.contains(&"param1"),
+            "Should NOT include parameter dfn with data-dfn-for"
+        );
+        assert!(
+            !anchors.contains(&"param2"),
+            "Should NOT include parameter dfn containing <var>"
+        );
     }
 }

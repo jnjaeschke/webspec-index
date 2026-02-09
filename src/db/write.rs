@@ -18,11 +18,9 @@ pub fn insert_or_get_spec(
     )?;
 
     // Get the ID (whether we just inserted it or it already existed)
-    let id: i64 = conn.query_row(
-        "SELECT id FROM specs WHERE name = ?1",
-        [name],
-        |row| row.get(0),
-    )?;
+    let id: i64 = conn.query_row("SELECT id FROM specs WHERE name = ?1", [name], |row| {
+        row.get(0)
+    })?;
 
     Ok(id)
 }
@@ -156,18 +154,18 @@ mod tests {
         let conn = db::open_test_db().unwrap();
 
         // First insert
-        let id1 = insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
-            .unwrap();
+        let id1 =
+            insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
         assert!(id1 > 0);
 
         // Second insert should return same ID
-        let id2 = insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
-            .unwrap();
+        let id2 =
+            insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
         assert_eq!(id1, id2);
 
         // Different spec should get different ID
-        let id3 = insert_or_get_spec(&conn, "DOM", "https://dom.spec.whatwg.org", "whatwg")
-            .unwrap();
+        let id3 =
+            insert_or_get_spec(&conn, "DOM", "https://dom.spec.whatwg.org", "whatwg").unwrap();
         assert_ne!(id1, id3);
     }
 
@@ -175,8 +173,8 @@ mod tests {
     fn test_insert_snapshot() {
         let conn = db::open_test_db().unwrap();
 
-        let spec_id = insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
-            .unwrap();
+        let spec_id =
+            insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
 
         let snapshot_id =
             insert_snapshot(&conn, spec_id, "abc123", "2026-01-01T00:00:00Z").unwrap();
@@ -198,8 +196,8 @@ mod tests {
     fn test_insert_sections_bulk() {
         let conn = db::open_test_db().unwrap();
 
-        let spec_id = insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
-            .unwrap();
+        let spec_id =
+            insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
         let snapshot_id =
             insert_snapshot(&conn, spec_id, "abc123", "2026-01-01T00:00:00Z").unwrap();
 
@@ -249,8 +247,8 @@ mod tests {
     fn test_insert_refs_bulk() {
         let conn = db::open_test_db().unwrap();
 
-        let spec_id = insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
-            .unwrap();
+        let spec_id =
+            insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
         let snapshot_id =
             insert_snapshot(&conn, spec_id, "abc123", "2026-01-01T00:00:00Z").unwrap();
 
@@ -284,8 +282,8 @@ mod tests {
     fn test_set_latest_snapshot() {
         let conn = db::open_test_db().unwrap();
 
-        let spec_id = insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
-            .unwrap();
+        let spec_id =
+            insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
 
         let snapshot1 = insert_snapshot(&conn, spec_id, "abc123", "2026-01-01T00:00:00Z").unwrap();
         let snapshot2 = insert_snapshot(&conn, spec_id, "def456", "2026-01-02T00:00:00Z").unwrap();
@@ -328,8 +326,8 @@ mod tests {
     fn test_record_update_check() {
         let conn = db::open_test_db().unwrap();
 
-        let spec_id = insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
-            .unwrap();
+        let spec_id =
+            insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
 
         record_update_check(&conn, spec_id).unwrap();
 

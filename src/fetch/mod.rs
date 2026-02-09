@@ -30,7 +30,7 @@ pub async fn fetch_and_index(
     };
 
     // Check if this snapshot already exists
-    if let Some(existing_id) = queries::get_snapshot_by_sha(conn, &spec.name, &target_sha)? {
+    if let Some(existing_id) = queries::get_snapshot_by_sha(conn, spec.name, &target_sha)? {
         return Ok(existing_id);
     }
 
@@ -41,7 +41,7 @@ pub async fn fetch_and_index(
     let parsed = parse::parse_spec(&html, spec.name, spec.base_url)?;
 
     // Insert into database
-    let spec_id = write::insert_or_get_spec(conn, &spec.name, &spec.base_url, &spec.provider)?;
+    let spec_id = write::insert_or_get_spec(conn, spec.name, spec.base_url, spec.provider)?;
     let snapshot_id = write::insert_snapshot(conn, spec_id, &target_sha, &commit_date)?;
     write::insert_sections_bulk(conn, snapshot_id, &parsed.sections)?;
     write::insert_refs_bulk(conn, snapshot_id, &parsed.references)?;
@@ -65,7 +65,7 @@ pub async fn ensure_latest_indexed(
     provider: &(dyn SpecProvider + Send + Sync),
 ) -> Result<i64> {
     // Check if we already have a latest snapshot
-    if let Some(snapshot_id) = queries::get_latest_snapshot(conn, &spec.name)? {
+    if let Some(snapshot_id) = queries::get_latest_snapshot(conn, spec.name)? {
         return Ok(snapshot_id);
     }
 
@@ -81,7 +81,7 @@ pub async fn update_if_needed(
     provider: &(dyn SpecProvider + Send + Sync),
     force: bool,
 ) -> Result<Option<i64>> {
-    let spec_id = write::insert_or_get_spec(conn, &spec.name, &spec.base_url, &spec.provider)?;
+    let spec_id = write::insert_or_get_spec(conn, spec.name, spec.base_url, spec.provider)?;
 
     // Check if we need to update (24h throttle unless forced)
     if !force {
@@ -95,9 +95,7 @@ pub async fn update_if_needed(
             .optional()?;
 
         if let Some(last_checked_str) = &last_checked {
-            if let Ok(last_checked) =
-                chrono::DateTime::parse_from_rfc3339(&last_checked_str)
-            {
+            if let Ok(last_checked) = chrono::DateTime::parse_from_rfc3339(last_checked_str) {
                 let now = chrono::Utc::now();
                 let duration = now.signed_duration_since(last_checked);
                 if duration.num_hours() < 24 {
@@ -112,7 +110,7 @@ pub async fn update_if_needed(
     let (latest_sha, _) = provider.fetch_latest_version(spec).await?;
 
     // Check if we already have this SHA
-    if queries::get_snapshot_by_sha(conn, &spec.name, &latest_sha)?.is_some() {
+    if queries::get_snapshot_by_sha(conn, spec.name, &latest_sha)?.is_some() {
         // We already have the latest version
         write::record_update_check(conn, spec_id)?;
         return Ok(None);

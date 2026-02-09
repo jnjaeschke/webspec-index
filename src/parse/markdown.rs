@@ -9,48 +9,49 @@ pub fn build_converter(base_url: &str) -> HtmlToMarkdown {
 
     HtmlToMarkdown::builder()
         // Custom <a>: skip self-links/biblio, absolutize relative URLs
-        .add_handler(vec!["a"], move |handlers: &dyn Handlers, element: Element| {
-            let mut href: Option<String> = None;
-            let mut is_self_link = false;
-            let mut is_biblio = false;
+        .add_handler(
+            vec!["a"],
+            move |handlers: &dyn Handlers, element: Element| {
+                let mut href: Option<String> = None;
+                let mut is_self_link = false;
+                let mut is_biblio = false;
 
-            for attr in element.attrs.iter() {
-                let name = &attr.name.local;
-                if *name == *"href" {
-                    href = Some(attr.value.to_string());
-                } else if *name == *"class" {
-                    if has_class(&attr.value, "self-link") {
-                        is_self_link = true;
-                    }
-                } else if *name == *"data-link-type" {
-                    if &*attr.value == "biblio" {
+                for attr in element.attrs.iter() {
+                    let name = &attr.name.local;
+                    if *name == *"href" {
+                        href = Some(attr.value.to_string());
+                    } else if *name == *"class" {
+                        if has_class(&attr.value, "self-link") {
+                            is_self_link = true;
+                        }
+                    } else if *name == *"data-link-type" && &*attr.value == "biblio" {
                         is_biblio = true;
                     }
                 }
-            }
 
-            if is_self_link {
-                return None;
-            }
+                if is_self_link {
+                    return None;
+                }
 
-            let content = handlers.walk_children(element.node).content;
+                let content = handlers.walk_children(element.node).content;
 
-            if is_biblio {
-                return Some(content.into());
-            }
+                if is_biblio {
+                    return Some(content.into());
+                }
 
-            let Some(href) = href else {
-                return Some(content.into());
-            };
+                let Some(href) = href else {
+                    return Some(content.into());
+                };
 
-            let url = if href.starts_with('#') {
-                format!("{}{}", base, href)
-            } else {
-                href
-            };
+                let url = if href.starts_with('#') {
+                    format!("{}{}", base, href)
+                } else {
+                    href
+                };
 
-            Some(format!("[{}]({})", content, url).into())
-        })
+                Some(format!("[{}]({})", content, url).into())
+            },
+        )
         // <code> → `backtick` (handle links specially)
         .add_handler(vec!["code"], |handlers: &dyn Handlers, element: Element| {
             let content = handlers.walk_children(element.node).content;
@@ -114,37 +115,40 @@ pub fn build_converter(base_url: &str) -> HtmlToMarkdown {
             }
         })
         // <div>, <dd>, <p>: detect note/example/warning/issue and format as blockquotes
-        .add_handler(vec!["div", "dd", "p"], |handlers: &dyn Handlers, element: Element| {
-            let mut prefix: Option<&str> = None;
-            for attr in element.attrs.iter() {
-                if *attr.name.local == *"class" {
-                    if has_class(&attr.value, "note") {
-                        prefix = Some("**Note:** ");
-                    } else if has_class(&attr.value, "example") {
-                        prefix = Some("**Example:** ");
-                    } else if has_class(&attr.value, "warning") {
-                        prefix = Some("**Warning:** ");
-                    } else if has_class(&attr.value, "XXX") || has_class(&attr.value, "issue") {
-                        prefix = Some("**Issue:** ");
+        .add_handler(
+            vec!["div", "dd", "p"],
+            |handlers: &dyn Handlers, element: Element| {
+                let mut prefix: Option<&str> = None;
+                for attr in element.attrs.iter() {
+                    if *attr.name.local == *"class" {
+                        if has_class(&attr.value, "note") {
+                            prefix = Some("**Note:** ");
+                        } else if has_class(&attr.value, "example") {
+                            prefix = Some("**Example:** ");
+                        } else if has_class(&attr.value, "warning") {
+                            prefix = Some("**Warning:** ");
+                        } else if has_class(&attr.value, "XXX") || has_class(&attr.value, "issue") {
+                            prefix = Some("**Issue:** ");
+                        }
+                        break;
                     }
-                    break;
                 }
-            }
 
-            let content = handlers.walk_children(element.node).content;
+                let content = handlers.walk_children(element.node).content;
 
-            if let Some(prefix) = prefix {
-                Some(to_blockquote(&content, prefix).into())
-            } else {
-                // Regular element - for <p> tags, add newlines to mimic default behavior
-                if element.tag == "p" {
-                    Some(format!("{}\n\n", content.trim()).into())
+                if let Some(prefix) = prefix {
+                    Some(to_blockquote(&content, prefix).into())
                 } else {
-                    // For <div> and <dd>, just pass through content
-                    Some(content.into())
+                    // Regular element - for <p> tags, add newlines to mimic default behavior
+                    if element.tag == "p" {
+                        Some(format!("{}\n\n", content.trim()).into())
+                    } else {
+                        // For <div> and <dd>, just pass through content
+                        Some(content.into())
+                    }
                 }
-            }
-        })
+            },
+        )
         .build()
 }
 
@@ -234,9 +238,7 @@ fn extract_text_recursive(node: &std::rc::Rc<markup5ever_rcdom::Node>) -> String
     use markup5ever_rcdom::NodeData;
 
     match &node.data {
-        NodeData::Text { ref contents } => {
-            contents.borrow().to_string()
-        }
+        NodeData::Text { ref contents } => contents.borrow().to_string(),
         NodeData::Element { .. } | NodeData::Document => {
             let mut text = String::new();
             for child in node.children.borrow().iter() {
@@ -347,10 +349,7 @@ mod tests {
             r##"<p>See <a href="https://dom.spec.whatwg.org/#concept-tree">tree</a>.</p>"##,
             "https://html.spec.whatwg.org",
         );
-        assert_eq!(
-            md,
-            "See [tree](https://dom.spec.whatwg.org/#concept-tree)."
-        );
+        assert_eq!(md, "See [tree](https://dom.spec.whatwg.org/#concept-tree).");
     }
 
     #[test]
@@ -516,7 +515,8 @@ mod tests {
             </div>
         "##;
 
-        let parsed = crate::parse::parse_spec(html, "TEST", "https://html.spec.whatwg.org").unwrap();
+        let parsed =
+            crate::parse::parse_spec(html, "TEST", "https://html.spec.whatwg.org").unwrap();
 
         let algo = parsed
             .sections
@@ -542,7 +542,9 @@ mod tests {
         assert!(content.contains("1. "), "should have step 1");
         assert!(content.contains("2. "), "should have step 2");
         assert!(
-            content.contains("[snapshotting params](https://html.spec.whatwg.org#snapshotting-params)"),
+            content.contains(
+                "[snapshotting params](https://html.spec.whatwg.org#snapshotting-params)"
+            ),
             "step link should be absolutized"
         );
         assert!(

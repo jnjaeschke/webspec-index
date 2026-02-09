@@ -14,8 +14,7 @@ pub fn render_algorithm_ol(ol_element: &ElementRef, converter: &HtmlToMarkdown) 
             let tag_name = child_element.value().name();
 
             if tag_name == "li" {
-                let step_text =
-                    render_li_recursive(&child_element, &[step_number], 0, converter);
+                let step_text = render_li_recursive(&child_element, &[step_number], 0, converter);
                 result.push_str(&step_text);
                 step_number += 1;
             } else {
@@ -160,10 +159,7 @@ fn render_ul(ul: &ElementRef, indent: usize, converter: &HtmlToMarkdown) -> Stri
                     .to_string();
 
                 // Remove the outer <li> tags that the converter might leave
-                let li_content = li_content
-                    .strip_prefix("*")
-                    .unwrap_or(&li_content)
-                    .trim();
+                let li_content = li_content.strip_prefix("*").unwrap_or(&li_content).trim();
 
                 result.push_str(li_content);
                 result.push('\n');
@@ -352,11 +348,20 @@ mod tests {
 
         // Third step should start on a new line after the blockquote
         let lines: Vec<&str> = result.lines().collect();
-        let step3_index = lines.iter().position(|l| l.contains("3. Third step")).unwrap();
-        let note_index = lines.iter().position(|l| l.contains("> **Note:**")).unwrap();
+        let step3_index = lines
+            .iter()
+            .position(|l| l.contains("3. Third step"))
+            .unwrap();
+        let note_index = lines
+            .iter()
+            .position(|l| l.contains("> **Note:**"))
+            .unwrap();
 
         // Step 3 should come after the note
-        assert!(step3_index > note_index, "Step 3 should appear after the note");
+        assert!(
+            step3_index > note_index,
+            "Step 3 should appear after the note"
+        );
     }
 
     #[test]
@@ -391,16 +396,20 @@ mod tests {
         // The "then return" should come AFTER the bullets
         let x_pos = result.find("*x* is null").expect("x bullet should exist");
         let y_pos = result.find("*y* is null").expect("y bullet should exist");
-        let then_pos = result.find("then return").expect("then return should exist");
+        let then_pos = result
+            .find("then return")
+            .expect("then return should exist");
 
         assert!(x_pos < then_pos, "bullets should come before 'then return'");
         assert!(y_pos < then_pos, "bullets should come before 'then return'");
 
         // The "then return" should be indented (continuation content)
-        assert!(result.contains("    then return"), "continuation content should be indented");
+        assert!(
+            result.contains("    then return"),
+            "continuation content should be indented"
+        );
 
         // Step 2 should be present
         assert!(result.contains("2. Next step"));
     }
 }
-

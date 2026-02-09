@@ -21,11 +21,7 @@ pub fn get_latest_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<
 }
 
 /// Get a snapshot by spec name and SHA
-pub fn get_snapshot_by_sha(
-    conn: &Connection,
-    spec_name: &str,
-    sha: &str,
-) -> Result<Option<i64>> {
+pub fn get_snapshot_by_sha(conn: &Connection, spec_name: &str, sha: &str) -> Result<Option<i64>> {
     let result = conn.query_row(
         "SELECT s.id FROM snapshots s
          JOIN specs sp ON s.spec_id = sp.id
@@ -57,8 +53,8 @@ pub fn get_section(
                 anchor: row.get(0)?,
                 title: row.get(1)?,
                 content_text: row.get(2)?,
-                section_type: SectionType::from_str(&row.get::<_, String>(3)?)
-                    .ok_or_else(|| rusqlite::Error::InvalidColumnType(3, "section_type".to_string(), rusqlite::types::Type::Text))?,
+                section_type: row.get::<_, String>(3)?.parse::<SectionType>()
+                    .map_err(|_| rusqlite::Error::InvalidColumnType(3, "section_type".to_string(), rusqlite::types::Type::Text))?,
                 parent_anchor: row.get(4)?,
                 prev_anchor: row.get(5)?,
                 next_anchor: row.get(6)?,
@@ -107,7 +103,9 @@ pub fn get_outgoing_refs(
     )?;
 
     let refs = stmt
-        .query_map((snapshot_id, from_anchor), |row| Ok((row.get(0)?, row.get(1)?)))?
+        .query_map((snapshot_id, from_anchor), |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(refs)
@@ -130,9 +128,7 @@ pub fn get_incoming_refs(
     )?;
 
     let refs = stmt
-        .query_map((to_spec, to_anchor), |row| {
-            Ok((row.get(0)?, row.get(1)?))
-        })?
+        .query_map((to_spec, to_anchor), |row| Ok((row.get(0)?, row.get(1)?)))?
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(refs)
@@ -231,8 +227,16 @@ pub fn list_headings(conn: &Connection, snapshot_id: i64) -> Result<Vec<ParsedSe
                 anchor: row.get(0)?,
                 title: row.get(1)?,
                 content_text: row.get(2)?,
-                section_type: SectionType::from_str(&row.get::<_, String>(3)?)
-                    .ok_or_else(|| rusqlite::Error::InvalidColumnType(3, "section_type".to_string(), rusqlite::types::Type::Text))?,
+                section_type: row
+                    .get::<_, String>(3)?
+                    .parse::<SectionType>()
+                    .map_err(|_| {
+                        rusqlite::Error::InvalidColumnType(
+                            3,
+                            "section_type".to_string(),
+                            rusqlite::types::Type::Text,
+                        )
+                    })?,
                 parent_anchor: row.get(4)?,
                 prev_anchor: row.get(5)?,
                 next_anchor: row.get(6)?,
@@ -250,7 +254,8 @@ mod tests {
     use crate::db::{self, write};
 
     fn setup_test_data(conn: &Connection) -> Result<i64> {
-        let spec_id = write::insert_or_get_spec(conn, "HTML", "https://html.spec.whatwg.org", "whatwg")?;
+        let spec_id =
+            write::insert_or_get_spec(conn, "HTML", "https://html.spec.whatwg.org", "whatwg")?;
         let snapshot_id = write::insert_snapshot(conn, spec_id, "abc123", "2026-01-01T00:00:00Z")?;
         write::set_latest_snapshot(conn, spec_id, snapshot_id)?;
 

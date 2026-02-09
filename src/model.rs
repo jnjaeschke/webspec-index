@@ -30,15 +30,19 @@ impl SectionType {
             SectionType::Prose => "prose",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for SectionType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "heading" => Some(SectionType::Heading),
-            "algorithm" => Some(SectionType::Algorithm),
-            "definition" => Some(SectionType::Definition),
-            "idl" => Some(SectionType::Idl),
-            "prose" => Some(SectionType::Prose),
-            _ => None,
+            "heading" => Ok(SectionType::Heading),
+            "algorithm" => Ok(SectionType::Algorithm),
+            "definition" => Ok(SectionType::Definition),
+            "idl" => Ok(SectionType::Idl),
+            "prose" => Ok(SectionType::Prose),
+            _ => Err(()),
         }
     }
 }
@@ -70,7 +74,6 @@ pub struct ParsedSpec {
     pub sections: Vec<ParsedSection>,
     pub references: Vec<ParsedReference>,
 }
-
 
 /// JSON output for query command
 #[derive(Debug, Serialize)]

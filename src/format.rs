@@ -56,7 +56,10 @@ pub fn query(result: &QueryResult) -> String {
         ));
     }
     if !result.navigation.children.is_empty() {
-        md.push_str(&format!("- Children: {}\n", result.navigation.children.len()));
+        md.push_str(&format!(
+            "- Children: {}\n",
+            result.navigation.children.len()
+        ));
         for child in &result.navigation.children {
             md.push_str(&format!(
                 "  - `{}`{}\n",
@@ -110,10 +113,7 @@ pub fn exists(result: &ExistsResult) -> String {
 pub fn anchors(result: &AnchorsResult) -> String {
     let mut md = String::new();
 
-    md.push_str(&format!(
-        "# Anchors matching `{}`\n\n",
-        result.pattern
-    ));
+    md.push_str(&format!("# Anchors matching `{}`\n\n", result.pattern));
 
     if result.results.is_empty() {
         md.push_str("No results.\n");
@@ -379,7 +379,8 @@ mod tests {
                 anchor: "concept-tree-order".to_string(),
                 title: Some("tree order".to_string()),
                 section_type: "Definition".to_string(),
-                snippet: "An object A is before an object B in <mark>tree order</mark>...".to_string(),
+                snippet: "An object A is before an object B in <mark>tree order</mark>..."
+                    .to_string(),
             }],
         };
 

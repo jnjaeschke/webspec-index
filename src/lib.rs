@@ -56,11 +56,10 @@ pub async fn query_section(spec_anchor: &str, sha: Option<&str>) -> Result<model
         let provider = registry.get_provider(spec)?;
         let id = fetch::ensure_latest_indexed(&conn, spec, provider).await?;
         // Get the SHA for this snapshot
-        let sha_from_db: String = conn.query_row(
-            "SELECT sha FROM snapshots WHERE id = ?1",
-            [id],
-            |row| row.get(0),
-        )?;
+        let sha_from_db: String =
+            conn.query_row("SELECT sha FROM snapshots WHERE id = ?1", [id], |row| {
+                row.get(0)
+            })?;
         (id, sha_from_db)
     };
 
@@ -184,7 +183,11 @@ pub async fn check_exists(spec_anchor: &str) -> Result<model::ExistsResult> {
 ///
 /// # Returns
 /// `AnchorsResult` with matching anchors
-pub fn find_anchors(pattern: &str, spec: Option<&str>, limit: usize) -> Result<model::AnchorsResult> {
+pub fn find_anchors(
+    pattern: &str,
+    spec: Option<&str>,
+    limit: usize,
+) -> Result<model::AnchorsResult> {
     let conn = db::open_or_create_db()?;
 
     // Convert glob pattern to SQL LIKE pattern
@@ -221,12 +224,14 @@ pub fn find_anchors(pattern: &str, spec: Option<&str>, limit: usize) -> Result<m
     // Convert to AnchorEntry format
     let entries: Vec<model::AnchorEntry> = results
         .iter()
-        .map(|(anchor, spec_name, title, section_type)| model::AnchorEntry {
-            spec: spec_name.clone(),
-            anchor: anchor.clone(),
-            title: title.clone(),
-            section_type: section_type.clone(),
-        })
+        .map(
+            |(anchor, spec_name, title, section_type)| model::AnchorEntry {
+                spec: spec_name.clone(),
+                anchor: anchor.clone(),
+                title: title.clone(),
+                section_type: section_type.clone(),
+            },
+        )
         .collect();
 
     Ok(model::AnchorsResult {
@@ -244,7 +249,11 @@ pub fn find_anchors(pattern: &str, spec: Option<&str>, limit: usize) -> Result<m
 ///
 /// # Returns
 /// `SearchResult` with matching sections and snippets
-pub fn search_sections(query: &str, spec: Option<&str>, limit: usize) -> Result<model::SearchResult> {
+pub fn search_sections(
+    query: &str,
+    spec: Option<&str>,
+    limit: usize,
+) -> Result<model::SearchResult> {
     let conn = db::open_or_create_db()?;
 
     // Search sections using FTS5
@@ -267,30 +276,22 @@ pub fn search_sections(query: &str, spec: Option<&str>, limit: usize) -> Result<
     };
 
     let mut stmt = conn.prepare(sql)?;
-    let results: Vec<(String, String, Option<String>, String, Option<String>)> =
-        if let Some(spec_name) = spec {
-            stmt.query_map((query, spec_name, limit), |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
-            })?
-            .collect::<Result<Vec<_>, _>>()?
-        } else {
-            stmt.query_map((query, limit), |row| {
-                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
-            })?
-            .collect::<Result<Vec<_>, _>>()?
-        };
-
-    // Convert to SearchEntry format
-    let entries: Vec<model::SearchEntry> = results
-        .iter()
-        .map(|(anchor, spec_name, title, section_type, snippet)| model::SearchEntry {
-            spec: spec_name.clone(),
-            anchor: anchor.clone(),
-            title: title.clone(),
-            section_type: section_type.clone(),
-            snippet: snippet.clone().unwrap_or_default(),
+    let map_row = |row: &rusqlite::Row| -> rusqlite::Result<model::SearchEntry> {
+        Ok(model::SearchEntry {
+            anchor: row.get(0)?,
+            spec: row.get(1)?,
+            title: row.get(2)?,
+            section_type: row.get(3)?,
+            snippet: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
         })
-        .collect();
+    };
+    let entries: Vec<model::SearchEntry> = if let Some(spec_name) = spec {
+        stmt.query_map((query, spec_name, limit), map_row)?
+            .collect::<Result<Vec<_>, _>>()?
+    } else {
+        stmt.query_map((query, limit), map_row)?
+            .collect::<Result<Vec<_>, _>>()?
+    };
 
     Ok(model::SearchResult {
         query: query.to_string(),

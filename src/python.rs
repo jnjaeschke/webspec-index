@@ -2,8 +2,8 @@
 //!
 //! This module exposes the Rust library to Python via FFI.
 
-use pyo3::prelude::*;
 use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::*;
 use std::sync::OnceLock;
 
 /// Global tokio runtime for async operations
@@ -11,10 +11,7 @@ static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 
 /// Get or create a tokio runtime for async operations
 fn get_runtime() -> &'static tokio::runtime::Runtime {
-    RUNTIME.get_or_init(|| {
-        tokio::runtime::Runtime::new()
-            .expect("Failed to create tokio runtime")
-    })
+    RUNTIME.get_or_init(|| tokio::runtime::Runtime::new().expect("Failed to create tokio runtime"))
 }
 
 /// Convert Rust Result to Python result (JSON string on success)
@@ -38,10 +35,7 @@ fn to_py_result<T: serde::Serialize>(result: anyhow::Result<T>) -> PyResult<Stri
 #[pyo3(signature = (spec_anchor, sha=None))]
 fn query(spec_anchor: String, sha: Option<String>) -> PyResult<String> {
     let rt = get_runtime();
-    let result = rt.block_on(crate::query_section(
-        &spec_anchor,
-        sha.as_deref(),
-    ));
+    let result = rt.block_on(crate::query_section(&spec_anchor, sha.as_deref()));
     to_py_result(result)
 }
 
@@ -150,8 +144,7 @@ fn update(spec: Option<String>, force: bool) -> PyResult<String> {
 ///     str: Path to the deleted database file
 #[pyfunction]
 fn clear_db() -> PyResult<String> {
-    crate::clear_database()
-        .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+    crate::clear_database().map_err(|e| PyRuntimeError::new_err(e.to_string()))
 }
 
 /// WebSpec-Index Python module
