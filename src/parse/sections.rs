@@ -138,17 +138,22 @@ pub fn parse_dfn_element(
         return Ok(None);
     }
 
-    // Skip parameter dfns: those with data-dfn-for OR containing <var>
-    // These are parameters/properties of algorithms or other definitions, not standalone sections
-    // Example: <dfn data-dfn-for="navigate">documentResource</dfn>
-    // Example: <dfn id="foo"><var>bar</var></dfn> inside algorithm intro
-    let is_parameter_dfn = element.value().attr("data-dfn-for").is_some()
-        || element
-            .children()
-            .filter_map(|c| scraper::ElementRef::wrap(c))
-            .any(|c| c.value().name() == "var");
+    // Skip parameter dfns:
+    // 1. Those with data-dfn-for but WITHOUT data-dfn-type (e.g., <dfn data-dfn-for="navigate">url</dfn>)
+    // 2. Those with <var> as direct child (e.g., <dfn><var>options</var></dfn>)
+    // BUT keep method/attribute dfns which have BOTH data-dfn-for AND data-dfn-type
+    // Example of PARAMETER (skip): <dfn data-dfn-for="navigate"><var>url</var></dfn>
+    // Example of PARAMETER (skip): <dfn><var>options</var></dfn>
+    // Example of METHOD (keep): <dfn data-dfn-for="HTMLSlotElement" data-dfn-type="method">assign(...)</dfn>
+    let has_dfn_for = element.value().attr("data-dfn-for").is_some();
+    let has_dfn_type = element.value().attr("data-dfn-type").is_some();
+    let has_direct_var_child = element
+        .children()
+        .filter_map(|c| scraper::ElementRef::wrap(c))
+        .any(|c| c.value().name() == "var");
 
-    if is_parameter_dfn {
+    // Skip if it's a parameter dfn
+    if (has_dfn_for && !has_dfn_type) || has_direct_var_child {
         return Ok(None);
     }
 

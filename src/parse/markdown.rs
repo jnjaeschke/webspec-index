@@ -105,9 +105,6 @@ pub fn build_converter(base_url: &str) -> HtmlToMarkdown {
             }
 
             if is_props {
-                // Get the HTML content and convert to table
-                // We'll build the HTML by collecting text from children
-                let content = element.markdown_translated.clone();
                 // Parse it to extract dt/dd structure
                 // Actually, let's build the table directly from walking the DOM
                 Some(build_table_from_dl(element.node).into())

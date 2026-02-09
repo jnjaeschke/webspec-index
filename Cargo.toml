@@ -13,12 +13,12 @@ pyo3 = { version = "0.28", features = ["extension-module"], optional = true }
 
 # Core dependencies
 # HTML parsing
-scraper = "0.20"
-html5ever = "0.28"
-markup5ever_rcdom = "0.35"
+scraper = "0.25"
+html5ever = "0.38"
+markup5ever_rcdom = "0.35"  # TODO: 0.36 conflicts with scraper's version
 
 # HTTP client
-reqwest = { version = "0.12", features = ["gzip", "json"] }
+reqwest = { version = "0.13", features = ["gzip", "json"] }
 
 # Database
 rusqlite = { version = "0.32", features = ["bundled"] }
@@ -31,7 +31,7 @@ serde_json = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 
 # Async runtime
-tokio = { version = "1.40", features = ["full"] }
+tokio = { version = "1.49", features = ["full"] }
 
 # Error handling
 anyhow = "1.0"
@@ -45,7 +45,7 @@ url = "2.5"
 async-trait = "0.1"
 
 [dev-dependencies]
-tempfile = "3.12"
+tempfile = "3.24"
 
 [features]
 default = []
