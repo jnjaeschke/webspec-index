@@ -72,6 +72,7 @@ jobs:
         shell: bash
         run: |
           pip install dist/*.whl
+          cd /tmp
           python -c "from webspec_index import query, search, exists; print('Import OK')"
           webspec-index --version
 

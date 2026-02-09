@@ -55,5 +55,6 @@ jobs:
         shell: bash
         run: |
           pip install dist/*.whl
+          cd /tmp
           python -c "from webspec_index import query, search, exists, anchors, list_headings, refs, update, clear_db; print('All imports OK')"
           webspec-index --version
