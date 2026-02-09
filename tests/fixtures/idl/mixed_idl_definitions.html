@@ -1,0 +1,14 @@
+<!-- Test fixture showing distinction between IDL and regular definitions -->
+<p>A <dfn id="regular-term">regular definition</dfn> is not IDL.</p>
+
+<pre class="idl"><c- b>interface</c-> <dfn data-dfn-type="interface" id="myinterface"><code>MyInterface</code></dfn> {
+  <c- g>constructor</c->();
+};
+</pre>
+
+<p>The <dfn id="another-term">another term</dfn> is also not IDL.</p>
+
+<pre class="idl"><c- b>dictionary</c-> <dfn data-dfn-type="dictionary" id="mydict"><code>MyDict</code></dfn> {
+  <c- b>boolean</c-> <c- g>flag</c->;
+};
+</pre>

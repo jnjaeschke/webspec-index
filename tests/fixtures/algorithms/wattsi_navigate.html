@@ -1,0 +1,28 @@
+<p>To <dfn id="navigate">navigate</dfn> a <a href="#navigable">navigable</a> <var>navigable</var> to a
+  <a href="https://url.spec.whatwg.org/#concept-url">URL</a> <var>url</var> using an optional <code>Document</code>-or-null <var>sourceDocument</var> (default null), with an optional <a href="#post-resource">POST
+  resource</a>, string, or null <var>documentResource</var> (default null), an optional boolean <var>exceptionsEnabled</var> (default false):</p>
+
+<ol>
+  <li><p>Let <var>sourceSnapshotParams</var> be the result of <a href="#snapshotting-source-snapshot-params">snapshotting source snapshot
+  params</a> given <var>sourceDocument</var>.</p></li>
+
+  <li><p><a href="#assert">Assert</a>: <var>documentResource</var> is null if and only if <var>response</var> is null.</p></li>
+
+  <li><p>Let <var>traverseQueue</var> be a new <a href="#session-history-traversal-queue">session history traversal queue</a>.</p></li>
+
+  <li><p>Append the following <a href="#session-history-traversal-queue-steps">session history traversal queue steps</a> to
+  <var>traverseQueue</var>:</p>
+
+    <ol>
+      <li><p>Let <var>changingNavigableContinuation</var> be the result of <a href="#starting-an-unload">starting an unload</a> given
+      <var>sourceSnapshotParams</var>.</p></li>
+
+      <li><p><a href="#queue-a-global-task">Queue a global task</a> on the <a href="#navigation-and-traversal-task-source">navigation and traversal task
+      source</a> given <var>navigable</var>'s <a href="#nav-window">active window</a> to run the remaining steps in
+      parallel.</p></li>
+    </ol>
+  </li>
+
+  <li><p><a href="#append-session-history-traversal-steps">Append session history traversal steps</a> to <var>traverseQueue</var> to
+  <a href="#finalize-a-cross-document-navigation">finalize a cross-document navigation</a> given <var>navigable</var>.</p></li>
+</ol>
