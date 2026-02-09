@@ -3,12 +3,29 @@
 import click
 import json
 import sys
-from . import query, search, exists, anchors, list_headings, refs, update, clear_db, __version__
+from . import (
+    query,
+    search,
+    exists,
+    anchors,
+    list_headings,
+    refs,
+    update,
+    clear_db,
+    __version__,
+)
 
 
 @click.group()
 @click.version_option(version=__version__)
-def cli():
+@click.option(
+    "--format",
+    type=click.Choice(["json", "markdown"]),
+    default="json",
+    help="Output format",
+)
+@click.pass_context
+def cli(ctx, format):
     """webspec-index: Query WHATWG/W3C web specifications
 
     Examples:
@@ -16,25 +33,26 @@ def cli():
       webspec-index search "tree order" --spec DOM
       webspec-index mcp  # Start MCP server for AI agents
     """
-    pass
+    ctx.ensure_object(dict)
+    ctx.obj["format"] = format
 
 
 @cli.command()
 @click.argument("spec_anchor")
 @click.option("--sha", help="Specific commit SHA to query")
-@click.option("--format", type=click.Choice(["json", "markdown"]), default="json")
-def query_cmd(spec_anchor, sha, format):
+@click.pass_context
+def query_cmd(ctx, spec_anchor, sha):
     """Query a specific section in a spec
 
     SPEC_ANCHOR format: SPEC#anchor (e.g., HTML#navigate)
     """
+    fmt = ctx.obj["format"]
     try:
         result = query(spec_anchor, sha)
-        if format == "json":
+        if fmt == "json":
             click.echo(json.dumps(result, indent=2))
         else:
-            # TODO: Implement markdown formatting
-            click.echo(json.dumps(result, indent=2))
+            click.echo(result.get("content", ""))
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -44,16 +62,17 @@ def query_cmd(spec_anchor, sha, format):
 @click.argument("query_text")
 @click.option("--spec", help="Limit search to specific spec")
 @click.option("--limit", type=int, default=20, help="Maximum results")
-@click.option("--format", type=click.Choice(["json", "markdown"]), default="json")
-def search_cmd(query_text, spec, limit, format):
+@click.pass_context
+def search_cmd(ctx, query_text, spec, limit):
     """Search for text across all specs"""
+    fmt = ctx.obj["format"]
     try:
         result = search(query_text, spec, limit)
-        if format == "json":
+        if fmt == "json":
             click.echo(json.dumps(result, indent=2))
         else:
-            # TODO: Implement markdown formatting
-            click.echo(json.dumps(result, indent=2))
+            for entry in result.get("results", []):
+                click.echo(entry.get("snippet", ""))
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -90,12 +109,13 @@ def anchors_cmd(pattern, spec, limit):
 @cli.command()
 @click.argument("spec")
 @click.option("--sha", help="Specific commit SHA to query")
-@click.option("--format", type=click.Choice(["json", "markdown"]), default="json")
-def list_cmd(spec, sha, format):
+@click.pass_context
+def list_cmd(ctx, spec, sha):
     """List all headings in a spec"""
+    fmt = ctx.obj["format"]
     try:
         headings = list_headings(spec, sha)
-        if format == "json":
+        if fmt == "json":
             click.echo(json.dumps(headings, indent=2))
         else:
             # TODO: Implement markdown tree formatting
@@ -110,18 +130,21 @@ def list_cmd(spec, sha, format):
 
 @cli.command()
 @click.argument("spec_anchor")
-@click.option("--direction", type=click.Choice(["incoming", "outgoing", "both"]), default="both")
+@click.option(
+    "--direction", type=click.Choice(["incoming", "outgoing", "both"]), default="both"
+)
 @click.option("--sha", help="Specific commit SHA to query")
-@click.option("--format", type=click.Choice(["json", "markdown"]), default="json")
-def refs_cmd(spec_anchor, direction, sha, format):
+@click.pass_context
+def refs_cmd(ctx, spec_anchor, direction, sha):
     """Get references for a section"""
+    fmt = ctx.obj["format"]
     try:
         result = refs(spec_anchor, direction, sha)
-        if format == "json":
+        if fmt == "json":
             click.echo(json.dumps(result, indent=2))
         else:
-            # TODO: Implement markdown formatting
-            click.echo(json.dumps(result, indent=2))
+            for r in result.get("outgoing", []) + result.get("incoming", []):
+                click.echo(f"{r['spec']}#{r['anchor']}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

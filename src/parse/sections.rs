@@ -1168,4 +1168,44 @@ mod tests {
             "Should NOT include parameter dfn containing <var>"
         );
     }
+
+    #[test]
+    fn test_property_dfns_with_dfn_for_and_dfn_type_kept() {
+        // dfns with data-dfn-for AND data-dfn-type="dfn" are property definitions,
+        // not parameters. They should be indexed.
+        // Real example from DOM spec: <dfn data-dfn-for="tree" data-dfn-type="dfn" id="concept-tree-parent">parent</dfn>
+        let html = r#"
+            <h2 id="trees">Trees</h2>
+            <p>An object that <dfn class="dfn-paneled" data-dfn-type="dfn" data-export id="concept-tree">participates</dfn>
+            in a tree has a <dfn class="dfn-paneled" data-dfn-for="tree" data-dfn-type="dfn" data-export id="concept-tree-parent">parent</dfn>,
+            which is either null or an object, and has
+            <dfn class="dfn-paneled" data-dfn-for="tree" data-dfn-type="dfn" data-export id="concept-tree-child">children</dfn>,
+            which is an ordered set of objects.</p>
+        "#;
+
+        let converter = crate::parse::markdown::build_converter("https://test.example.com");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("dfn[id]").unwrap();
+
+        let mut sections = Vec::new();
+        for element in document.select(&selector) {
+            if let Some(section) = parse_dfn_element(&element, &converter).unwrap() {
+                sections.push(section);
+            }
+        }
+
+        let anchors: Vec<_> = sections.iter().map(|s| s.anchor.as_str()).collect();
+        assert!(
+            anchors.contains(&"concept-tree"),
+            "Should include dfn without data-dfn-for"
+        );
+        assert!(
+            anchors.contains(&"concept-tree-parent"),
+            "Should include property dfn with data-dfn-for + data-dfn-type"
+        );
+        assert!(
+            anchors.contains(&"concept-tree-child"),
+            "Should include property dfn with data-dfn-for + data-dfn-type"
+        );
+    }
 }
