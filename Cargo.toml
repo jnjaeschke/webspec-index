@@ -3,11 +3,19 @@ name = "webspec-index"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "webspec_index"
+crate-type = ["cdylib", "rlib"]  # cdylib for Python, rlib for Rust/tests
+
 [dependencies]
+# PyO3 for Python bindings
+pyo3 = { version = "0.28", features = ["extension-module"], optional = true }
+
+# Core dependencies
 # HTML parsing
 scraper = "0.20"
 html5ever = "0.28"
-markup5ever_rcdom = "0.35.0+unofficial"
+markup5ever_rcdom = "0.35"
 
 # HTTP client
 reqwest = { version = "0.12", features = ["gzip", "json"] }
@@ -38,3 +46,18 @@ async-trait = "0.1"
 
 [dev-dependencies]
 tempfile = "3.12"
+
+[features]
+default = []
+extension-module = ["pyo3/extension-module"]
+
+[package.metadata.release]
+# Disable publishing to crates.io (we publish to PyPI via maturin)
+publish = false
+# Pre-release: build and test the wheel
+pre-release-hook = ["uv", "run", "maturin", "build", "--release"]
+# Commit and tag settings
+pre-release-commit-message = "Release v{{version}}"
+tag-message = "Release v{{version}}"
+tag-name = "v{{version}}"
+tag-prefix = "v"
