@@ -129,11 +129,10 @@ jobs:
       - name: List distributions
         run: ls -lh dist/
 
+      - uses: astral-sh/setup-uv@v5
+
       - name: Publish to PyPI
-        uses: PyO3/maturin-action@v1
-        with:
-          command: upload
-          args: --skip-existing dist/*
+        run: uv publish dist/*
 
   # Create GitHub Release
   github-release:
