@@ -17,13 +17,36 @@ pub mod python;
 
 use anyhow::Result;
 
-/// Parse a spec#anchor string into (spec, anchor) tuple
+/// Parse a spec#anchor string or full URL into (spec, anchor) tuple
 pub fn parse_spec_anchor(input: &str) -> Result<(String, String)> {
+    // Try URL first
+    if input.starts_with("http://") || input.starts_with("https://") {
+        let registry = spec_registry::SpecRegistry::new();
+        if let Some((spec, anchor)) = registry.resolve_url(input) {
+            return Ok((spec, anchor));
+        }
+        anyhow::bail!("URL not recognized as a known spec: {input}");
+    }
+
+    // Fall back to SPEC#anchor
     let parts: Vec<&str> = input.split('#').collect();
     if parts.len() != 2 {
-        anyhow::bail!("Invalid format. Expected SPEC#anchor (e.g., HTML#navigate)");
+        anyhow::bail!("Invalid format. Expected SPEC#anchor or a full spec URL");
     }
     Ok((parts[0].to_string(), parts[1].to_string()))
+}
+
+/// Return the list of known spec base URLs
+pub fn spec_urls() -> Vec<model::SpecUrlEntry> {
+    let registry = spec_registry::SpecRegistry::new();
+    registry
+        .list_all_specs()
+        .into_iter()
+        .map(|s| model::SpecUrlEntry {
+            spec: s.name.to_string(),
+            base_url: s.base_url.to_string(),
+        })
+        .collect()
 }
 
 /// Query a specific section in a specification
@@ -470,4 +493,53 @@ pub fn clear_database() -> Result<String> {
 
     std::fs::remove_file(&db_path)?;
     Ok(db_path.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_spec_anchor_classic_format() {
+        let (spec, anchor) = parse_spec_anchor("HTML#navigate").unwrap();
+        assert_eq!(spec, "HTML");
+        assert_eq!(anchor, "navigate");
+    }
+
+    #[test]
+    fn parse_spec_anchor_url_format() {
+        let (spec, anchor) =
+            parse_spec_anchor("https://html.spec.whatwg.org/#navigate").unwrap();
+        assert_eq!(spec, "HTML");
+        assert_eq!(anchor, "navigate");
+    }
+
+    #[test]
+    fn parse_spec_anchor_url_dom() {
+        let (spec, anchor) =
+            parse_spec_anchor("https://dom.spec.whatwg.org/#concept-tree").unwrap();
+        assert_eq!(spec, "DOM");
+        assert_eq!(anchor, "concept-tree");
+    }
+
+    #[test]
+    fn parse_spec_anchor_unknown_url() {
+        let result = parse_spec_anchor("https://example.com/#foo");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_spec_anchor_invalid() {
+        let result = parse_spec_anchor("no-hash");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn spec_urls_returns_entries() {
+        let urls = spec_urls();
+        assert!(!urls.is_empty());
+        let html = urls.iter().find(|e| e.spec == "HTML");
+        assert!(html.is_some());
+        assert_eq!(html.unwrap().base_url, "https://html.spec.whatwg.org");
+    }
 }

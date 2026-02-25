@@ -138,6 +138,15 @@ fn update(spec: Option<String>, force: bool) -> PyResult<String> {
     to_py_result(result)
 }
 
+/// Return the list of known spec base URLs
+///
+/// Returns:
+///     str: JSON string with list of {spec, base_url} entries
+#[pyfunction]
+fn spec_urls() -> PyResult<String> {
+    to_py_result(Ok(crate::spec_urls()))
+}
+
 /// Clear the database (remove all indexed data)
 ///
 /// Returns:
@@ -157,6 +166,7 @@ fn _webspec_index(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(list_headings, m)?)?;
     m.add_function(wrap_pyfunction!(refs, m)?)?;
     m.add_function(wrap_pyfunction!(update, m)?)?;
+    m.add_function(wrap_pyfunction!(spec_urls, m)?)?;
     m.add_function(wrap_pyfunction!(clear_db, m)?)?;
     Ok(())
 }

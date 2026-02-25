@@ -29,6 +29,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+lsp = [
+    "pygls>=2.0",
+]
 dev = [
     "pytest>=7.0",
     "black>=23.0",

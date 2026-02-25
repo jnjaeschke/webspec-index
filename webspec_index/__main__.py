@@ -11,6 +11,7 @@ from . import (
     list_headings,
     refs,
     update,
+    spec_urls,
     clear_db,
     __version__,
 )
@@ -179,6 +180,38 @@ def clear_db_cmd(yes):
         click.echo(f"Database cleared: {path}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command()
+def specs():
+    """List all known spec base URLs"""
+    for entry in spec_urls():
+        click.echo(f"{entry['spec']}\t{entry['base_url']}")
+
+
+@cli.command()
+@click.option("--stdio", is_flag=True, default=False, hidden=True,
+              help="Use stdio transport (default, accepted for LSP client compatibility).")
+def lsp(**_kwargs):
+    """Start Language Server Protocol server
+
+    Communicates over stdio. Used by editor extensions.
+
+    Installation:
+      # VSCode: install the spec-lens extension
+      # Neovim: vim.lsp.start({ cmd = { "webspec-index", "lsp" } })
+    """
+    try:
+        from .lsp import start_server
+        start_server()
+    except ImportError as e:
+        click.echo(
+            "LSP dependencies not installed. Install with:\n"
+            "  pip install 'webspec-index[lsp]'\n"
+            f"\nMissing: {e}",
+            err=True,
+        )
         sys.exit(1)
 
 

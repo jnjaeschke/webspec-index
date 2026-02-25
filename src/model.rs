@@ -164,6 +164,13 @@ pub struct ListEntry {
     pub parent: Option<String>,
 }
 
+/// JSON output for spec_urls command
+#[derive(Debug, Serialize)]
+pub struct SpecUrlEntry {
+    pub spec: String,
+    pub base_url: String,
+}
+
 /// JSON output for refs command
 #[derive(Debug, Serialize)]
 pub struct RefsResult {

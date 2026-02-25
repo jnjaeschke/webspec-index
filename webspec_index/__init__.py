@@ -17,6 +17,7 @@ from ._webspec_index import (
     list_headings as _list_headings,
     refs as _refs,
     update as _update,
+    spec_urls as _spec_urls,
     clear_db as _clear_db,
 )
 
@@ -35,6 +36,7 @@ __all__ = [
     "list_headings",
     "refs",
     "update",
+    "spec_urls",
     "clear_db",
 ]
 
@@ -184,6 +186,20 @@ def update(spec: Optional[str] = None, force: bool = False) -> dict:
         ...         print(f"{spec_name} already up to date")
     """
     return _parse_json(_update(spec, force))
+
+
+def spec_urls() -> list[dict]:
+    """Return known spec base URLs
+
+    Returns:
+        List of dicts with spec name and base URL
+
+    Example:
+        >>> urls = spec_urls()
+        >>> for s in urls:
+        ...     print(f"{s['spec']}: {s['base_url']}")
+    """
+    return _parse_json(_spec_urls())
 
 
 def clear_db() -> str:

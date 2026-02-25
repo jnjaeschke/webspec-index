@@ -1,0 +1,7 @@
+{
+  "spec": "HTML",
+  "anchor": "navigate",
+  "title": "navigate",
+  "type": "Algorithm",
+  "content": "1. Let *cspNavigationType* be \"`form-submission`\" if *formDataEntryList* is non-null; otherwise \"`other`\".\n2. Let *sourceSnapshotParams* be the result of snapshotting source snapshot params given *sourceDocument*.\n3. If *url* is `about:blank`, then return.\n4. If *url*'s scheme is `javascript`, then set *historyHandling* to \"`replace`\".\n5. If *sourceDocument*'s node navigable is not *navigable*, then:\n\n    1. Assert: *userInvolvement* is \"`browser UI`\".\n    2. Set *sourceDocument* to null."
+}

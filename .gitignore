@@ -4,3 +4,6 @@ uv.lock
 
 *.pyc
 *.so
+__pycache__
+.pytest_cache
+

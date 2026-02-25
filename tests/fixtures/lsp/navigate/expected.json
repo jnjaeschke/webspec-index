@@ -1,0 +1,16 @@
+{
+  "hovers": [
+    {"line": 0, "col": 5, "contains": "navigate"}
+  ],
+  "validations": [
+    {"line": 2, "step": [1], "result": "fuzzy"},
+    {"line": 5, "step": [2], "result": "fuzzy"},
+    {"line": 8, "step": [3], "result": "exact"},
+    {"line": 13, "step": [99], "result": "not_found"}
+  ],
+  "coverage": {
+    "total": 7,
+    "implemented": 3,
+    "missing": [[4], [5], [5, 1], [5, 2]]
+  }
+}
