@@ -467,6 +467,32 @@ mod tests {
     }
 
     #[test]
+    fn test_cross_spec_reference_to_tc39() {
+        let html = r##"
+            <h2 id="section1">Section 1</h2>
+            <p>Call <a href="https://tc39.es/ecma262/#sec-tostring">ToString</a>.</p>
+        "##;
+
+        let sections = vec![ParsedSection {
+            anchor: "section1".to_string(),
+            title: Some("Section 1".to_string()),
+            content_text: None,
+            section_type: SectionType::Heading,
+            parent_anchor: None,
+            prev_anchor: None,
+            next_anchor: None,
+            depth: Some(2),
+        }];
+
+        let registry = SpecRegistry::new();
+        let refs = extract_references(html, "TEST", &sections, &registry);
+
+        assert_eq!(refs.len(), 1);
+        assert_eq!(refs[0].to_spec, "ECMA-262");
+        assert_eq!(refs[0].to_anchor, "sec-tostring");
+    }
+
+    #[test]
     fn test_duplicate_refs_deduplicated() {
         // Same anchor linked multiple times from the same section → single ref
         let html = r##"

@@ -1,3 +1,4 @@
+pub mod tc39;
 pub mod w3c;
 pub mod whatwg;
 

@@ -38,6 +38,11 @@ pub fn render_algorithm_ol(ol_element: &ElementRef, converter: &HtmlToMarkdown) 
 }
 
 /// Recursively render a `<li>` element with simple numbering (markdown handles hierarchy via indentation)
+///
+/// Collects inline content (text, `<var>`, `<emu-xref>`, `<p>`, etc.) into HTML chunks
+/// and converts each chunk to markdown in one pass. This prevents inline elements from
+/// being broken across lines. Nested `<ol>`/`<ul>` are rendered separately with proper
+/// indentation.
 fn render_li_recursive(
     li: &ElementRef,
     numbering: &[usize],
@@ -47,23 +52,34 @@ fn render_li_recursive(
     let mut result = String::new();
 
     // Add indentation (4 spaces per level for markdown list continuation)
-    // This makes markdown parsers treat nested items as part of the parent list
     for _ in 0..indent {
         result.push_str("    ");
     }
 
-    // Add step number - just the current level number (markdown auto-numbers based on indentation)
+    // Add step number
     let step_num = numbering.last().unwrap_or(&1);
     result.push_str(&format!("{}. ", step_num));
 
-    // Process children in document order, preserving structure
-    let mut first_content = true;
+    // Process children in document order. Accumulate inline/block content HTML into a
+    // buffer, flush it when we hit a nested list, then render the list recursively.
+    let mut content_html = String::new();
+    let mut first_chunk = true;
+
     for child in li.children() {
         if let Some(child_element) = ElementRef::wrap(child) {
             let tag_name = child_element.value().name();
 
             if tag_name == "ol" {
-                // Nested numbered list - add blank line before for markdown recognition
+                // Flush accumulated content before the nested list
+                flush_content_html(
+                    &mut result,
+                    &mut content_html,
+                    &mut first_chunk,
+                    indent,
+                    converter,
+                );
+
+                // Nested numbered list
                 result.push_str("\n\n");
                 let mut sub_step = 1;
                 for sub_child in child_element.children() {
@@ -81,43 +97,77 @@ fn render_li_recursive(
                         }
                     }
                 }
-                first_content = false;
             } else if tag_name == "ul" {
-                // Nested bullet list - add blank line before for markdown recognition
+                flush_content_html(
+                    &mut result,
+                    &mut content_html,
+                    &mut first_chunk,
+                    indent,
+                    converter,
+                );
+
                 result.push_str("\n\n");
                 result.push_str(&render_ul(&child_element, indent + 1, converter));
-                first_content = false;
             } else {
-                // Regular content (p, div, etc.)
-                let elem_md = converter
-                    .convert(&child_element.html())
-                    .unwrap_or_default()
-                    .trim()
-                    .to_string();
-
-                if !elem_md.is_empty() {
-                    if first_content {
-                        result.push_str(&elem_md);
-                        first_content = false;
-                    } else {
-                        // Continuation content needs indentation to stay part of list item
-                        result.push_str("\n\n");
-                        let indented = indent_lines(&elem_md, indent + 1);
-                        result.push_str(&indented);
-                    }
-                    result.push('\n');
-                }
+                // Accumulate element HTML (p, var, emu-xref, div, span, etc.)
+                content_html.push_str(&child_element.html());
             }
         } else if let Node::Text(text) = child.value() {
-            let trimmed = text.trim();
-            if !trimmed.is_empty() {
-                result.push_str(trimmed);
-                result.push(' ');
-            }
+            content_html.push_str(text);
         }
     }
 
+    // Flush any remaining content
+    flush_content_html(
+        &mut result,
+        &mut content_html,
+        &mut first_chunk,
+        indent,
+        converter,
+    );
+
+    // Ensure the step ends with a newline
+    if !result.ends_with('\n') {
+        result.push('\n');
+    }
+
     result
+}
+
+/// Convert accumulated HTML content to markdown and append to the result.
+/// First chunk goes inline with the step number; subsequent chunks get continuation indentation.
+fn flush_content_html(
+    result: &mut String,
+    content_html: &mut String,
+    first_chunk: &mut bool,
+    indent: usize,
+    converter: &HtmlToMarkdown,
+) {
+    if content_html.trim().is_empty() {
+        content_html.clear();
+        return;
+    }
+
+    let md = converter
+        .convert(content_html)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    content_html.clear();
+
+    if md.is_empty() {
+        return;
+    }
+
+    if *first_chunk {
+        result.push_str(&md);
+        *first_chunk = false;
+    } else {
+        // Continuation content after a nested list needs indentation
+        result.push_str("\n\n");
+        let indented = indent_lines(&md, indent + 1);
+        result.push_str(&indented);
+    }
 }
 
 /// Indent every line of a multi-line string with N levels of 4-space indentation
@@ -343,8 +393,12 @@ mod tests {
         assert!(result.contains("2. Second step"));
         assert!(result.contains("3. Third step"));
 
-        // Note should be formatted as blockquote with prefix and indented (continuation content)
-        assert!(result.contains("    > **Note:** This is a note between steps."));
+        // Note should be formatted as blockquote with prefix
+        assert!(
+            result.contains("> **Note:** This is a note between steps."),
+            "Note should be a blockquote: {}",
+            result
+        );
 
         // Third step should start on a new line after the blockquote
         let lines: Vec<&str> = result.lines().collect();

@@ -1,5 +1,5 @@
 use crate::model::SpecInfo;
-use crate::provider::{w3c::W3cProvider, whatwg::WhatwgProvider, SpecProvider};
+use crate::provider::{tc39::Tc39Provider, w3c::W3cProvider, whatwg::WhatwgProvider, SpecProvider};
 use anyhow::Result;
 
 /// Top-level registry that routes to appropriate providers
@@ -10,7 +10,11 @@ pub struct SpecRegistry {
 impl SpecRegistry {
     pub fn new() -> Self {
         Self {
-            providers: vec![Box::new(WhatwgProvider), Box::new(W3cProvider)],
+            providers: vec![
+                Box::new(WhatwgProvider),
+                Box::new(W3cProvider),
+                Box::new(Tc39Provider),
+            ],
         }
     }
 

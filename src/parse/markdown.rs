@@ -86,10 +86,45 @@ pub fn build_converter(base_url: &str) -> HtmlToMarkdown {
             }
             Some(format!("**{}**", content).into())
         })
-        // <span>: strip secno, keep everything else
+        // ecmarkup (TC39) custom elements: treat as transparent inline wrappers.
+        // Without this, htmd treats them as block elements and inserts newlines
+        // that destroy algorithm step formatting.
+        .add_handler(
+            vec![
+                "emu-xref",
+                "emu-val",
+                "emu-const",
+                "emu-alg",
+                "emu-eqn",
+                "emu-grammar",
+                "emu-production",
+                "emu-nt",
+                "emu-t",
+                "emu-rhs",
+                "emu-geq",
+                "emu-mods",
+                "emu-opt",
+                "emu-table",
+                "emu-figure",
+                "emu-import",
+            ],
+            |handlers: &dyn Handlers, element: Element| {
+                Some(handlers.walk_children(element.node))
+            },
+        )
+        // ecmarkup notes: render as blockquotes
+        .add_handler(vec!["emu-note"], |handlers: &dyn Handlers, element: Element| {
+            let content = handlers.walk_children(element.node).content;
+            Some(to_blockquote(&content, "**Note:** ").into())
+        })
+        // <span>: strip section number spans (secno/secnum) and note labels, keep everything else
         .add_handler(vec!["span"], |handlers: &dyn Handlers, element: Element| {
             for attr in element.attrs.iter() {
-                if *attr.name.local == *"class" && has_class(&attr.value, "secno") {
+                if *attr.name.local == *"class"
+                    && (has_class(&attr.value, "secno")
+                        || has_class(&attr.value, "secnum")
+                        || has_class(&attr.value, "note"))
+                {
                     return None;
                 }
             }

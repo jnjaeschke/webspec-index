@@ -60,9 +60,13 @@ fn extract_heading_title(element: &scraper::ElementRef) -> Option<String> {
 
     for node in element.children() {
         if let Some(elem) = scraper::ElementRef::wrap(node) {
-            // Skip <span class="secno"> and <a class="self-link">
+            // Skip section number spans and self-links:
+            // - "secno" (Bikeshed/Wattsi), "secnum" (ecmarkup/TC39), "self-link"
             let classes = elem.value().classes().collect::<Vec<_>>();
-            if classes.contains(&"secno") || classes.contains(&"self-link") {
+            if classes.contains(&"secno")
+                || classes.contains(&"secnum")
+                || classes.contains(&"self-link")
+            {
                 continue;
             }
             // Get text from other elements (like <span class="content">)
@@ -322,6 +326,138 @@ fn extract_idl_content(element: &scraper::ElementRef) -> Option<String> {
     }
 
     None
+}
+
+/// Parse an ecmarkup `<emu-clause>` or `<emu-annex>` element into a ParsedSection.
+/// TC39 specs use these custom elements instead of standard headings.
+/// The section ID is on the emu-clause, with an `<h1>` child containing the title.
+pub fn parse_emu_clause_element(
+    element: &scraper::ElementRef,
+    converter: &HtmlToMarkdown,
+) -> Result<Option<ParsedSection>> {
+    let anchor = match element.value().attr("id") {
+        Some(id) => id.to_string(),
+        None => return Ok(None),
+    };
+
+    // Find the direct <h1> child to extract title and depth
+    let h1 = element
+        .children()
+        .filter_map(scraper::ElementRef::wrap)
+        .find(|c| c.value().name() == "h1");
+
+    let (title, depth) = match h1 {
+        Some(h1_elem) => {
+            let title = extract_heading_title(&h1_elem);
+            let depth = extract_secnum_depth(&h1_elem);
+            (title, depth)
+        }
+        None => (None, None),
+    };
+
+    // Classify: if the emu-clause has a type attribute, it's an algorithm-like operation
+    let section_type = if element.value().attr("type").is_some() {
+        SectionType::Algorithm
+    } else {
+        SectionType::Heading
+    };
+
+    let content_text = extract_emu_clause_content(element, converter);
+
+    Ok(Some(ParsedSection {
+        anchor,
+        title,
+        content_text,
+        section_type,
+        parent_anchor: None,
+        prev_anchor: None,
+        next_anchor: None,
+        depth,
+    }))
+}
+
+/// Extract the depth from a secnum span inside a heading.
+/// Parses `<span class="secnum">7.1.17</span>` → count parts → depth = parts + 1.
+/// Returns None if no secnum is found.
+fn extract_secnum_depth(heading: &scraper::ElementRef) -> Option<u8> {
+    for child in heading.children() {
+        if let Some(elem) = scraper::ElementRef::wrap(child) {
+            let classes: Vec<_> = elem.value().classes().collect();
+            if classes.contains(&"secnum") {
+                let text = elem.text().collect::<String>();
+                let text = text.trim();
+                if text.is_empty() {
+                    return None;
+                }
+                // Count parts: "7" → 1 part, "7.1" → 2 parts, "7.1.17" → 3 parts
+                let parts = text.split('.').count();
+                // Depth = parts + 1 to match h2=2 convention (top-level = depth 2)
+                return Some((parts + 1).min(255) as u8);
+            }
+        }
+    }
+    None
+}
+
+/// Extract content from an ecmarkup emu-clause element.
+/// Unlike standard headings where content is between siblings, emu-clause content
+/// is nested inside the element as children. We skip the h1 (title) and child
+/// emu-clause/emu-annex elements (sub-sections).
+fn extract_emu_clause_content(
+    element: &scraper::ElementRef,
+    converter: &HtmlToMarkdown,
+) -> Option<String> {
+    use super::{algorithms, markdown};
+
+    let mut intro_html = String::new();
+    let mut algo_steps: Option<String> = None;
+
+    for child in element.children() {
+        if let Some(child_elem) = scraper::ElementRef::wrap(child) {
+            let tag = child_elem.value().name();
+
+            // Skip title heading and sub-sections
+            if tag == "h1"
+                || tag == "emu-clause"
+                || tag == "emu-annex"
+                || tag == "emu-import"
+            {
+                continue;
+            }
+
+            // For emu-alg, use the dedicated algorithm renderer on its inner <ol>
+            if tag == "emu-alg" {
+                if let Some(ol) = child_elem
+                    .children()
+                    .filter_map(scraper::ElementRef::wrap)
+                    .find(|c| c.value().name() == "ol")
+                {
+                    algo_steps = Some(algorithms::render_algorithm_ol(&ol, converter));
+                }
+                continue;
+            }
+
+            // Skip legacy ID spans (empty <span id="...">)
+            if tag == "span" && child_elem.value().attr("id").is_some() {
+                let text = child_elem.text().collect::<String>();
+                if text.trim().is_empty() {
+                    continue;
+                }
+            }
+
+            intro_html.push_str(&child_elem.html());
+        }
+    }
+
+    let intro = markdown::element_to_markdown_from_html(&intro_html, converter);
+    let intro = intro.trim();
+
+    match (intro.is_empty(), algo_steps) {
+        (true, None) => None,
+        (true, Some(steps)) => Some(steps),
+        (false, None) => Some(intro.to_string()),
+        (false, Some(steps)) => Some(format!("{}\n\n{}", intro, steps)),
+    }
 }
 
 /// Collect all ID'd headings from HTML
@@ -1267,6 +1403,291 @@ mod tests {
         assert!(
             !anchors.contains(&"dom-audiodecoder-configure-config"),
             "Argument should be skipped"
+        );
+    }
+
+    // -- TC39/ecmarkup emu-clause tests --
+
+    #[test]
+    fn test_emu_clause_prose_section() {
+        let html = r#"
+            <emu-clause id="sec-overview">
+                <h1><span class="secnum">4</span> Overview</h1>
+                <p>This section contains a non-normative overview of the ECMAScript language.</p>
+            </emu-clause>
+        "#;
+
+        let converter = crate::parse::markdown::build_converter("https://tc39.es/ecma262");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("emu-clause[id]").unwrap();
+        let element = document.select(&selector).next().unwrap();
+
+        let section = parse_emu_clause_element(&element, &converter)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(section.anchor, "sec-overview");
+        assert_eq!(section.title, Some("Overview".to_string()));
+        assert_eq!(section.depth, Some(2)); // "4" = 1 part → depth 2
+        assert_eq!(section.section_type, SectionType::Heading);
+        assert!(section.content_text.is_some());
+        assert!(section
+            .content_text
+            .as_ref()
+            .unwrap()
+            .contains("non-normative overview"));
+    }
+
+    #[test]
+    fn test_emu_clause_algorithm_section() {
+        let html = r#"
+            <emu-clause id="sec-tostring" type="abstract operation" aoid="ToString">
+                <h1><span class="secnum">7.1.17</span> ToString ( <var>argument</var> )</h1>
+                <p>The abstract operation ToString converts argument to a String.</p>
+                <emu-alg>
+                    <ol>
+                        <li>If <var>argument</var> is a String, return <var>argument</var>.</li>
+                        <li>If <var>argument</var> is <emu-val>undefined</emu-val>, return "undefined".</li>
+                        <li>If <var>argument</var> is <emu-val>null</emu-val>, return "null".</li>
+                    </ol>
+                </emu-alg>
+            </emu-clause>
+        "#;
+
+        let converter = crate::parse::markdown::build_converter("https://tc39.es/ecma262");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("emu-clause[id]").unwrap();
+        let element = document.select(&selector).next().unwrap();
+
+        let section = parse_emu_clause_element(&element, &converter)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(section.anchor, "sec-tostring");
+        assert_eq!(
+            section.title,
+            Some("ToString ( argument )".to_string())
+        );
+        assert_eq!(section.depth, Some(4)); // "7.1.17" = 3 parts → depth 4
+        assert_eq!(section.section_type, SectionType::Algorithm);
+
+        let content = section.content_text.unwrap();
+        assert!(content.contains("converts argument"), "Should have intro prose");
+        assert!(content.contains("1."), "Should have algorithm steps");
+    }
+
+    #[test]
+    fn test_emu_clause_nested_sections_excluded_from_content() {
+        let html = r#"
+            <emu-clause id="sec-parent">
+                <h1><span class="secnum">23</span> Parent Section</h1>
+                <p>Intro text for the parent.</p>
+                <emu-clause id="sec-child">
+                    <h1><span class="secnum">23.1</span> Child Section</h1>
+                    <p>This should NOT appear in parent content.</p>
+                </emu-clause>
+            </emu-clause>
+        "#;
+
+        let converter = crate::parse::markdown::build_converter("https://tc39.es/ecma262");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("emu-clause[id]").unwrap();
+
+        let mut sections = Vec::new();
+        for element in document.select(&selector) {
+            if let Some(section) = parse_emu_clause_element(&element, &converter).unwrap() {
+                sections.push(section);
+            }
+        }
+
+        assert_eq!(sections.len(), 2);
+        assert_eq!(sections[0].anchor, "sec-parent");
+        assert_eq!(sections[1].anchor, "sec-child");
+
+        // Parent content should NOT include child section content
+        let parent_content = sections[0].content_text.as_ref().unwrap();
+        assert!(parent_content.contains("Intro text"));
+        assert!(!parent_content.contains("should NOT appear"));
+    }
+
+    #[test]
+    fn test_secnum_depth_derivation() {
+        // Helper to quickly test depth extraction
+        fn depth_from_html(secnum: &str) -> Option<u8> {
+            let html = format!(
+                r#"<h1><span class="secnum">{}</span> Title</h1>"#,
+                secnum
+            );
+            let document = Html::parse_document(&html);
+            let selector = Selector::parse("h1").unwrap();
+            let h1 = document.select(&selector).next().unwrap();
+            extract_secnum_depth(&h1)
+        }
+
+        assert_eq!(depth_from_html("4"), Some(2)); // 1 part → depth 2
+        assert_eq!(depth_from_html("4.3"), Some(3)); // 2 parts → depth 3
+        assert_eq!(depth_from_html("7.1.17"), Some(4)); // 3 parts → depth 4
+        assert_eq!(depth_from_html("23.1.3.30"), Some(5)); // 4 parts → depth 5
+        assert_eq!(depth_from_html("A"), Some(2)); // annex, 1 part
+        assert_eq!(depth_from_html("A.1"), Some(3)); // annex sub
+        assert_eq!(depth_from_html("A.1.2"), Some(4)); // annex deep
+    }
+
+    #[test]
+    fn test_emu_clause_secnum_stripped_from_title() {
+        let html = r#"
+            <emu-clause id="sec-test">
+                <h1><span class="secnum">7.1.17</span> ToString ( <var>argument</var> )</h1>
+            </emu-clause>
+        "#;
+
+        let converter = crate::parse::markdown::build_converter("https://tc39.es/ecma262");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("emu-clause[id]").unwrap();
+        let element = document.select(&selector).next().unwrap();
+
+        let section = parse_emu_clause_element(&element, &converter)
+            .unwrap()
+            .unwrap();
+
+        // Title should not contain "7.1.17"
+        let title = section.title.unwrap();
+        assert!(!title.contains("7.1.17"), "secnum should be stripped: {}", title);
+        assert!(title.contains("ToString"), "Title should have function name: {}", title);
+    }
+
+    #[test]
+    fn test_emu_annex_parsed() {
+        let html = r#"
+            <emu-annex id="sec-additional-built-in-properties">
+                <h1><span class="secnum">B</span> Additional Built-in Properties</h1>
+                <p>Annex content here.</p>
+            </emu-annex>
+        "#;
+
+        let converter = crate::parse::markdown::build_converter("https://tc39.es/ecma262");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("emu-annex[id]").unwrap();
+        let element = document.select(&selector).next().unwrap();
+
+        let section = parse_emu_clause_element(&element, &converter)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(section.anchor, "sec-additional-built-in-properties");
+        assert_eq!(section.title, Some("Additional Built-in Properties".to_string()));
+        assert_eq!(section.depth, Some(2)); // "B" = 1 part → depth 2
+    }
+
+    // -- Integration tests using real TC39 HTML fixtures --
+
+    #[test]
+    fn test_ecmarkup_fixture_tostring_algorithm() {
+        let html = include_str!("../../tests/fixtures/ecmarkup/tostring.html");
+        let converter = crate::parse::markdown::build_converter("https://tc39.es/ecma262");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("emu-clause[id]").unwrap();
+        let element = document.select(&selector).next().unwrap();
+
+        let section = parse_emu_clause_element(&element, &converter)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(section.anchor, "sec-tostring");
+        assert_eq!(section.title, Some("ToString ( argument )".to_string()));
+        assert_eq!(section.depth, Some(4)); // "7.1.17" = 3 parts → depth 4
+        assert_eq!(section.section_type, SectionType::Algorithm);
+
+        let content = section.content_text.as_ref().unwrap();
+
+        // Intro prose should be a single flowing paragraph
+        assert!(
+            content.contains("The abstract operation ToString takes argument *argument*"),
+            "Intro should have italic var: {}",
+            &content[..200]
+        );
+        assert!(
+            content.contains("[ECMAScript language value](https://tc39.es/ecma262#sec-ecmascript-language-types)"),
+            "emu-xref links should be inline markdown links"
+        );
+
+        // Algorithm steps should be numbered, one per line, no broken lines
+        assert!(
+            content.contains("1. If *argument* [is a String]("),
+            "Step 1 should be on a single line with inline link"
+        );
+        assert!(
+            content.contains("2. If *argument* [is a Symbol]("),
+            "Step 2 should follow immediately"
+        );
+        assert!(
+            content.contains("3. If *argument* is undefined, return \"undefined\"."),
+            "Step 3: emu-val should render inline"
+        );
+        assert!(
+            content.contains("10. Let *primValue* be ?"),
+            "Step 10 should have var and link inline"
+        );
+        assert!(
+            content.contains("10. Let *primValue*") && content.contains("[ToPrimitive]("),
+            "Step 10 should have ToPrimitive link"
+        );
+        assert!(
+            content.contains("12. Return ?") && content.contains("[ToString]("),
+            "Step 12 should have recursive call"
+        );
+
+        // Steps should be on individual lines, not broken across multiple lines
+        for i in 1..=12 {
+            let prefix = format!("{}. ", i);
+            let matches: Vec<_> = content.lines().filter(|l| {
+                let trimmed = l.trim_start();
+                trimmed.starts_with(&prefix) || (i >= 10 && trimmed.starts_with(&format!("{}.", i)))
+            }).collect();
+            assert!(
+                !matches.is_empty(),
+                "Step {} should appear on its own line",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn test_ecmarkup_fixture_undefined_type_prose() {
+        let html = include_str!("../../tests/fixtures/ecmarkup/undefined_type.html");
+        let converter = crate::parse::markdown::build_converter("https://tc39.es/ecma262");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("emu-clause[id]").unwrap();
+        let element = document.select(&selector).next().unwrap();
+
+        let section = parse_emu_clause_element(&element, &converter)
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(section.anchor, "sec-ecmascript-language-types-undefined-type");
+        assert_eq!(section.title, Some("The Undefined Type".to_string()));
+        assert_eq!(section.depth, Some(4)); // "6.1.1" = 3 parts → depth 4
+        assert_eq!(section.section_type, SectionType::Heading);
+
+        let content = section.content_text.as_ref().unwrap();
+
+        // Should be a single paragraph, no spurious newlines from emu-val
+        assert!(
+            content.contains("The Undefined type has exactly one value, called undefined."),
+            "emu-val should render inline as plain text: {}",
+            content
+        );
+        assert!(
+            content.contains("the value undefined."),
+            "Second emu-val should also be inline"
+        );
+        // Should be a single line (one paragraph)
+        let line_count = content.lines().count();
+        assert!(
+            line_count <= 2,
+            "Simple prose should be 1-2 lines, got {}: {}",
+            line_count,
+            content
         );
     }
 }
