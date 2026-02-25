@@ -1,3 +1,4 @@
+pub mod w3c;
 pub mod whatwg;
 
 use crate::model::SpecInfo;

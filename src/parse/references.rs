@@ -436,6 +436,37 @@ mod tests {
     }
 
     #[test]
+    fn test_cross_spec_reference_to_w3c() {
+        let html = r##"
+            <h2 id="section1">Section 1</h2>
+            <p>See <a href="https://drafts.csswg.org/selectors-4/#specificity">specificity</a>.</p>
+            <p>Also <a href="https://w3c.github.io/ServiceWorker/#service-worker-concept">SW</a>.</p>
+        "##;
+
+        let sections = vec![ParsedSection {
+            anchor: "section1".to_string(),
+            title: Some("Section 1".to_string()),
+            content_text: None,
+            section_type: SectionType::Heading,
+            parent_anchor: None,
+            prev_anchor: None,
+            next_anchor: None,
+            depth: Some(2),
+        }];
+
+        let registry = SpecRegistry::new();
+        let refs = extract_references(html, "TEST", &sections, &registry);
+
+        assert_eq!(refs.len(), 2);
+        assert!(refs
+            .iter()
+            .any(|r| r.to_spec == "CSS-SELECTORS" && r.to_anchor == "specificity"));
+        assert!(refs
+            .iter()
+            .any(|r| r.to_spec == "SERVICE-WORKERS" && r.to_anchor == "service-worker-concept"));
+    }
+
+    #[test]
     fn test_duplicate_refs_deduplicated() {
         // Same anchor linked multiple times from the same section → single ref
         let html = r##"

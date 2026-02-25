@@ -157,6 +157,12 @@ pub fn parse_dfn_element(
         return Ok(None);
     }
 
+    // Skip argument dfns (data-dfn-type="argument" in Bikeshed-generated specs)
+    // These are WebIDL function parameters, not standalone queryable concepts
+    if element.value().attr("data-dfn-type") == Some("argument") {
+        return Ok(None);
+    }
+
     // Extract text content (including nested elements like <code>)
     let title = element.text().collect::<String>().trim().to_string();
     let title = if title.is_empty() { None } else { Some(title) };
@@ -1206,6 +1212,61 @@ mod tests {
         assert!(
             anchors.contains(&"concept-tree-child"),
             "Should include property dfn with data-dfn-for + data-dfn-type"
+        );
+    }
+
+    #[test]
+    fn test_argument_dfns_skipped() {
+        // Bikeshed-generated W3C specs use data-dfn-type="argument" for function parameters.
+        // These should be skipped, while method/attribute/interface/constructor dfns are kept.
+        let html = r#"
+            <h2 id="api">API</h2>
+            <pre class="idl">
+                <dfn data-dfn-type="interface" id="audiodecoder"><code>AudioDecoder</code></dfn>
+                <dfn data-dfn-for="AudioDecoder" data-dfn-type="constructor" id="dom-audiodecoder-ctor"><code>AudioDecoder(init)</code></dfn>
+                <dfn data-dfn-for="AudioDecoder/AudioDecoder(init)" data-dfn-type="argument" id="dom-audiodecoder-ctor-init"><code>init</code></dfn>
+                <dfn data-dfn-for="AudioDecoder" data-dfn-type="method" id="dom-audiodecoder-configure"><code>configure(config)</code></dfn>
+                <dfn data-dfn-for="AudioDecoder/configure(config)" data-dfn-type="argument" id="dom-audiodecoder-configure-config"><code>config</code></dfn>
+                <dfn data-dfn-for="AudioDecoder" data-dfn-type="attribute" id="dom-audiodecoder-state"><code>state</code></dfn>
+            </pre>
+        "#;
+
+        let converter = crate::parse::markdown::build_converter("https://test.example.com");
+        let document = Html::parse_document(html);
+        let selector = Selector::parse("dfn[id]").unwrap();
+
+        let mut sections = Vec::new();
+        for element in document.select(&selector) {
+            if let Some(section) = parse_dfn_element(&element, &converter).unwrap() {
+                sections.push(section);
+            }
+        }
+
+        let anchors: Vec<_> = sections.iter().map(|s| s.anchor.as_str()).collect();
+
+        // Interface, constructor, method, attribute should be kept
+        assert!(anchors.contains(&"audiodecoder"), "Interface should be kept");
+        assert!(
+            anchors.contains(&"dom-audiodecoder-ctor"),
+            "Constructor should be kept"
+        );
+        assert!(
+            anchors.contains(&"dom-audiodecoder-configure"),
+            "Method should be kept"
+        );
+        assert!(
+            anchors.contains(&"dom-audiodecoder-state"),
+            "Attribute should be kept"
+        );
+
+        // Arguments should be skipped
+        assert!(
+            !anchors.contains(&"dom-audiodecoder-ctor-init"),
+            "Argument should be skipped"
+        );
+        assert!(
+            !anchors.contains(&"dom-audiodecoder-configure-config"),
+            "Argument should be skipped"
         );
     }
 }
