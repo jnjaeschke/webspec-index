@@ -7,3 +7,9 @@ uv.lock
 __pycache__
 .pytest_cache
 
+
+# VSCode extension
+editors/vscode/node_modules
+editors/vscode/out
+editors/vscode/*.vsix
+node_modules

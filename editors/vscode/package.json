@@ -1,0 +1,83 @@
+{
+  "name": "spec-lens",
+  "displayName": "spec-lens",
+  "description": "Hover WHATWG spec URLs to see section content, validate step comments against spec algorithms, and track implementation coverage.",
+  "version": "0.1.0",
+  "publisher": "jnjaeschke",
+  "license": "MIT",
+  "homepage": "https://github.com/jnjaeschke/webspec-index/tree/main/editors/vscode",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jnjaeschke/webspec-index",
+    "directory": "editors/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/jnjaeschke/webspec-index/issues"
+  },
+  "engines": {
+    "vscode": "^1.82.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "whatwg",
+    "spec",
+    "html",
+    "dom",
+    "web platform",
+    "lsp"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "specLens.showCoverage",
+        "title": "spec-lens: Show Algorithm Coverage"
+      }
+    ],
+    "configuration": {
+      "title": "spec-lens",
+      "properties": {
+        "specLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable the spec-lens LSP server."
+        },
+        "specLens.serverCommand": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": null,
+          "markdownDescription": "Command to start the LSP server (e.g. `[\"webspec-index\", \"lsp\"]`). Auto-detected if not set."
+        },
+        "specLens.fuzzyThreshold": {
+          "type": "number",
+          "default": 0.85,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "markdownDescription": "Jaro-Winkler similarity threshold for step matching. Lower values accept more variation. `1.0` = exact only, `0.85` = default."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "package": "npx @vscode/vsce package"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.2",
+    "@types/vscode": "^1.82.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.3.0"
+  }
+}
