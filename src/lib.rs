@@ -38,10 +38,10 @@ pub fn spec_urls() -> Vec<model::SpecUrlEntry> {
     let registry = spec_registry::SpecRegistry::new();
     registry
         .list_all_specs()
-        .into_iter()
+        .iter()
         .map(|s| model::SpecUrlEntry {
-            spec: s.name.to_string(),
-            base_url: s.base_url.to_string(),
+            spec: s.name().to_string(),
+            base_url: s.url().to_string(),
         })
         .collect()
 }
@@ -61,8 +61,7 @@ pub async fn query_section(spec_anchor: &str) -> Result<model::QueryResult> {
         .find_spec(&spec_name)
         .ok_or_else(|| anyhow::anyhow!("Unknown spec: {}", spec_name))?;
 
-    let provider = registry.get_provider(spec)?;
-    let snapshot_id = fetch::ensure_indexed(&conn, spec, provider).await?;
+    let snapshot_id = fetch::ensure_indexed(&conn, spec).await?;
 
     let snapshot_sha: String = conn.query_row(
         "SELECT sha FROM snapshots WHERE id = ?1",
@@ -158,8 +157,7 @@ pub async fn check_exists(spec_anchor: &str) -> Result<model::ExistsResult> {
         .ok_or_else(|| anyhow::anyhow!("Unknown spec: {}", spec_name))?;
 
     // Ensure latest indexed
-    let provider = registry.get_provider(spec)?;
-    let snapshot_id = fetch::ensure_indexed(&conn, spec, provider).await?;
+    let snapshot_id = fetch::ensure_indexed(&conn, spec).await?;
 
     // Check if section exists
     let section = db::queries::get_section(&conn, snapshot_id, &anchor)?;
@@ -301,7 +299,6 @@ pub fn search_sections(
 ///
 /// # Arguments
 /// * `spec` - Spec name
-/// * `sha` - Optional commit SHA for specific version
 ///
 /// # Returns
 /// Vector of `ListEntry` with heading hierarchy
@@ -313,8 +310,7 @@ pub async fn list_headings(spec: &str) -> Result<Vec<model::ListEntry>> {
         .find_spec(spec)
         .ok_or_else(|| anyhow::anyhow!("Unknown spec: {}", spec))?;
 
-    let provider = registry.get_provider(spec_info)?;
-    let snapshot_id = fetch::ensure_indexed(&conn, spec_info, provider).await?;
+    let snapshot_id = fetch::ensure_indexed(&conn, spec_info).await?;
 
     // Get all headings
     let headings = db::queries::list_headings(&conn, snapshot_id)?;
@@ -338,7 +334,6 @@ pub async fn list_headings(spec: &str) -> Result<Vec<model::ListEntry>> {
 /// # Arguments
 /// * `spec_anchor` - Format: "SPEC#anchor"
 /// * `direction` - "incoming", "outgoing", or "both"
-/// * `sha` - Optional commit SHA for specific version
 ///
 /// # Returns
 /// `RefsResult` with incoming and/or outgoing references
@@ -351,8 +346,7 @@ pub async fn get_references(spec_anchor: &str, direction: &str) -> Result<model:
         .find_spec(&spec_name)
         .ok_or_else(|| anyhow::anyhow!("Unknown spec: {}", spec_name))?;
 
-    let provider = registry.get_provider(spec)?;
-    let snapshot_id = fetch::ensure_indexed(&conn, spec, provider).await?;
+    let snapshot_id = fetch::ensure_indexed(&conn, spec).await?;
 
     // Get references based on direction
     let outgoing = if direction == "outgoing" || direction == "both" {
@@ -413,9 +407,7 @@ pub async fn update_specs(spec: Option<&str>, force: bool) -> Result<Vec<(String
         let spec_info = registry
             .find_spec(spec_name)
             .ok_or_else(|| anyhow::anyhow!("Unknown spec: {}", spec_name))?;
-        let provider = registry.get_provider(spec_info)?;
-
-        let snapshot_id = fetch::update_if_needed(&conn, spec_info, provider, force).await?;
+        let snapshot_id = fetch::update_if_needed(&conn, spec_info, force).await?;
         results.push((spec_name.to_string(), snapshot_id));
     } else {
         // Update all specs

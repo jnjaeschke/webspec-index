@@ -1,14 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// Static metadata for a spec
-#[derive(Debug, Clone)]
-pub struct SpecInfo {
-    pub name: &'static str,
-    pub base_url: &'static str,
-    pub provider: &'static str,
-    pub github_repo: &'static str,
-}
-
 /// Type of a section
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

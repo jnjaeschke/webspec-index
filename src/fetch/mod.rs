@@ -3,9 +3,8 @@ pub mod github;
 pub mod snapshot;
 
 use crate::db::{queries, write};
-use crate::model::SpecInfo;
 use crate::parse;
-use crate::provider::SpecProvider;
+use crate::provider::SpecAccess;
 use crate::spec_registry::SpecRegistry;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -17,13 +16,12 @@ use rusqlite::Connection;
 /// sharing a monorepo make at most one API call per 24h window.
 async fn get_latest_sha(
     conn: &Connection,
-    spec: &SpecInfo,
-    provider: &(dyn SpecProvider + Send + Sync),
+    spec: &dyn SpecAccess,
     force: bool,
 ) -> Result<(String, DateTime<Utc>)> {
     if !force {
         if let Some((sha, commit_date, checked_at)) =
-            queries::get_repo_sha_cache(conn, spec.github_repo)?
+            queries::get_repo_sha_cache(conn, spec.version_cache_key())?
         {
             let age = Utc::now().signed_duration_since(checked_at);
             if age.num_hours() < 24 {
@@ -33,8 +31,8 @@ async fn get_latest_sha(
     }
 
     // Cache miss or stale: call GitHub API and refresh the cache
-    let (sha, date) = provider.fetch_latest_version(spec).await?;
-    write::update_repo_sha_cache(conn, spec.github_repo, &sha, &date)?;
+    let (sha, date) = spec.fetch_latest_version().await?;
+    write::update_repo_sha_cache(conn, spec.version_cache_key(), &sha, &date)?;
     Ok((sha, date))
 }
 
@@ -42,15 +40,14 @@ async fn get_latest_sha(
 /// The SHA and date are provided by the caller (already fetched/cached).
 async fn do_index(
     conn: &Connection,
-    spec: &SpecInfo,
-    provider: &(dyn SpecProvider + Send + Sync),
+    spec: &dyn SpecAccess,
     sha: &str,
     date: &DateTime<Utc>,
 ) -> Result<i64> {
-    let html = provider.fetch_html(spec, sha).await?;
-    let parsed = parse::parse_spec(&html, spec.name, spec.base_url)?;
+    let html = spec.fetch_html(sha).await?;
+    let parsed = parse::parse_spec(&html, spec.name(), spec.url())?;
 
-    let spec_id = write::insert_or_get_spec(conn, spec.name, spec.base_url, spec.provider)?;
+    let spec_id = write::insert_or_get_spec(conn, spec.name(), spec.url(), spec.provider())?;
     write::delete_spec_data(conn, spec_id)?;
 
     let snapshot_id = write::insert_snapshot(conn, spec_id, sha, &date.to_rfc3339())?;
@@ -65,18 +62,14 @@ async fn do_index(
 /// On every call, checks the repo-level SHA cache (24h TTL) and re-indexes
 /// the spec if the upstream SHA has advanced. This is the lazy-update entry
 /// point used by all query paths.
-pub async fn ensure_indexed(
-    conn: &Connection,
-    spec: &SpecInfo,
-    provider: &(dyn SpecProvider + Send + Sync),
-) -> Result<i64> {
-    let (sha, date) = get_latest_sha(conn, spec, provider, false).await?;
+pub async fn ensure_indexed(conn: &Connection, spec: &dyn SpecAccess) -> Result<i64> {
+    let (sha, date) = get_latest_sha(conn, spec, false).await?;
 
-    if let Some(snapshot_id) = queries::get_snapshot_by_sha(conn, spec.name, &sha)? {
+    if let Some(snapshot_id) = queries::get_snapshot_by_sha(conn, spec.name(), &sha)? {
         return Ok(snapshot_id);
     }
 
-    do_index(conn, spec, provider, &sha, &date).await
+    do_index(conn, spec, &sha, &date).await
 }
 
 /// Update a spec if a newer version is available.
@@ -85,17 +78,16 @@ pub async fn ensure_indexed(
 /// at the latest SHA. Respects the 24h repo cache unless `force` is true.
 pub async fn update_if_needed(
     conn: &Connection,
-    spec: &SpecInfo,
-    provider: &(dyn SpecProvider + Send + Sync),
+    spec: &dyn SpecAccess,
     force: bool,
 ) -> Result<Option<i64>> {
-    let (sha, date) = get_latest_sha(conn, spec, provider, force).await?;
+    let (sha, date) = get_latest_sha(conn, spec, force).await?;
 
-    if queries::get_snapshot_by_sha(conn, spec.name, &sha)?.is_some() {
+    if queries::get_snapshot_by_sha(conn, spec.name(), &sha)?.is_some() {
         return Ok(None);
     }
 
-    Ok(Some(do_index(conn, spec, provider, &sha, &date).await?))
+    Ok(Some(do_index(conn, spec, &sha, &date).await?))
 }
 
 /// Update all specs in the registry.
@@ -108,16 +100,8 @@ pub async fn update_all_specs(
     let mut results = Vec::new();
 
     for spec in registry.list_all_specs() {
-        let provider = match registry.get_provider(spec) {
-            Ok(p) => p,
-            Err(e) => {
-                results.push((spec.name.to_string(), Err(e)));
-                continue;
-            }
-        };
-
-        let result = update_if_needed(conn, spec, provider, force).await;
-        results.push((spec.name.to_string(), result));
+        let result = update_if_needed(conn, spec.as_ref(), force).await;
+        results.push((spec.name().to_string(), result));
     }
 
     results
