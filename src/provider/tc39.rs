@@ -1,20 +1,14 @@
 use super::{github::GithubSpecInfo, SpecAccess};
 
-fn make_spec(name: &str, path: &str, repo: &str) -> Box<dyn SpecAccess> {
-    Box::new(GithubSpecInfo {
-        name: name.into(),
-        url: format!("https://tc39.es/{path}"),
-        provider: "tc39".into(),
-        github_repo: repo.into(),
-        html_url_template: format!("https://tc39.es/{path}/"),
-        commit_history_url: format!(
-            "https://api.github.com/repos/{repo}/commits?per_page=1"
-        ),
-    })
-}
-
 pub fn specs() -> Vec<Box<dyn SpecAccess>> {
-    vec![make_spec("ECMA-262", "ecma262", "tc39/ecma262")]
+    vec![Box::new(GithubSpecInfo {
+        name: "ECMA-262".into(),
+        url: "https://tc39.es/ecma262".into(),
+        provider: "tc39".into(),
+        github_repo: "tc39/ecma262".into(),
+        html_url_template: "https://tc39.es/ecma262/".into(),
+        commit_history_url: "https://api.github.com/repos/tc39/ecma262/commits?per_page=1".into(),
+    })]
 }
 
 #[cfg(test)]

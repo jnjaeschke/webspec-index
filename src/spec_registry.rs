@@ -1,4 +1,4 @@
-use crate::provider::{tc39, w3c, whatwg, SpecAccess};
+use crate::provider::{gpuweb, tc39, w3c, whatwg, SpecAccess};
 
 /// Top-level registry that routes to appropriate providers
 pub struct SpecRegistry {
@@ -7,9 +7,11 @@ pub struct SpecRegistry {
 
 impl SpecRegistry {
     pub fn new() -> Self {
-        let mut specs = whatwg::specs();
-        specs.extend(w3c::specs());
+        let mut specs = Vec::new();
+        specs.extend(gpuweb::specs());
         specs.extend(tc39::specs());
+        specs.extend(w3c::specs());
+        specs.extend(whatwg::specs());
         Self { specs }
     }
 
