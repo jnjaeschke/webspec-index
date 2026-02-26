@@ -36,10 +36,16 @@ jobs:
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
           CARGO_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          echo "Tag version:   $TAG_VERSION"
-          echo "Cargo version: $CARGO_VERSION"
+          PKG_VERSION=$(python3 -c "import json; print(json.load(open('editors/vscode/package.json'))['version'])")
+          echo "Tag version:          $TAG_VERSION"
+          echo "Cargo.toml version:   $CARGO_VERSION"
+          echo "package.json version: $PKG_VERSION"
           if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION does not match Cargo.toml version $CARGO_VERSION"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION does not match editors/vscode/package.json version $PKG_VERSION"
             exit 1
           fi
 
@@ -105,6 +111,38 @@ jobs:
           path: dist
           retention-days: 5
 
+  # Build the VSCode extension .vsix
+  build-extension:
+    name: Build extension
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: editors/vscode
+        run: npm ci
+
+      - name: Compile TypeScript
+        working-directory: editors/vscode
+        run: npm run compile
+
+      - name: Package .vsix
+        working-directory: editors/vscode
+        run: npx @vscode/vsce package --no-git-tag-version
+
+      - name: Upload .vsix
+        uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: editors/vscode/*.vsix
+          retention-days: 5
+
   # Publish to PyPI using Trusted Publishers (OIDC)
   publish:
     name: Publish to PyPI
@@ -119,11 +157,17 @@ jobs:
       contents: read
 
     steps:
-      - name: Download all artifacts
+      - name: Download wheels
         uses: actions/download-artifact@v4
         with:
-          pattern: "*"
+          pattern: "wheels-*"
           merge-multiple: true
+          path: dist
+
+      - name: Download sdist
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
           path: dist
 
       - name: List distributions
@@ -134,10 +178,42 @@ jobs:
       - name: Publish to PyPI
         run: uv publish dist/*
 
+  # Publish VSCode extension to VS Code Marketplace and Open VSX
+  publish-extension:
+    name: Publish extension
+    needs: build-extension
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: vscode-marketplace
+      url: https://marketplace.visualstudio.com/items?itemName=jnjaeschke.webspec-lens
+
+    steps:
+      - name: Download .vsix
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Publish to VS Code Marketplace
+        run: npx @vscode/vsce publish --packagePath dist/*.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX
+        continue-on-error: true
+        run: npx ovsx publish dist/*.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
   # Create GitHub Release
   github-release:
     name: Create GitHub Release
-    needs: publish
+    needs: [publish, publish-extension]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -163,17 +239,16 @@ jobs:
           name: Release v${{ steps.version.outputs.VERSION }}
           generate_release_notes: true
           body: |
-            ## Installation
+            ## Install
 
+            **Python package** (CLI, MCP server, LSP server):
             ```bash
             pip install webspec-index==${{ steps.version.outputs.VERSION }}
+            # or: uvx webspec-index@${{ steps.version.outputs.VERSION }} --help
             ```
 
-            Or use with uvx:
-
-            ```bash
-            uvx webspec-index@${{ steps.version.outputs.VERSION }} --help
-            ```
+            **VSCode / VSCodium extension** (`webspec-lens`):
+            Search for `webspec-lens` in the Extensions panel, or install the `.vsix` attached below.
           files: dist/*
           draft: false
           prerelease: false
