@@ -196,7 +196,7 @@ def lsp(**_kwargs):
     Communicates over stdio. Used by editor extensions.
 
     Installation:
-      # VSCode: install the spec-lens extension
+      # VSCode: install the webspec-lens extension
       # Neovim: vim.lsp.start({ cmd = { "webspec-index", "lsp" } })
     """
     try:

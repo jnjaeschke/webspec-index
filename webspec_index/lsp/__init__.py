@@ -1,4 +1,4 @@
-"""spec-lens LSP server for spec-aware editor integration."""
+"""webspec-lens LSP server for spec-aware editor integration."""
 
 from .server import start_server
 

@@ -26,7 +26,7 @@ async function findPython(): Promise<string | null> {
 async function findServerCommand(): Promise<string[]> {
   // 1. User setting
   const configured = vscode.workspace
-    .getConfiguration("specLens")
+    .getConfiguration("webspecLens")
     .get<string[]>("serverCommand");
   log.appendLine(`serverCommand setting: ${JSON.stringify(configured)}`);
   if (configured && configured.length > 0) return configured;
@@ -58,10 +58,10 @@ async function findServerCommand(): Promise<string[]> {
 export async function activate(
   context: vscode.ExtensionContext
 ): Promise<void> {
-  log = vscode.window.createOutputChannel("spec-lens");
-  log.appendLine("spec-lens activating...");
+  log = vscode.window.createOutputChannel("webspec-lens");
+  log.appendLine("webspec-lens activating...");
 
-  const config = vscode.workspace.getConfiguration("specLens");
+  const config = vscode.workspace.getConfiguration("webspecLens");
   if (!config.get<boolean>("enabled", true)) {
     log.appendLine("Extension disabled via setting");
     return;
@@ -70,7 +70,7 @@ export async function activate(
   // Register coverage detail command
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "specLens.showCoverage",
+      "webspecLens.showCoverage",
       (anchor: string, total: number, missing: string[]) => {
         const impl = total - missing.length;
         let msg = `${anchor}: ${impl}/${total} steps implemented`;
@@ -87,7 +87,7 @@ export async function activate(
     command = await findServerCommand();
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
-    vscode.window.showWarningMessage(`spec-lens: ${msg}`);
+    vscode.window.showWarningMessage(`webspec-lens: ${msg}`);
     return;
   }
 
@@ -107,8 +107,8 @@ export async function activate(
   };
 
   client = new LanguageClient(
-    "specLens",
-    "spec-lens",
+    "webspecLens",
+    "webspec-lens",
     serverOptions,
     clientOptions
   );
@@ -120,7 +120,7 @@ export async function activate(
     const msg = e instanceof Error ? e.message : String(e);
     log.appendLine(`Server failed to start: ${msg}`);
     vscode.window.showWarningMessage(
-      `spec-lens: Failed to start LSP server: ${msg}`
+      `webspec-lens: Failed to start LSP server: ${msg}`
     );
   }
 }

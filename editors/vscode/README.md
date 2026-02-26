@@ -1,4 +1,4 @@
-# spec-lens
+# webspec-lens
 
 Hover over WHATWG spec URLs in your code to see section content inline. Validate step comments against the spec algorithm and track implementation coverage.
 
@@ -6,7 +6,7 @@ Hover over WHATWG spec URLs in your code to see section content inline. Validate
 
 ### Spec URL hover
 
-Hover any WHATWG spec URL to see the section's rendered content without leaving your editor. Works in any file type — C++, Rust, JavaScript, Python, HTML, etc.
+Hover any WHATWG/w3c/TC39 spec URL to see the section's rendered content without leaving your editor. Works in any file type — C++, Rust, JavaScript, Python, HTML, etc.
 
 ```cpp
 // https://html.spec.whatwg.org/#navigate
@@ -52,7 +52,7 @@ The extension launches a lightweight LSP server (`webspec-index lsp`) over stdio
 
 The server is auto-detected in this order:
 
-1. `specLens.serverCommand` setting (if configured)
+1. `webspecLens.serverCommand` setting (if configured)
 2. `webspec-index` on PATH
 3. `uvx webspec-index[lsp] lsp` (zero-install via uv)
 4. `python -m webspec_index lsp`
@@ -61,9 +61,9 @@ The server is auto-detected in this order:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `specLens.enabled` | `true` | Enable or disable the extension |
-| `specLens.serverCommand` | auto-detect | Command to start the LSP server |
-| `specLens.fuzzyThreshold` | `0.85` | Jaro-Winkler similarity threshold for step matching (0.0-1.0) |
+| `webspecLens.enabled` | `true` | Enable or disable the extension |
+| `webspecLens.serverCommand` | auto-detect | Command to start the LSP server |
+| `webspecLens.fuzzyThreshold` | `0.85` | Jaro-Winkler similarity threshold for step matching (0.0-1.0) |
 
 ## Supported specs
 
@@ -82,7 +82,7 @@ vim.lsp.start({ cmd = { "webspec-index", "lsp" } })
 ```json
 {
   "lsp": {
-    "spec-lens": {
+    "webspec-lens": {
       "binary": { "path": "webspec-index", "arguments": ["lsp"] }
     }
   }

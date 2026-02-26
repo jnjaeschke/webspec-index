@@ -1,6 +1,6 @@
 {
-  "name": "spec-lens",
-  "displayName": "spec-lens",
+  "name": "webspec-lens",
+  "displayName": "webspec-lens",
   "description": "Hover WHATWG spec URLs to see section content, validate step comments against spec algorithms, and track implementation coverage.",
   "version": "0.1.0",
   "publisher": "jnjaeschke",
@@ -36,19 +36,19 @@
   "contributes": {
     "commands": [
       {
-        "command": "specLens.showCoverage",
-        "title": "spec-lens: Show Algorithm Coverage"
+        "command": "webspecLens.showCoverage",
+        "title": "webspec-lens: Show Algorithm Coverage"
       }
     ],
     "configuration": {
-      "title": "spec-lens",
+      "title": "webspec-lens",
       "properties": {
-        "specLens.enabled": {
+        "webspecLens.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable or disable the spec-lens LSP server."
+          "description": "Enable or disable the webspec-lens LSP server."
         },
-        "specLens.serverCommand": {
+        "webspecLens.serverCommand": {
           "type": "array",
           "items": {
             "type": "string"
@@ -56,7 +56,7 @@
           "default": null,
           "markdownDescription": "Command to start the LSP server (e.g. `[\"webspec-index\", \"lsp\"]`). Auto-detected if not set."
         },
-        "specLens.fuzzyThreshold": {
+        "webspecLens.fuzzyThreshold": {
           "type": "number",
           "default": 0.85,
           "minimum": 0.0,

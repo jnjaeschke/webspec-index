@@ -1,4 +1,4 @@
-"""spec-lens LSP server using pygls."""
+"""webspec-lens LSP server using pygls."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ class SpecLensServer(LanguageServer):
     """LSP server with spec-aware hover and step validation."""
 
     def __init__(self, provider: SpecProvider | None = None):
-        super().__init__("spec-lens", "v0.1.0")
+        super().__init__("webspec-lens", "v0.1.0")
         self.provider = provider or WebspecProvider()
         self.fuzzy_threshold: float = 0.85
         # Caches
@@ -237,7 +237,7 @@ def _create_server(provider: SpecProvider | None = None) -> SpecLensServer:
                     end=lsp.Position(line=end_line, character=v.step.col_end),
                 ),
                 severity=lsp.DiagnosticSeverity.Warning,
-                source="spec-lens",
+                source="webspec-lens",
                 message=msg,
             )
             if v.spec_text:
@@ -451,7 +451,7 @@ def _create_server(provider: SpecProvider | None = None) -> SpecLensServer:
                 ),
                 command=lsp.Command(
                     title=cov.summary(),
-                    command="specLens.showCoverage",
+                    command="webspecLens.showCoverage",
                     arguments=[
                         cov.anchor,
                         cov.total_steps,
