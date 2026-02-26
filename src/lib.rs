@@ -67,10 +67,11 @@ pub async fn query_section(spec_anchor: &str) -> Result<model::QueryResult> {
     let provider = registry.get_provider(spec)?;
     let snapshot_id = fetch::ensure_indexed(&conn, spec, provider).await?;
 
-    let snapshot_sha: String =
-        conn.query_row("SELECT sha FROM snapshots WHERE id = ?1", [snapshot_id], |row| {
-            row.get(0)
-        })?;
+    let snapshot_sha: String = conn.query_row(
+        "SELECT sha FROM snapshots WHERE id = ?1",
+        [snapshot_id],
+        |row| row.get(0),
+    )?;
 
     let section = db::queries::get_section(&conn, snapshot_id, &anchor)?
         .ok_or_else(|| anyhow::anyhow!("Section not found: {}#{}", spec_name, anchor))?;
@@ -344,10 +345,7 @@ pub async fn list_headings(spec: &str) -> Result<Vec<model::ListEntry>> {
 ///
 /// # Returns
 /// `RefsResult` with incoming and/or outgoing references
-pub async fn get_references(
-    spec_anchor: &str,
-    direction: &str,
-) -> Result<model::RefsResult> {
+pub async fn get_references(spec_anchor: &str, direction: &str) -> Result<model::RefsResult> {
     let (spec_name, anchor) = parse_spec_anchor(spec_anchor)?;
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
@@ -468,8 +466,7 @@ mod tests {
 
     #[test]
     fn parse_spec_anchor_url_format() {
-        let (spec, anchor) =
-            parse_spec_anchor("https://html.spec.whatwg.org/#navigate").unwrap();
+        let (spec, anchor) = parse_spec_anchor("https://html.spec.whatwg.org/#navigate").unwrap();
         assert_eq!(spec, "HTML");
         assert_eq!(anchor, "navigate");
     }

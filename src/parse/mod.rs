@@ -45,9 +45,7 @@ pub fn parse_spec(html: &str, spec_name: &str, base_url: &str) -> Result<ParsedS
                 }
             }
             "emu-clause" | "emu-annex" => {
-                if let Some(section) =
-                    sections::parse_emu_clause_element(&element, &converter)?
-                {
+                if let Some(section) = sections::parse_emu_clause_element(&element, &converter)? {
                     sections.push(section);
                 }
             }

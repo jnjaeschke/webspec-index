@@ -108,15 +108,16 @@ pub fn build_converter(base_url: &str) -> HtmlToMarkdown {
                 "emu-figure",
                 "emu-import",
             ],
-            |handlers: &dyn Handlers, element: Element| {
-                Some(handlers.walk_children(element.node))
-            },
+            |handlers: &dyn Handlers, element: Element| Some(handlers.walk_children(element.node)),
         )
         // ecmarkup notes: render as blockquotes
-        .add_handler(vec!["emu-note"], |handlers: &dyn Handlers, element: Element| {
-            let content = handlers.walk_children(element.node).content;
-            Some(to_blockquote(&content, "**Note:** ").into())
-        })
+        .add_handler(
+            vec!["emu-note"],
+            |handlers: &dyn Handlers, element: Element| {
+                let content = handlers.walk_children(element.node).content;
+                Some(to_blockquote(&content, "**Note:** ").into())
+            },
+        )
         // <span>: strip section number spans (secno/secnum) and note labels, keep everything else
         .add_handler(vec!["span"], |handlers: &dyn Handlers, element: Element| {
             for attr in element.attrs.iter() {

@@ -91,9 +91,7 @@ impl SpecProvider for Tc39Provider {
         // Match path: /ecma262 or /ecma262/
         let path = parsed.path().trim_matches('/');
         for spec in TC39_SPECS {
-            let spec_path = spec
-                .base_url
-                .strip_prefix("https://tc39.es/")?;
+            let spec_path = spec.base_url.strip_prefix("https://tc39.es/")?;
             if path == spec_path {
                 return Some((spec.name.to_string(), anchor));
             }

@@ -236,9 +236,7 @@ impl SpecProvider for W3cProvider {
                 // Path might be /ServiceWorker/ or /ServiceWorker/v1/ — match on first segment
                 let repo_part = parsed.path().trim_matches('/').split('/').next()?;
                 for spec in W3C_SPECS {
-                    if spec.base_url
-                        == format!("https://w3c.github.io/{}", repo_part)
-                    {
+                    if spec.base_url == format!("https://w3c.github.io/{}", repo_part) {
                         return Some((spec.name.to_string(), anchor));
                     }
                 }
@@ -310,8 +308,8 @@ mod tests {
     #[test]
     fn test_resolve_standalone_url() {
         let provider = W3cProvider;
-        let result = provider
-            .resolve_url("https://w3c.github.io/ServiceWorker/#service-worker-concept");
+        let result =
+            provider.resolve_url("https://w3c.github.io/ServiceWorker/#service-worker-concept");
         assert_eq!(
             result,
             Some((
@@ -436,7 +434,10 @@ mod tests {
     fn test_standalone_specs_have_matching_repo() {
         for spec in W3C_SPECS {
             if spec.base_url.starts_with("https://w3c.github.io/") {
-                let repo_name = spec.base_url.strip_prefix("https://w3c.github.io/").unwrap();
+                let repo_name = spec
+                    .base_url
+                    .strip_prefix("https://w3c.github.io/")
+                    .unwrap();
                 let expected_repo = format!("w3c/{}", repo_name);
                 assert_eq!(
                     spec.github_repo, expected_repo,

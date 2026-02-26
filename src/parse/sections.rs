@@ -417,11 +417,7 @@ fn extract_emu_clause_content(
             let tag = child_elem.value().name();
 
             // Skip title heading and sub-sections
-            if tag == "h1"
-                || tag == "emu-clause"
-                || tag == "emu-annex"
-                || tag == "emu-import"
-            {
+            if tag == "h1" || tag == "emu-clause" || tag == "emu-annex" || tag == "emu-import" {
                 continue;
             }
 
@@ -1381,7 +1377,10 @@ mod tests {
         let anchors: Vec<_> = sections.iter().map(|s| s.anchor.as_str()).collect();
 
         // Interface, constructor, method, attribute should be kept
-        assert!(anchors.contains(&"audiodecoder"), "Interface should be kept");
+        assert!(
+            anchors.contains(&"audiodecoder"),
+            "Interface should be kept"
+        );
         assert!(
             anchors.contains(&"dom-audiodecoder-ctor"),
             "Constructor should be kept"
@@ -1464,15 +1463,15 @@ mod tests {
             .unwrap();
 
         assert_eq!(section.anchor, "sec-tostring");
-        assert_eq!(
-            section.title,
-            Some("ToString ( argument )".to_string())
-        );
+        assert_eq!(section.title, Some("ToString ( argument )".to_string()));
         assert_eq!(section.depth, Some(4)); // "7.1.17" = 3 parts → depth 4
         assert_eq!(section.section_type, SectionType::Algorithm);
 
         let content = section.content_text.unwrap();
-        assert!(content.contains("converts argument"), "Should have intro prose");
+        assert!(
+            content.contains("converts argument"),
+            "Should have intro prose"
+        );
         assert!(content.contains("1."), "Should have algorithm steps");
     }
 
@@ -1514,10 +1513,7 @@ mod tests {
     fn test_secnum_depth_derivation() {
         // Helper to quickly test depth extraction
         fn depth_from_html(secnum: &str) -> Option<u8> {
-            let html = format!(
-                r#"<h1><span class="secnum">{}</span> Title</h1>"#,
-                secnum
-            );
+            let html = format!(r#"<h1><span class="secnum">{}</span> Title</h1>"#, secnum);
             let document = Html::parse_document(&html);
             let selector = Selector::parse("h1").unwrap();
             let h1 = document.select(&selector).next().unwrap();
@@ -1552,8 +1548,16 @@ mod tests {
 
         // Title should not contain "7.1.17"
         let title = section.title.unwrap();
-        assert!(!title.contains("7.1.17"), "secnum should be stripped: {}", title);
-        assert!(title.contains("ToString"), "Title should have function name: {}", title);
+        assert!(
+            !title.contains("7.1.17"),
+            "secnum should be stripped: {}",
+            title
+        );
+        assert!(
+            title.contains("ToString"),
+            "Title should have function name: {}",
+            title
+        );
     }
 
     #[test]
@@ -1575,7 +1579,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(section.anchor, "sec-additional-built-in-properties");
-        assert_eq!(section.title, Some("Additional Built-in Properties".to_string()));
+        assert_eq!(
+            section.title,
+            Some("Additional Built-in Properties".to_string())
+        );
         assert_eq!(section.depth, Some(2)); // "B" = 1 part → depth 2
     }
 
@@ -1640,10 +1647,14 @@ mod tests {
         // Steps should be on individual lines, not broken across multiple lines
         for i in 1..=12 {
             let prefix = format!("{}. ", i);
-            let matches: Vec<_> = content.lines().filter(|l| {
-                let trimmed = l.trim_start();
-                trimmed.starts_with(&prefix) || (i >= 10 && trimmed.starts_with(&format!("{}.", i)))
-            }).collect();
+            let matches: Vec<_> = content
+                .lines()
+                .filter(|l| {
+                    let trimmed = l.trim_start();
+                    trimmed.starts_with(&prefix)
+                        || (i >= 10 && trimmed.starts_with(&format!("{}.", i)))
+                })
+                .collect();
             assert!(
                 !matches.is_empty(),
                 "Step {} should appear on its own line",
@@ -1664,7 +1675,10 @@ mod tests {
             .unwrap()
             .unwrap();
 
-        assert_eq!(section.anchor, "sec-ecmascript-language-types-undefined-type");
+        assert_eq!(
+            section.anchor,
+            "sec-ecmascript-language-types-undefined-type"
+        );
         assert_eq!(section.title, Some("The Undefined Type".to_string()));
         assert_eq!(section.depth, Some(4)); // "6.1.1" = 3 parts → depth 4
         assert_eq!(section.section_type, SectionType::Heading);
