@@ -2,7 +2,7 @@
   "name": "webspec-lens",
   "displayName": "webspec-lens",
   "description": "Hover WHATWG spec URLs to see section content, validate step comments against spec algorithms, and track implementation coverage.",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "publisher": "jnjaeschke",
   "license": "MIT",
   "homepage": "https://github.com/jnjaeschke/webspec-index/tree/main/editors/vscode",
