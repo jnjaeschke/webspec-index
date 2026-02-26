@@ -58,3 +58,22 @@ jobs:
           cd /tmp
           python -c "from webspec_index import query, search, exists, anchors, list_headings, refs, update, clear_db; print('All imports OK')"
           webspec-index --version
+
+  build-extension:
+    name: Build extension
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: editors/vscode
+        run: npm ci
+
+      - name: Compile TypeScript
+        working-directory: editors/vscode
+        run: npm run compile
