@@ -55,42 +55,26 @@ pub fn spec_urls() -> Vec<model::SpecUrlEntry> {
 ///
 /// # Arguments
 /// * `spec_anchor` - Format: "SPEC#anchor" (e.g., "HTML#navigate")
-/// * `sha` - Optional commit SHA for specific version
-///
-/// # Returns
-/// `QueryResult` with section details, navigation, and references
-pub async fn query_section(spec_anchor: &str, sha: Option<&str>) -> Result<model::QueryResult> {
+pub async fn query_section(spec_anchor: &str) -> Result<model::QueryResult> {
     let (spec_name, anchor) = parse_spec_anchor(spec_anchor)?;
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
 
-    // Get spec info
     let spec = registry
         .find_spec(&spec_name)
         .ok_or_else(|| anyhow::anyhow!("Unknown spec: {}", spec_name))?;
 
-    // Get snapshot and SHA
-    let (snapshot_id, snapshot_sha) = if let Some(sha_str) = sha {
-        let id = db::queries::get_snapshot_by_sha(&conn, &spec_name, sha_str)?
-            .ok_or_else(|| anyhow::anyhow!("Snapshot not found for SHA: {}", sha_str))?;
-        (id, sha_str.to_string())
-    } else {
-        // Ensure latest indexed
-        let provider = registry.get_provider(spec)?;
-        let id = fetch::ensure_latest_indexed(&conn, spec, provider).await?;
-        // Get the SHA for this snapshot
-        let sha_from_db: String =
-            conn.query_row("SELECT sha FROM snapshots WHERE id = ?1", [id], |row| {
-                row.get(0)
-            })?;
-        (id, sha_from_db)
-    };
+    let provider = registry.get_provider(spec)?;
+    let snapshot_id = fetch::ensure_indexed(&conn, spec, provider).await?;
 
-    // Get section
+    let snapshot_sha: String =
+        conn.query_row("SELECT sha FROM snapshots WHERE id = ?1", [snapshot_id], |row| {
+            row.get(0)
+        })?;
+
     let section = db::queries::get_section(&conn, snapshot_id, &anchor)?
         .ok_or_else(|| anyhow::anyhow!("Section not found: {}#{}", spec_name, anchor))?;
 
-    // Get children
     let children = db::queries::get_children(&conn, snapshot_id, &anchor)?
         .iter()
         .map(|(child_anchor, title)| model::NavEntry {
@@ -99,7 +83,6 @@ pub async fn query_section(spec_anchor: &str, sha: Option<&str>) -> Result<model
         })
         .collect();
 
-    // Get navigation (parent, prev, next)
     let navigation = model::Navigation {
         parent: section.parent_anchor.as_ref().and_then(|p| {
             db::queries::get_section(&conn, snapshot_id, p)
@@ -128,7 +111,6 @@ pub async fn query_section(spec_anchor: &str, sha: Option<&str>) -> Result<model
         children,
     };
 
-    // Get outgoing references
     let out_refs = db::queries::get_outgoing_refs(&conn, snapshot_id, &anchor)?;
     let outgoing = out_refs
         .iter()
@@ -138,8 +120,7 @@ pub async fn query_section(spec_anchor: &str, sha: Option<&str>) -> Result<model
         })
         .collect();
 
-    // Get incoming references (from_spec, from_anchor)
-    let in_refs = db::queries::get_incoming_refs(&conn, snapshot_id, &spec_name, &anchor)?;
+    let in_refs = db::queries::get_incoming_refs(&conn, &spec_name, &anchor)?;
     let incoming = in_refs
         .iter()
         .map(|(from_spec, from_anchor)| model::RefEntry {
@@ -180,7 +161,7 @@ pub async fn check_exists(spec_anchor: &str) -> Result<model::ExistsResult> {
 
     // Ensure latest indexed
     let provider = registry.get_provider(spec)?;
-    let snapshot_id = fetch::ensure_latest_indexed(&conn, spec, provider).await?;
+    let snapshot_id = fetch::ensure_indexed(&conn, spec, provider).await?;
 
     // Check if section exists
     let section = db::queries::get_section(&conn, snapshot_id, &anchor)?;
@@ -221,14 +202,12 @@ pub fn find_anchors(
         "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE s.anchor LIKE ?1 AND sp.name = ?2 AND sn.is_latest = 1
-         LIMIT ?3"
+         WHERE s.anchor LIKE ?1 AND sp.name = ?2          LIMIT ?3"
     } else {
         "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE s.anchor LIKE ?1 AND sn.is_latest = 1
-         LIMIT ?2"
+         WHERE s.anchor LIKE ?1          LIMIT ?2"
     };
 
     let mut stmt = conn.prepare(sql)?;
@@ -286,16 +265,14 @@ pub fn search_sections(
          JOIN sections s ON sections_fts.rowid = s.id
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE sections_fts MATCH ?1 AND sp.name = ?2 AND sn.is_latest = 1
-         LIMIT ?3"
+         WHERE sections_fts MATCH ?1 AND sp.name = ?2          LIMIT ?3"
     } else {
         "SELECT s.anchor, sp.name, s.title, s.section_type, snippet(sections_fts, 2, '<mark>', '</mark>', '...', 64)
          FROM sections_fts
          JOIN sections s ON sections_fts.rowid = s.id
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE sections_fts MATCH ?1 AND sn.is_latest = 1
-         LIMIT ?2"
+         WHERE sections_fts MATCH ?1          LIMIT ?2"
     };
 
     let mut stmt = conn.prepare(sql)?;
@@ -330,24 +307,16 @@ pub fn search_sections(
 ///
 /// # Returns
 /// Vector of `ListEntry` with heading hierarchy
-pub async fn list_headings(spec: &str, sha: Option<&str>) -> Result<Vec<model::ListEntry>> {
+pub async fn list_headings(spec: &str) -> Result<Vec<model::ListEntry>> {
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
 
-    // Get spec info
     let spec_info = registry
         .find_spec(spec)
         .ok_or_else(|| anyhow::anyhow!("Unknown spec: {}", spec))?;
 
-    // Get snapshot
-    let snapshot_id = if let Some(sha_str) = sha {
-        db::queries::get_snapshot_by_sha(&conn, spec, sha_str)?
-            .ok_or_else(|| anyhow::anyhow!("Snapshot not found for SHA: {}", sha_str))?
-    } else {
-        // Ensure latest indexed
-        let provider = registry.get_provider(spec_info)?;
-        fetch::ensure_latest_indexed(&conn, spec_info, provider).await?
-    };
+    let provider = registry.get_provider(spec_info)?;
+    let snapshot_id = fetch::ensure_indexed(&conn, spec_info, provider).await?;
 
     // Get all headings
     let headings = db::queries::list_headings(&conn, snapshot_id)?;
@@ -378,26 +347,17 @@ pub async fn list_headings(spec: &str, sha: Option<&str>) -> Result<Vec<model::L
 pub async fn get_references(
     spec_anchor: &str,
     direction: &str,
-    sha: Option<&str>,
 ) -> Result<model::RefsResult> {
     let (spec_name, anchor) = parse_spec_anchor(spec_anchor)?;
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
 
-    // Get spec info
     let spec = registry
         .find_spec(&spec_name)
         .ok_or_else(|| anyhow::anyhow!("Unknown spec: {}", spec_name))?;
 
-    // Get snapshot
-    let snapshot_id = if let Some(sha_str) = sha {
-        db::queries::get_snapshot_by_sha(&conn, &spec_name, sha_str)?
-            .ok_or_else(|| anyhow::anyhow!("Snapshot not found for SHA: {}", sha_str))?
-    } else {
-        // Ensure latest indexed
-        let provider = registry.get_provider(spec)?;
-        fetch::ensure_latest_indexed(&conn, spec, provider).await?
-    };
+    let provider = registry.get_provider(spec)?;
+    let snapshot_id = fetch::ensure_indexed(&conn, spec, provider).await?;
 
     // Get references based on direction
     let outgoing = if direction == "outgoing" || direction == "both" {
@@ -416,7 +376,7 @@ pub async fn get_references(
     };
 
     let incoming = if direction == "incoming" || direction == "both" {
-        let in_refs = db::queries::get_incoming_refs(&conn, snapshot_id, &spec_name, &anchor)?;
+        let in_refs = db::queries::get_incoming_refs(&conn, &spec_name, &anchor)?;
         Some(
             in_refs
                 .iter()

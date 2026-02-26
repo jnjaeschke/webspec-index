@@ -46,12 +46,11 @@ def _parse_json(result: str) -> dict:
     return json.loads(result)
 
 
-def query(spec_anchor: str, sha: Optional[str] = None) -> dict:
+def query(spec_anchor: str) -> dict:
     """Query a specific section in a spec
 
     Args:
         spec_anchor: Spec and anchor in format "SPEC#anchor" (e.g., "HTML#navigate")
-        sha: Optional commit SHA to query specific version
 
     Returns:
         dict with section info, navigation, children, and references
@@ -63,7 +62,7 @@ def query(spec_anchor: str, sha: Optional[str] = None) -> dict:
         >>> print(result["section_type"])
         Algorithm
     """
-    return _parse_json(_query(spec_anchor, sha))
+    return _parse_json(_query(spec_anchor))
 
 
 def search(query_text: str, spec: Optional[str] = None, limit: int = 20) -> dict:
@@ -124,12 +123,11 @@ def anchors(pattern: str, spec: Optional[str] = None, limit: int = 50) -> list[s
     return result["results"]
 
 
-def list_headings(spec: str, sha: Optional[str] = None) -> list[dict]:
+def list_headings(spec: str) -> list[dict]:
     """List all headings in a spec
 
     Args:
         spec: Spec name (e.g., "HTML", "DOM")
-        sha: Optional commit SHA for specific version
 
     Returns:
         List of heading entries with title, anchor, and depth
@@ -140,20 +138,18 @@ def list_headings(spec: str, sha: Optional[str] = None) -> list[dict]:
         ...     indent = "  " * h["depth"]
         ...     print(f"{indent}{h['title']} (#{h['anchor']})")
     """
-    return _parse_json(_list_headings(spec, sha))
+    return _parse_json(_list_headings(spec))
 
 
 def refs(
     spec_anchor: str,
     direction: str = "both",
-    sha: Optional[str] = None
 ) -> dict:
     """Get references for a section
 
     Args:
         spec_anchor: Spec and anchor in format "SPEC#anchor"
         direction: "incoming", "outgoing", or "both" (default: "both")
-        sha: Optional commit SHA for specific version
 
     Returns:
         dict with incoming and/or outgoing references
@@ -163,7 +159,7 @@ def refs(
         >>> for ref in refs_result["incoming"]:
         ...     print(f"{ref['spec']}#{ref['anchor']}")
     """
-    return _parse_json(_refs(spec_anchor, direction, sha))
+    return _parse_json(_refs(spec_anchor, direction))
 
 
 def update(spec: Optional[str] = None, force: bool = False) -> dict:

@@ -19,11 +19,8 @@ pub trait SpecProvider {
     /// Fetch the rendered HTML for a spec at a given version
     async fn fetch_html(&self, spec: &SpecInfo, sha: &str) -> Result<String>;
 
-    /// Fetch the latest version identifier (SHA)
+    /// Fetch the latest version identifier (SHA) and its commit date
     async fn fetch_latest_version(&self, spec: &SpecInfo) -> Result<(String, DateTime<Utc>)>;
-
-    /// Fetch the commit date for a given version
-    async fn fetch_version_date(&self, spec: &SpecInfo, sha: &str) -> Result<DateTime<Utc>>;
 
     /// Map a URL found in an <a href> to (spec_name, anchor), if recognized
     fn resolve_url(&self, url: &str) -> Option<(String, String)>;

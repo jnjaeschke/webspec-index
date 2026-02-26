@@ -37,8 +37,8 @@ pub fn insert_snapshot(
 
     // Insert the snapshot
     conn.execute(
-        "INSERT INTO snapshots (spec_id, sha, commit_date, indexed_at, is_latest)
-         VALUES (?1, ?2, ?3, ?4, 0)",
+        "INSERT INTO snapshots (spec_id, sha, commit_date, indexed_at)
+         VALUES (?1, ?2, ?3, ?4)",
         (spec_id, sha, commit_date, &indexed_at),
     )?;
 
@@ -110,22 +110,20 @@ pub fn insert_refs_bulk(
     Ok(())
 }
 
-/// Set a snapshot as the latest for its spec
-/// Updates is_latest flag: sets all other snapshots for this spec to 0, then sets this one to 1
-pub fn set_latest_snapshot(conn: &Connection, spec_id: i64, snapshot_id: i64) -> Result<()> {
+/// Delete all indexed data for a spec (snapshot, sections, refs).
+/// Used before re-indexing to enforce exactly one snapshot per spec.
+pub fn delete_spec_data(conn: &Connection, spec_id: i64) -> Result<()> {
     let tx = conn.unchecked_transaction()?;
 
-    // Set all snapshots for this spec to not latest
     tx.execute(
-        "UPDATE snapshots SET is_latest = 0 WHERE spec_id = ?1",
+        "DELETE FROM refs WHERE snapshot_id IN (SELECT id FROM snapshots WHERE spec_id = ?1)",
         [spec_id],
     )?;
-
-    // Set this snapshot to latest
     tx.execute(
-        "UPDATE snapshots SET is_latest = 1 WHERE id = ?1",
-        [snapshot_id],
+        "DELETE FROM sections WHERE snapshot_id IN (SELECT id FROM snapshots WHERE spec_id = ?1)",
+        [spec_id],
     )?;
+    tx.execute("DELETE FROM snapshots WHERE spec_id = ?1", [spec_id])?;
 
     tx.commit()?;
     Ok(())
@@ -279,47 +277,45 @@ mod tests {
     }
 
     #[test]
-    fn test_set_latest_snapshot() {
+    fn test_delete_spec_data() {
         let conn = db::open_test_db().unwrap();
 
         let spec_id =
             insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+        let snapshot_id =
+            insert_snapshot(&conn, spec_id, "abc123", "2026-01-01T00:00:00Z").unwrap();
 
-        let snapshot1 = insert_snapshot(&conn, spec_id, "abc123", "2026-01-01T00:00:00Z").unwrap();
-        let snapshot2 = insert_snapshot(&conn, spec_id, "def456", "2026-01-02T00:00:00Z").unwrap();
+        let sections = vec![crate::model::ParsedSection {
+            anchor: "intro".to_string(),
+            title: Some("Introduction".to_string()),
+            content_text: None,
+            section_type: SectionType::Heading,
+            parent_anchor: None,
+            prev_anchor: None,
+            next_anchor: None,
+            depth: Some(2),
+        }];
+        insert_sections_bulk(&conn, snapshot_id, &sections).unwrap();
 
-        // Set snapshot1 as latest
-        set_latest_snapshot(&conn, spec_id, snapshot1).unwrap();
-
-        let is_latest: i64 = conn
-            .query_row(
-                "SELECT is_latest FROM snapshots WHERE id = ?1",
-                [snapshot1],
-                |row| row.get(0),
-            )
+        // Verify data exists
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sections", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(is_latest, 1);
+        assert_eq!(count, 1);
 
-        // Set snapshot2 as latest
-        set_latest_snapshot(&conn, spec_id, snapshot2).unwrap();
+        // Delete spec data
+        delete_spec_data(&conn, spec_id).unwrap();
 
-        let is_latest1: i64 = conn
-            .query_row(
-                "SELECT is_latest FROM snapshots WHERE id = ?1",
-                [snapshot1],
-                |row| row.get(0),
-            )
+        // Verify everything is gone
+        let snap_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM snapshots", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(is_latest1, 0);
+        assert_eq!(snap_count, 0);
 
-        let is_latest2: i64 = conn
-            .query_row(
-                "SELECT is_latest FROM snapshots WHERE id = ?1",
-                [snapshot2],
-                |row| row.get(0),
-            )
+        let sec_count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sections", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(is_latest2, 1);
+        assert_eq!(sec_count, 0);
     }
 
     #[test]

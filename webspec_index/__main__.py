@@ -40,16 +40,15 @@ def cli(ctx, format):
 
 @cli.command()
 @click.argument("spec_anchor")
-@click.option("--sha", help="Specific commit SHA to query")
 @click.pass_context
-def query_cmd(ctx, spec_anchor, sha):
+def query_cmd(ctx, spec_anchor):
     """Query a specific section in a spec
 
     SPEC_ANCHOR format: SPEC#anchor (e.g., HTML#navigate)
     """
     fmt = ctx.obj["format"]
     try:
-        result = query(spec_anchor, sha)
+        result = query(spec_anchor)
         if fmt == "json":
             click.echo(json.dumps(result, indent=2))
         else:
@@ -109,13 +108,12 @@ def anchors_cmd(pattern, spec, limit):
 
 @cli.command()
 @click.argument("spec")
-@click.option("--sha", help="Specific commit SHA to query")
 @click.pass_context
-def list_cmd(ctx, spec, sha):
+def list_cmd(ctx, spec):
     """List all headings in a spec"""
     fmt = ctx.obj["format"]
     try:
-        headings = list_headings(spec, sha)
+        headings = list_headings(spec)
         if fmt == "json":
             click.echo(json.dumps(headings, indent=2))
         else:
@@ -134,13 +132,12 @@ def list_cmd(ctx, spec, sha):
 @click.option(
     "--direction", type=click.Choice(["incoming", "outgoing", "both"]), default="both"
 )
-@click.option("--sha", help="Specific commit SHA to query")
 @click.pass_context
-def refs_cmd(ctx, spec_anchor, direction, sha):
+def refs_cmd(ctx, spec_anchor, direction):
     """Get references for a section"""
     fmt = ctx.obj["format"]
     try:
-        result = refs(spec_anchor, direction, sha)
+        result = refs(spec_anchor, direction)
         if fmt == "json":
             click.echo(json.dumps(result, indent=2))
         else:

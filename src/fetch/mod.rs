@@ -10,26 +10,19 @@ use crate::spec_registry::SpecRegistry;
 use anyhow::Result;
 use rusqlite::{Connection, OptionalExtension};
 
-/// Fetch and index a spec at a specific SHA (or latest if None)
-/// Returns the snapshot ID
+/// Fetch the latest version of a spec, parse it, and store in the database.
+/// Enforces exactly one snapshot per spec: deletes old data before inserting new.
+/// Returns the snapshot ID. Skips work if the SHA hasn't changed (dedup).
 pub async fn fetch_and_index(
     conn: &Connection,
     spec: &SpecInfo,
-    sha: Option<&str>,
     provider: &(dyn SpecProvider + Send + Sync),
 ) -> Result<i64> {
-    // Determine SHA to fetch
-    let (target_sha, commit_date) = if let Some(sha) = sha {
-        // Use provided SHA and fetch its date
-        let date = provider.fetch_version_date(spec, sha).await?;
-        (sha.to_string(), date.to_rfc3339())
-    } else {
-        // Fetch latest
-        let (sha, date) = provider.fetch_latest_version(spec).await?;
-        (sha, date.to_rfc3339())
-    };
+    // Get latest version from provider
+    let (target_sha, commit_date) = provider.fetch_latest_version(spec).await?;
+    let commit_date = commit_date.to_rfc3339();
 
-    // Check if this snapshot already exists
+    // Check if we already have this SHA (dedup: skip if unchanged)
     if let Some(existing_id) = queries::get_snapshot_by_sha(conn, spec.name, &target_sha)? {
         return Ok(existing_id);
     }
@@ -40,16 +33,14 @@ pub async fn fetch_and_index(
     // Parse the spec
     let parsed = parse::parse_spec(&html, spec.name, spec.base_url)?;
 
-    // Insert into database
+    // Delete old snapshot data for this spec (enforce 1 snapshot per spec)
     let spec_id = write::insert_or_get_spec(conn, spec.name, spec.base_url, spec.provider)?;
+    write::delete_spec_data(conn, spec_id)?;
+
+    // Insert new snapshot + sections + refs
     let snapshot_id = write::insert_snapshot(conn, spec_id, &target_sha, &commit_date)?;
     write::insert_sections_bulk(conn, snapshot_id, &parsed.sections)?;
     write::insert_refs_bulk(conn, snapshot_id, &parsed.references)?;
-
-    // Set as latest if we fetched the latest version
-    if sha.is_none() {
-        write::set_latest_snapshot(conn, spec_id, snapshot_id)?;
-    }
 
     // Record update check
     write::record_update_check(conn, spec_id)?;
@@ -57,24 +48,24 @@ pub async fn fetch_and_index(
     Ok(snapshot_id)
 }
 
-/// Ensure the latest version of a spec is indexed
-/// Returns the snapshot ID of the latest version
-pub async fn ensure_latest_indexed(
+/// Ensure a spec is indexed. Returns the snapshot ID.
+/// If already indexed, returns existing. Otherwise fetches and indexes.
+pub async fn ensure_indexed(
     conn: &Connection,
     spec: &SpecInfo,
     provider: &(dyn SpecProvider + Send + Sync),
 ) -> Result<i64> {
-    // Check if we already have a latest snapshot
-    if let Some(snapshot_id) = queries::get_latest_snapshot(conn, spec.name)? {
+    // Check if we already have a snapshot for this spec
+    if let Some(snapshot_id) = queries::get_snapshot(conn, spec.name)? {
         return Ok(snapshot_id);
     }
 
-    // If not, fetch and index the latest
-    fetch_and_index(conn, spec, None, provider).await
+    // If not, fetch and index
+    fetch_and_index(conn, spec, provider).await
 }
 
-/// Update a spec to the latest version if needed
-/// Returns Some(snapshot_id) if updated, None if already up to date
+/// Update a spec to the latest version if needed.
+/// Returns Some(snapshot_id) if updated, None if already up to date.
 pub async fn update_if_needed(
     conn: &Connection,
     spec: &SpecInfo,
@@ -85,7 +76,6 @@ pub async fn update_if_needed(
 
     // Check if we need to update (24h throttle unless forced)
     if !force {
-        // Check last update time
         let last_checked: Option<String> = conn
             .query_row(
                 "SELECT last_checked FROM update_checks WHERE spec_id = ?1",
@@ -99,7 +89,6 @@ pub async fn update_if_needed(
                 let now = chrono::Utc::now();
                 let duration = now.signed_duration_since(last_checked);
                 if duration.num_hours() < 24 {
-                    // Too soon, skip update
                     return Ok(None);
                 }
             }
@@ -109,22 +98,20 @@ pub async fn update_if_needed(
     // Get latest version from provider
     let (latest_sha, _) = provider.fetch_latest_version(spec).await?;
 
-    // Check if we already have this SHA
+    // Check if we already have this SHA (no change needed)
     if queries::get_snapshot_by_sha(conn, spec.name, &latest_sha)?.is_some() {
-        // We already have the latest version
         write::record_update_check(conn, spec_id)?;
         return Ok(None);
     }
 
-    // Fetch and index the new version
-    let snapshot_id = fetch_and_index(conn, spec, Some(&latest_sha), provider).await?;
-    write::set_latest_snapshot(conn, spec_id, snapshot_id)?;
+    // Fetch and index the new version (deletes old data internally)
+    let snapshot_id = fetch_and_index(conn, spec, provider).await?;
 
     Ok(Some(snapshot_id))
 }
 
-/// Update all specs in the registry
-/// Returns vector of (spec_name, Option<snapshot_id>) pairs
+/// Update all specs in the registry.
+/// Returns vector of (spec_name, Option<snapshot_id>) pairs.
 pub async fn update_all_specs(
     conn: &Connection,
     registry: &SpecRegistry,

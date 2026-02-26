@@ -3,12 +3,12 @@ use crate::model::{ParsedSection, SectionType};
 use anyhow::Result;
 use rusqlite::Connection;
 
-/// Get the latest snapshot for a spec by name
-pub fn get_latest_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<i64>> {
+/// Get the snapshot for a spec by name (each spec has at most one snapshot)
+pub fn get_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<i64>> {
     let result = conn.query_row(
         "SELECT s.id FROM snapshots s
          JOIN specs sp ON s.spec_id = sp.id
-         WHERE sp.name = ?1 AND s.is_latest = 1",
+         WHERE sp.name = ?1",
         [spec_name],
         |row| row.get(0),
     );
@@ -113,10 +113,9 @@ pub fn get_outgoing_refs(
 
 /// Get incoming references to a section
 /// Returns (from_spec, from_anchor) tuples
-/// Searches across ALL latest snapshots (not just the current snapshot) to find cross-spec refs
+/// Searches across all indexed specs to find cross-spec refs
 pub fn get_incoming_refs(
     conn: &Connection,
-    _snapshot_id: i64, // Kept for API compatibility but unused
     to_spec: &str,
     to_anchor: &str,
 ) -> Result<Vec<(String, String)>> {
@@ -124,7 +123,7 @@ pub fn get_incoming_refs(
         "SELECT sp.name, r.from_anchor FROM refs r
          JOIN snapshots sn ON r.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE r.to_spec = ?1 AND r.to_anchor = ?2 AND sn.is_latest = 1",
+         WHERE r.to_spec = ?1 AND r.to_anchor = ?2",
     )?;
 
     let refs = stmt
@@ -148,16 +147,14 @@ pub fn search_sections(
          JOIN sections s ON sections_fts.rowid = s.id
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE sections_fts MATCH ?1 AND sp.name = ?2 AND sn.is_latest = 1
-         LIMIT ?3"
+         WHERE sections_fts MATCH ?1 AND sp.name = ?2          LIMIT ?3"
     } else {
         "SELECT s.anchor, sp.name, snippet(sections_fts, 2, '<mark>', '</mark>', '...', 64)
          FROM sections_fts
          JOIN sections s ON sections_fts.rowid = s.id
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE sections_fts MATCH ?1 AND sn.is_latest = 1
-         LIMIT ?2"
+         WHERE sections_fts MATCH ?1          LIMIT ?2"
     };
 
     let mut stmt = conn.prepare(sql)?;
@@ -189,14 +186,12 @@ pub fn find_anchors(
         "SELECT s.anchor, sp.name FROM sections s
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE s.anchor LIKE ?1 AND sp.name = ?2 AND sn.is_latest = 1
-         LIMIT ?3"
+         WHERE s.anchor LIKE ?1 AND sp.name = ?2          LIMIT ?3"
     } else {
         "SELECT s.anchor, sp.name FROM sections s
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE s.anchor LIKE ?1 AND sn.is_latest = 1
-         LIMIT ?2"
+         WHERE s.anchor LIKE ?1          LIMIT ?2"
     };
 
     let mut stmt = conn.prepare(sql)?;
@@ -257,7 +252,6 @@ mod tests {
         let spec_id =
             write::insert_or_get_spec(conn, "HTML", "https://html.spec.whatwg.org", "whatwg")?;
         let snapshot_id = write::insert_snapshot(conn, spec_id, "abc123", "2026-01-01T00:00:00Z")?;
-        write::set_latest_snapshot(conn, spec_id, snapshot_id)?;
 
         let sections = vec![
             ParsedSection {
@@ -288,14 +282,14 @@ mod tests {
     }
 
     #[test]
-    fn test_get_latest_snapshot() {
+    fn test_get_snapshot() {
         let conn = db::open_test_db().unwrap();
         let snapshot_id = setup_test_data(&conn).unwrap();
 
-        let result = get_latest_snapshot(&conn, "HTML").unwrap();
+        let result = get_snapshot(&conn, "HTML").unwrap();
         assert_eq!(result, Some(snapshot_id));
 
-        let result = get_latest_snapshot(&conn, "NonExistent").unwrap();
+        let result = get_snapshot(&conn, "NonExistent").unwrap();
         assert_eq!(result, None);
     }
 

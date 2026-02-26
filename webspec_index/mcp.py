@@ -27,10 +27,6 @@ async def list_tools() -> list[Tool]:
                     "spec_anchor": {
                         "type": "string",
                         "description": "Spec and anchor in format 'SPEC#anchor' (e.g., 'HTML#navigate', 'DOM#concept-tree')"
-                    },
-                    "sha": {
-                        "type": "string",
-                        "description": "Optional commit SHA to query specific version"
                     }
                 },
                 "required": ["spec_anchor"]
@@ -105,10 +101,6 @@ async def list_tools() -> list[Tool]:
                     "spec": {
                         "type": "string",
                         "description": "Spec name (e.g., 'HTML', 'DOM')"
-                    },
-                    "sha": {
-                        "type": "string",
-                        "description": "Optional commit SHA for specific version"
                     }
                 },
                 "required": ["spec"]
@@ -129,10 +121,6 @@ async def list_tools() -> list[Tool]:
                         "enum": ["incoming", "outgoing", "both"],
                         "description": "Direction of references to return",
                         "default": "both"
-                    },
-                    "sha": {
-                        "type": "string",
-                        "description": "Optional commit SHA for specific version"
                     }
                 },
                 "required": ["spec_anchor"]
@@ -164,7 +152,7 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
     """Handle tool calls from AI agents"""
     try:
         if name == "query_spec":
-            result = query(arguments["spec_anchor"], arguments.get("sha"))
+            result = query(arguments["spec_anchor"])
             return CallToolResult(
                 content=[TextContent(
                     type="text",
@@ -208,7 +196,7 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
             )
 
         elif name == "list_headings":
-            result = list_headings(arguments["spec"], arguments.get("sha"))
+            result = list_headings(arguments["spec"])
             return CallToolResult(
                 content=[TextContent(
                     type="text",
@@ -220,7 +208,6 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
             result = refs(
                 arguments["spec_anchor"],
                 arguments.get("direction", "both"),
-                arguments.get("sha")
             )
             return CallToolResult(
                 content=[TextContent(

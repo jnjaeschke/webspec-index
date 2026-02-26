@@ -79,33 +79,6 @@ impl SpecProvider for Tc39Provider {
         Ok((sha, date))
     }
 
-    async fn fetch_version_date(&self, spec: &SpecInfo, sha: &str) -> Result<DateTime<Utc>> {
-        let url = format!(
-            "https://api.github.com/repos/{}/commits/{}",
-            spec.github_repo, sha
-        );
-
-        let client = reqwest::Client::new();
-        let response = client
-            .get(&url)
-            .header("User-Agent", "webspec-index/0.3.0")
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to fetch commit {}: HTTP {}", sha, response.status());
-        }
-
-        let commit: serde_json::Value = response.json().await?;
-        let date_str = commit["commit"]["committer"]["date"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing date in commit"))?;
-
-        let date = DateTime::parse_from_rfc3339(date_str)?.with_timezone(&Utc);
-
-        Ok(date)
-    }
-
     fn resolve_url(&self, url: &str) -> Option<(String, String)> {
         let parsed = url::Url::parse(url).ok()?;
         let anchor = parsed.fragment()?.to_string();

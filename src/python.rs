@@ -32,10 +32,9 @@ fn to_py_result<T: serde::Serialize>(result: anyhow::Result<T>) -> PyResult<Stri
 /// Returns:
 ///     str: JSON string with section details, navigation, and references
 #[pyfunction]
-#[pyo3(signature = (spec_anchor, sha=None))]
-fn query(spec_anchor: String, sha: Option<String>) -> PyResult<String> {
+fn query(spec_anchor: String) -> PyResult<String> {
     let rt = get_runtime();
-    let result = rt.block_on(crate::query_section(&spec_anchor, sha.as_deref()));
+    let result = rt.block_on(crate::query_section(&spec_anchor));
     to_py_result(result)
 }
 
@@ -94,10 +93,9 @@ fn anchors(pattern: String, spec: Option<String>, limit: usize) -> PyResult<Stri
 /// Returns:
 ///     str: JSON string with list of headings
 #[pyfunction]
-#[pyo3(signature = (spec, sha=None))]
-fn list_headings(spec: String, sha: Option<String>) -> PyResult<String> {
+fn list_headings(spec: String) -> PyResult<String> {
     let rt = get_runtime();
-    let result = rt.block_on(crate::list_headings(&spec, sha.as_deref()));
+    let result = rt.block_on(crate::list_headings(&spec));
     to_py_result(result)
 }
 
@@ -111,14 +109,10 @@ fn list_headings(spec: String, sha: Option<String>) -> PyResult<String> {
 /// Returns:
 ///     str: JSON string with incoming and/or outgoing references
 #[pyfunction]
-#[pyo3(signature = (spec_anchor, direction="both".to_string(), sha=None))]
-fn refs(spec_anchor: String, direction: String, sha: Option<String>) -> PyResult<String> {
+#[pyo3(signature = (spec_anchor, direction="both".to_string()))]
+fn refs(spec_anchor: String, direction: String) -> PyResult<String> {
     let rt = get_runtime();
-    let result = rt.block_on(crate::get_references(
-        &spec_anchor,
-        &direction,
-        sha.as_deref(),
-    ));
+    let result = rt.block_on(crate::get_references(&spec_anchor, &direction));
     to_py_result(result)
 }
 
