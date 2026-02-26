@@ -88,13 +88,7 @@ claude mcp add webspec-index -- uvx webspec-index mcp
 
 ## Available Specifications
 
-Currently indexed:
-- **HTML** - WHATWG HTML Living Standard
-- **DOM** - WHATWG DOM Living Standard
-- **URL** - WHATWG URL Living Standard
-- **INFRA** - WHATWG Infra Living Standard
-
-More specs (Fetch, Encoding, Streams, etc.) coming soon!
+This should support most specs from WHATWG, W3C and TC39.
 
 ## How It Works
 
