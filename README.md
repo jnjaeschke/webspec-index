@@ -1,110 +1,85 @@
 # webspec-index
 
-Query WHATWG/W3C web specifications from the command line, Python code, or AI agents (MCP).
+Query WHATWG, W3C, and TC39 web specifications from the command line.
 
 ## Features
 
-- **Full-text search** across HTML, DOM, URL, and other specifications
-- **Cross-reference tracking** (incoming/outgoing references between specs)
-- **Fast SQLite-based indexing** with FTS5 for instant queries
-- **Three interfaces**: CLI, Python library, and MCP server for AI agents
+- **Full-text search** across HTML, DOM, URL, CSS, ECMAScript, and 70+ other specifications
+- **Cross-reference tracking** — see incoming/outgoing references between spec sections
+- **Fast SQLite indexing** with FTS5 for instant queries
+- **Algorithm and IDL extraction** with rendered markdown content
+- **LSP server** for inline spec hovers and step validation in your editor
+- **LLM-friendly** `--help` output — automatically detected when run inside Claude Code, Codex, Gemini CLI, or OpenCode
 
 ## Installation
 
 ```bash
-pip install webspec-index
+cargo binstall webspec-index
 ```
 
-Or run directly with `uvx` (no installation needed):
+Or build from source:
 
 ```bash
-uvx webspec-index query HTML#navigate
+cargo install webspec-index
 ```
-
-If you install via `pip`, the `webspec-index` command is available globally.
-With `uvx`, prefix every command with `uvx webspec-index` instead.
-
-The examples below assume `pip install`.
 
 ## Quick Start
 
-### Command Line
-
 ```bash
-# Query a specific section
-webspec-index query HTML#navigate
+# Look up a spec section (algorithm, definition, heading, IDL)
+webspec-index query "HTML#navigate"
+webspec-index query "https://html.spec.whatwg.org/#navigate"
+webspec-index query "DOM#concept-tree" --format markdown
 
-# Search across all specs
+# Full-text search
 webspec-index search "tree order" --spec DOM
 
-# Check if a section exists (exit code 0 = found, 1 = not found)
-webspec-index exists HTML#navigate
+# Check if an anchor exists (exit code 0 = found, 1 = not found)
+webspec-index exists "HTML#navigate"
 
-# Find anchors by pattern
+# Find anchors by glob pattern
 webspec-index anchors "*-tree" --spec DOM
 
-# List all headings
+# List all headings in a spec
 webspec-index list HTML
 
-# Get cross-references
-webspec-index refs HTML#navigate --direction incoming
+# Cross-references
+webspec-index refs "HTML#navigate" --direction incoming
 
-# Update to latest spec versions
-webspec-index update --spec HTML
-
-# Clear local database
-webspec-index clear-db
+# Update specs to latest versions
+webspec-index update
 ```
 
-Most commands support `--format json` (default) or `--format markdown`.
+All commands support `--format json` (default) or `--format markdown`.
 
-### Python Library
+Spec data is fetched and cached locally on first query — no setup needed.
 
-```python
-import webspec_index
+## AI Agent Integration
 
-# Query a section
-result = webspec_index.query("HTML#navigate")
-print(result["title"])  # "navigate"
-print(result["section_type"])  # "Algorithm"
+### Skill file
 
-# Search
-results = webspec_index.search("tree order", spec="DOM", limit=5)
-for r in results["results"]:
-    print(f"{r['spec']}#{r['anchor']}: {r['snippet']}")
+Drop [SKILL.md](SKILL.md) into your repo to teach the agent how to use the CLI.
 
-# Check existence
-if webspec_index.exists("HTML#navigate"):
-    print("Section found!")
-```
+## Editor Integration
 
-### MCP Server (AI Agents)
+The **webspec-lens** extension provides inline spec hovers, step validation, and coverage tracking. Available for VS Code and any LSP-compatible editor.
 
-Start the MCP server for use with Claude Code or other AI agents:
-
-```bash
-claude mcp add webspec-index -- uvx webspec-index mcp
-```
-
-## Available Specifications
-
-This should support most specs from WHATWG, W3C and TC39.
+See [editors/vscode/](editors/vscode/) for details.
 
 ## How It Works
 
-1. **Fetches** spec HTML from WHATWG/W3C GitHub repositories
+1. **Fetches** spec HTML from WHATWG/W3C/TC39 GitHub repositories
 2. **Parses** sections, algorithms, IDL definitions, and cross-references
 3. **Indexes** in SQLite with FTS5 for fast full-text search
 4. **Tracks versions** using git commit SHAs for reproducibility
 
 ## Development
 
-Built with:
-- **Rust** for fast parsing and indexing (scraper, rusqlite, reqwest)
-- **PyO3** for zero-cost Python bindings
-- **Maturin** for packaging
-- **Click** for CLI
-- **MCP** (Model Context Protocol) for AI agent integration
+```bash
+cargo test          # 235 tests
+cargo clippy        # lint
+cargo fmt --check   # format check
+```
 
 ## License
 
@@ -114,3 +89,4 @@ MIT
 
 - [GitHub Repository](https://github.com/jnjaeschke/webspec-index)
 - [Issue Tracker](https://github.com/jnjaeschke/webspec-index/issues)
+- [VS Code Extension](https://marketplace.visualstudio.com/items?itemName=jnjaeschke.webspec-lens)
