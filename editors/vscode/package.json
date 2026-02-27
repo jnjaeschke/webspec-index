@@ -54,7 +54,7 @@
             "type": "string"
           },
           "default": null,
-          "markdownDescription": "Command to start the LSP server (e.g. `[\"webspec-index\", \"lsp\"]`). Auto-detected if not set."
+          "markdownDescription": "Command to start the LSP server (e.g. `[\"webspec-index\", \"lsp\"]`). Auto-detected if not set. Install with `cargo binstall webspec-index`."
         },
         "webspecLens.fuzzyThreshold": {
           "type": "number",

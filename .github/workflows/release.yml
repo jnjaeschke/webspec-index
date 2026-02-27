@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag to simulate (e.g., v0.1.0-test)'
+        description: 'Version tag to simulate (e.g., v0.5.0-test)'
         required: true
-        default: 'v0.1.0-test'
+        default: 'v0.5.0-test'
 
 permissions:
   contents: read
@@ -19,7 +19,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Validate tag matches Cargo.toml and run tests
   validate:
     name: Validate & test
     runs-on: ubuntu-latest
@@ -36,7 +35,7 @@ jobs:
         run: |
           TAG_VERSION="${GITHUB_REF#refs/tags/v}"
           CARGO_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-          PKG_VERSION=$(python3 -c "import json; print(json.load(open('editors/vscode/package.json'))['version'])")
+          PKG_VERSION=$(node -p "require('./editors/vscode/package.json').version")
           echo "Tag version:          $TAG_VERSION"
           echo "Cargo.toml version:   $CARGO_VERSION"
           echo "package.json version: $PKG_VERSION"
@@ -52,66 +51,81 @@ jobs:
       - name: Run tests
         run: cargo test
 
-  # Build wheels for multiple platforms
-  build-wheels:
-    name: Build wheels (${{ matrix.os }})
+  build-binaries:
+    name: Build ${{ matrix.target }}
     needs: validate
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive: tar.gz
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            archive: tar.gz
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            archive: tar.gz
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            archive: tar.gz
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            archive: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive: zip
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          python-version: "3.12"
+          targets: ${{ matrix.target }}
 
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
+      - uses: Swatinem/rust-cache@v2
         with:
-          command: build
-          args: --release --out dist -i python
+          key: ${{ matrix.target }}
 
-      - name: Smoke test wheel
-        shell: bash
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
-          pip install dist/*.whl
-          cd /tmp
-          python -c "from webspec_index import query, search, exists; print('Import OK')"
-          webspec-index --version
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Upload wheels
+      - name: Install musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Package (Unix)
+        if: matrix.archive == 'tar.gz'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf webspec-index-${{ matrix.target }}.tar.gz webspec-index
+          mv webspec-index-${{ matrix.target }}.tar.gz ${{ github.workspace }}
+
+      - name: Package (Windows)
+        if: matrix.archive == 'zip'
+        run: |
+          cd target/${{ matrix.target }}/release
+          7z a webspec-index-${{ matrix.target }}.zip webspec-index.exe
+          mv webspec-index-${{ matrix.target }}.zip ${{ github.workspace }}
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}
-          path: dist
+          name: binary-${{ matrix.target }}
+          path: webspec-index-${{ matrix.target }}.*
           retention-days: 5
 
-  # Build source distribution
-  build-sdist:
-    name: Build source distribution
-    needs: validate
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        with:
-          command: sdist
-          args: --out dist
-
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
-        with:
-          name: sdist
-          path: dist
-          retention-days: 5
-
-  # Build the VSCode extension .vsix
   build-extension:
     name: Build extension
     needs: validate
@@ -139,97 +153,9 @@ jobs:
           path: editors/vscode/*.vsix
           retention-days: 5
 
-  # Publish to PyPI using Trusted Publishers (OIDC)
-  publish:
-    name: Publish to PyPI
-    needs: [build-wheels, build-sdist, build-extension]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    environment:
-      name: pypi
-      url: https://pypi.org/project/webspec-index/
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Download wheels
-        uses: actions/download-artifact@v4
-        with:
-          pattern: "wheels-*"
-          merge-multiple: true
-          path: dist
-
-      - name: Download sdist
-        uses: actions/download-artifact@v4
-        with:
-          name: sdist
-          path: dist
-
-      - name: List distributions
-        run: ls -lh dist/
-
-      - uses: astral-sh/setup-uv@v5
-
-      - name: Publish to PyPI
-        run: uv publish dist/*
-
-  # Publish to VS Code Marketplace
-  publish-vscode:
-    name: Publish to VS Code Marketplace
-    needs: [build-wheels, build-sdist, build-extension]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    environment:
-      name: vscode-marketplace
-      url: https://marketplace.visualstudio.com/items?itemName=jnjaeschke.webspec-lens
-
-    steps:
-      - name: Download .vsix
-        uses: actions/download-artifact@v4
-        with:
-          name: vsix
-          path: dist
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Publish to VS Code Marketplace
-        run: npx @vscode/vsce publish --packagePath dist/*.vsix
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
-  # Publish to Open VSX (VSCodium) — non-blocking
-  publish-openvsx:
-    name: Publish to Open VSX
-    needs: [build-wheels, build-sdist, build-extension]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    continue-on-error: true
-    environment:
-      name: vscode-marketplace
-
-    steps:
-      - name: Download .vsix
-        uses: actions/download-artifact@v4
-        with:
-          name: vsix
-          path: dist
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Publish to Open VSX
-        run: npx ovsx publish dist/*.vsix
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-
-  # Create GitHub Release
   github-release:
     name: Create GitHub Release
-    needs: [publish, publish-vscode, publish-openvsx]
+    needs: [build-binaries, build-extension]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -257,14 +183,84 @@ jobs:
           body: |
             ## Install
 
-            **Python package** (CLI, MCP server, LSP server):
+            **Binary** (recommended):
             ```bash
-            pip install webspec-index==${{ steps.version.outputs.VERSION }}
-            # or: uvx webspec-index@${{ steps.version.outputs.VERSION }} --help
+            cargo binstall webspec-index
             ```
+
+            Or download a prebuilt binary for your platform from the assets below.
 
             **VSCode / VSCodium extension** (`webspec-lens`):
             Search for `webspec-lens` in the Extensions panel, or install the `.vsix` attached below.
           files: dist/*
           draft: false
           prerelease: false
+
+  publish-crates-io:
+    name: Publish to crates.io
+    needs: [build-binaries]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: crates-io
+      url: https://crates.io/crates/webspec-index
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish
+        run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  publish-vscode:
+    name: Publish to VS Code Marketplace
+    needs: [build-binaries, build-extension]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: vscode-marketplace
+      url: https://marketplace.visualstudio.com/items?itemName=jnjaeschke.webspec-lens
+
+    steps:
+      - name: Download .vsix
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Publish to VS Code Marketplace
+        run: npx @vscode/vsce publish --packagePath dist/*.vsix
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+  publish-openvsx:
+    name: Publish to Open VSX
+    needs: [build-binaries, build-extension]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    continue-on-error: true
+    environment:
+      name: vscode-marketplace
+
+    steps:
+      - name: Download .vsix
+        uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: dist
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Publish to Open VSX
+        run: npx ovsx publish dist/*.vsix
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}

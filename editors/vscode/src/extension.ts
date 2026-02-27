@@ -17,12 +17,6 @@ async function commandExists(cmd: string): Promise<boolean> {
   });
 }
 
-async function findPython(): Promise<string | null> {
-  if (await commandExists("python3")) return "python3";
-  if (await commandExists("python")) return "python";
-  return null;
-}
-
 async function findServerCommand(): Promise<string[]> {
   // 1. User setting
   const configured = vscode.workspace
@@ -37,21 +31,8 @@ async function findServerCommand(): Promise<string[]> {
     return ["webspec-index", "lsp"];
   }
 
-  // 3. uvx
-  if (await commandExists("uvx")) {
-    log.appendLine("Falling back to uvx");
-    return ["uvx", "webspec-index[lsp]", "lsp"];
-  }
-
-  // 4. python -m webspec_index lsp
-  const python = await findPython();
-  if (python) {
-    log.appendLine(`Falling back to ${python} -m`);
-    return [python, "-m", "webspec_index", "lsp"];
-  }
-
   throw new Error(
-    "Could not find webspec-index. Install with: pip install webspec-index[lsp]"
+    "Could not find webspec-index. Install with: cargo binstall webspec-index"
   );
 }
 

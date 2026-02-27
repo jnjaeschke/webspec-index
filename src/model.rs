@@ -76,7 +76,7 @@ pub struct ParsedSpec {
 }
 
 /// JSON output for query command
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct QueryResult {
     pub spec: String,
     pub sha: String,
@@ -90,7 +90,7 @@ pub struct QueryResult {
     pub incoming_refs: Vec<RefEntry>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Navigation {
     pub parent: Option<NavEntry>,
     pub prev: Option<NavEntry>,
@@ -98,13 +98,13 @@ pub struct Navigation {
     pub children: Vec<NavEntry>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct NavEntry {
     pub anchor: String,
     pub title: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RefEntry {
     pub spec: String,
     pub anchor: String,
@@ -169,6 +169,13 @@ pub struct ListEntry {
 pub struct SpecUrlEntry {
     pub spec: String,
     pub base_url: String,
+}
+
+/// JSON output for update command
+#[derive(Debug, Serialize)]
+pub struct UpdateEntry {
+    pub spec: String,
+    pub updated: bool,
 }
 
 /// JSON output for refs command

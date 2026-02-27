@@ -6,14 +6,11 @@
 pub mod db;
 pub mod fetch;
 pub mod format;
+pub mod lsp;
 pub mod model;
 pub mod parse;
 pub mod provider;
 pub mod spec_registry;
-
-// Python bindings (only compiled when building as Python extension)
-#[cfg(feature = "extension-module")]
-pub mod python;
 
 use anyhow::Result;
 

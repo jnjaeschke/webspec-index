@@ -5,75 +5,72 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  CARGO_TERM_COLOR: always
+
 permissions:
   contents: read
 
 jobs:
-  test-rust:
-    name: Rust tests
+  test:
+    name: Test
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run tests
+        run: cargo test --verbose
 
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy, rustfmt
-
-      - uses: Swatinem/rust-cache@v2
-
+          components: rustfmt
       - name: Check formatting
-        run: cargo fmt --check
+        run: cargo fmt -- --check
 
-      - name: Clippy
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Run clippy
         run: cargo clippy -- -D warnings
 
-      - name: Run tests
-        run: cargo test
-
-  build-python:
-    name: Build & smoke test (${{ matrix.os }})
+  build:
+    name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --verbose
+      - name: Build release
+        run: cargo build --release --verbose
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Build wheel
-        uses: PyO3/maturin-action@v1
-        with:
-          command: build
-          args: --release --out dist -i python
-
-      - name: Install and smoke test
-        shell: bash
-        run: |
-          pip install dist/*.whl
-          cd /tmp
-          python -c "from webspec_index import query, search, exists, anchors, list_headings, refs, update, clear_db; print('All imports OK')"
-          webspec-index --version
-
-  build-extension:
+  extension:
     name: Build extension
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
       - name: Install dependencies
         working-directory: editors/vscode
         run: npm ci
-
       - name: Compile TypeScript
         working-directory: editors/vscode
         run: npm run compile
