@@ -1,6 +1,7 @@
 // Query operations on the database
 use crate::model::{ParsedSection, SectionType};
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use rusqlite::Connection;
 
 /// Get the snapshot for a spec by name (each spec has at most one snapshot)
@@ -15,6 +16,39 @@ pub fn get_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<i64>> {
 
     match result {
         Ok(id) => Ok(Some(id)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Get the cached latest SHA for a GitHub repo, if present and fresh enough for the caller to decide.
+/// Returns (sha, commit_date, checked_at) if a cache entry exists.
+pub fn get_repo_sha_cache(
+    conn: &Connection,
+    repo: &str,
+) -> Result<Option<(String, DateTime<Utc>, DateTime<Utc>)>> {
+    let result = conn.query_row(
+        "SELECT sha, commit_date, checked_at FROM repo_version_cache WHERE repo = ?1",
+        [repo],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        },
+    );
+
+    match result {
+        Ok((sha, commit_date_str, checked_at_str)) => {
+            let commit_date = DateTime::parse_from_rfc3339(&commit_date_str)
+                .map(|d| d.with_timezone(&Utc))
+                .map_err(|e| rusqlite::Error::InvalidColumnType(1, e.to_string(), rusqlite::types::Type::Text))?;
+            let checked_at = DateTime::parse_from_rfc3339(&checked_at_str)
+                .map(|d| d.with_timezone(&Utc))
+                .map_err(|e| rusqlite::Error::InvalidColumnType(2, e.to_string(), rusqlite::types::Type::Text))?;
+            Ok(Some((sha, commit_date, checked_at)))
+        }
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e.into()),
     }

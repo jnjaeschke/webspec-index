@@ -94,6 +94,20 @@ pub fn initialize_schema(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Run schema migrations for tables added after initial release.
+/// Uses CREATE TABLE IF NOT EXISTS to be safe on both new and existing databases.
+pub fn run_migrations(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS repo_version_cache (
+            repo        TEXT PRIMARY KEY,
+            sha         TEXT NOT NULL,
+            commit_date TEXT NOT NULL,
+            checked_at  TEXT NOT NULL
+        );",
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,5 +139,31 @@ mod tests {
         initialize_schema(&conn).unwrap();
         // Should not fail on second call
         initialize_schema(&conn).unwrap();
+    }
+
+    #[test]
+    fn test_migrations() {
+        let conn = Connection::open_in_memory().unwrap();
+        initialize_schema(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+
+        let tables: Vec<String> = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+        assert!(tables.contains(&"repo_version_cache".to_string()));
+    }
+
+    #[test]
+    fn test_migrations_idempotent() {
+        let conn = Connection::open_in_memory().unwrap();
+        initialize_schema(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+        // Should not fail on second call
+        run_migrations(&conn).unwrap();
     }
 }

@@ -28,6 +28,7 @@ pub fn open_or_create_db() -> Result<Connection> {
 
     let conn = Connection::open(&db_path)?;
     schema::initialize_schema(&conn)?;
+    schema::run_migrations(&conn)?;
 
     Ok(conn)
 }
@@ -36,5 +37,6 @@ pub fn open_or_create_db() -> Result<Connection> {
 pub fn open_test_db() -> Result<Connection> {
     let conn = Connection::open_in_memory()?;
     schema::initialize_schema(&conn)?;
+    schema::run_migrations(&conn)?;
     Ok(conn)
 }

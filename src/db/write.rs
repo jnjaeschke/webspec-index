@@ -129,6 +129,22 @@ pub fn delete_spec_data(conn: &Connection, spec_id: i64) -> Result<()> {
     Ok(())
 }
 
+/// Update the per-repo SHA cache entry, creating or replacing it.
+pub fn update_repo_sha_cache(
+    conn: &Connection,
+    repo: &str,
+    sha: &str,
+    commit_date: &chrono::DateTime<chrono::Utc>,
+) -> Result<()> {
+    let checked_at = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT OR REPLACE INTO repo_version_cache (repo, sha, commit_date, checked_at)
+         VALUES (?1, ?2, ?3, ?4)",
+        (repo, sha, &commit_date.to_rfc3339(), &checked_at),
+    )?;
+    Ok(())
+}
+
 /// Record that we checked for updates for a spec
 pub fn record_update_check(conn: &Connection, spec_id: i64) -> Result<()> {
     let timestamp = chrono::Utc::now().to_rfc3339();

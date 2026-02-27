@@ -441,18 +441,14 @@ impl SpecProvider for W3cProvider {
         Ok(response.text().await?)
     }
 
-    /// Fetch the latest version identifier from GitHub.
-    /// For CSSWG monorepo specs, filters commits to the spec's directory.
+    /// Fetch the latest commit SHA for the spec's GitHub repo.
+    /// For CSSWG monorepo specs, returns the monorepo HEAD (no path filter),
+    /// so all CSSWG specs share one API call via the repo-level cache.
     async fn fetch_latest_version(&self, spec: &SpecInfo) -> Result<(String, DateTime<Utc>)> {
-        let mut url = format!(
+        let url = format!(
             "https://api.github.com/repos/{}/commits?per_page=1",
             spec.github_repo
         );
-
-        // For CSSWG monorepo, filter commits to the spec's directory
-        if let Some(dir) = csswg_spec_dir(spec) {
-            url.push_str(&format!("&path={}", dir));
-        }
 
         let client = reqwest::Client::new();
         let response = client
