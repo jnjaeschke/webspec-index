@@ -74,3 +74,22 @@ jobs:
       - name: Compile TypeScript
         working-directory: editors/vscode
         run: npm run compile
+
+  zed-extension:
+    name: Build Zed extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: zed-extension
+      - name: Run tests
+        run: cargo test --manifest-path editors/zed/Cargo.toml --verbose
+      - name: Run clippy
+        run: cargo clippy --manifest-path editors/zed/Cargo.toml --target wasm32-wasip1 -- -D warnings
+      - name: Build wasm extension
+        run: cargo build --release --manifest-path editors/zed/Cargo.toml --target wasm32-wasip1 --verbose

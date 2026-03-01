@@ -1,0 +1,41 @@
+id = "webspec-lens"
+name = "webspec-lens"
+version = "0.5.0"
+schema_version = 1
+description = "Hover WHATWG/W3C/TC39 spec URLs, validate steps, and track algorithm coverage."
+repository = "https://github.com/jnjaeschke/webspec-index"
+authors = ["Jan Jaeschke"]
+themes = []
+icon_themes = []
+languages = []
+capabilities = []
+
+[lib]
+kind = "Rust"
+version = "0.7.0"
+
+[language_servers.webspec-index]
+languages = [
+  "Plain Text",
+  "C",
+  "C++",
+  "Objective-C",
+  "Objective-C++",
+  "Rust",
+  "Go",
+  "JavaScript",
+  "TypeScript",
+  "TSX",
+  "JSX",
+  "Python",
+  "HTML",
+  "CSS",
+  "SCSS",
+  "JSON",
+]
+
+[context_servers]
+
+[agent_servers]
+
+[slash_commands]

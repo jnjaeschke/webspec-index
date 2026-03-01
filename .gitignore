@@ -13,3 +13,6 @@ editors/vscode/node_modules
 editors/vscode/out
 editors/vscode/*.vsix
 node_modules
+
+# zed extension
+*.wasm

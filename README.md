@@ -64,7 +64,7 @@ Drop [SKILL.md](SKILL.md) into your repo to teach the agent how to use the CLI.
 
 The **webspec-lens** extension provides inline spec hovers, step validation, and coverage tracking. Available for VS Code and any LSP-compatible editor.
 
-See [editors/vscode/](editors/vscode/) for details.
+See [editors/vscode/](editors/vscode/) and [editors/zed/](editors/zed/) for details.
 
 ## How It Works
 
