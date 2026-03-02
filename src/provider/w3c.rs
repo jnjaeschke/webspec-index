@@ -403,6 +403,25 @@ pub const W3C_SPECS: &[SpecInfo] = &[
         provider: "w3c",
         github_repo: "w3c/webcodecs",
     },
+    // --- webaudio GitHub org specs ---
+    SpecInfo {
+        name: "WEB-AUDIO",
+        base_url: "https://webaudio.github.io/web-audio-api",
+        provider: "w3c",
+        github_repo: "webaudio/web-audio-api",
+    },
+    SpecInfo {
+        name: "WEB-MIDI",
+        base_url: "https://webaudio.github.io/web-midi-api",
+        provider: "w3c",
+        github_repo: "webaudio/web-midi-api",
+    },
+    SpecInfo {
+        name: "WEB-SPEECH",
+        base_url: "https://webaudio.github.io/web-speech-api",
+        provider: "w3c",
+        github_repo: "webaudio/web-speech-api",
+    },
 ];
 
 /// Extract the CSSWG spec directory name from a base URL.
@@ -498,11 +517,11 @@ impl SpecProvider for W3cProvider {
                 }
                 None
             }
-            "w3c.github.io" => {
-                // Path might be /ServiceWorker/ or /ServiceWorker/v1/ — match on first segment
+            "w3c.github.io" | "webaudio.github.io" => {
                 let repo_part = parsed.path().trim_matches('/').split('/').next()?;
+                let base = format!("https://{}/{}", host, repo_part);
                 for spec in W3C_SPECS {
-                    if spec.base_url == format!("https://w3c.github.io/{}", repo_part) {
+                    if spec.base_url == base {
                         return Some((spec.name.to_string(), anchor));
                     }
                 }
@@ -610,6 +629,26 @@ mod tests {
     }
 
     #[test]
+    fn test_resolve_webaudio_url() {
+        let provider = W3cProvider;
+        let result = provider.resolve_url("https://webaudio.github.io/web-audio-api/#AudioContext");
+        assert_eq!(
+            result,
+            Some(("WEB-AUDIO".to_string(), "AudioContext".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_resolve_web_midi_url() {
+        let provider = W3cProvider;
+        let result = provider.resolve_url("https://webaudio.github.io/web-midi-api/#MIDIAccess");
+        assert_eq!(
+            result,
+            Some(("WEB-MIDI".to_string(), "MIDIAccess".to_string()))
+        );
+    }
+
+    #[test]
     fn test_resolve_url_no_fragment() {
         let provider = W3cProvider;
         assert_eq!(
@@ -681,7 +720,8 @@ mod tests {
         for spec in W3C_SPECS {
             assert!(
                 spec.base_url.starts_with("https://drafts.csswg.org/")
-                    || spec.base_url.starts_with("https://w3c.github.io/"),
+                    || spec.base_url.starts_with("https://w3c.github.io/")
+                    || spec.base_url.starts_with("https://webaudio.github.io/"),
                 "Spec {} has unexpected base_url: {}",
                 spec.name,
                 spec.base_url
