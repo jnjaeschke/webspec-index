@@ -1,63 +1,61 @@
-use crate::model::SpecInfo;
-use crate::provider::{tc39::Tc39Provider, w3c::W3cProvider, whatwg::WhatwgProvider, SpecProvider};
-use anyhow::Result;
+use crate::provider::{gpuweb, tc39, w3c, whatwg, SpecAccess};
 
 /// Top-level registry that routes to appropriate providers
 pub struct SpecRegistry {
-    providers: Vec<Box<dyn SpecProvider + Send + Sync>>,
+    specs: Vec<Box<dyn SpecAccess>>,
 }
 
 impl SpecRegistry {
     pub fn new() -> Self {
-        Self {
-            providers: vec![
-                Box::new(WhatwgProvider),
-                Box::new(W3cProvider),
-                Box::new(Tc39Provider),
-            ],
-        }
+        let mut specs = Vec::new();
+        specs.extend(gpuweb::specs());
+        specs.extend(tc39::specs());
+        specs.extend(w3c::specs());
+        specs.extend(whatwg::specs());
+        Self { specs }
     }
 
     /// Find a spec by name (case-insensitive)
-    pub fn find_spec(&self, name: &str) -> Option<&SpecInfo> {
+    pub fn find_spec(&self, name: &str) -> Option<&dyn SpecAccess> {
         let name_lower = name.to_lowercase();
-        for provider in &self.providers {
-            for spec in provider.known_specs() {
-                if spec.name.to_lowercase() == name_lower {
-                    return Some(spec);
-                }
-            }
-        }
-        None
-    }
-
-    /// Get the provider for a spec
-    pub fn get_provider(&self, spec: &SpecInfo) -> Result<&(dyn SpecProvider + Send + Sync)> {
-        for provider in &self.providers {
-            if provider.provider_name() == spec.provider {
-                return Ok(provider.as_ref());
-            }
-        }
-        anyhow::bail!("No provider found for spec {}", spec.name)
+        self.specs
+            .iter()
+            .find(|s| s.name().to_lowercase() == name_lower)
+            .map(|s| s.as_ref())
     }
 
     /// List all known specs
-    pub fn list_all_specs(&self) -> Vec<&SpecInfo> {
-        let mut specs = Vec::new();
-        for provider in &self.providers {
-            specs.extend(provider.known_specs());
-        }
-        specs
+    pub fn list_all_specs(&self) -> &[Box<dyn SpecAccess>] {
+        &self.specs
     }
 
     /// Map a URL to (spec_name, anchor) if recognized
     pub fn resolve_url(&self, url: &str) -> Option<(String, String)> {
-        for provider in &self.providers {
-            if let Some(result) = provider.resolve_url(url) {
-                return Some(result);
+        let parsed = url::Url::parse(url).ok()?;
+        let anchor = parsed.fragment()?.to_string();
+        let mut without_fragment = parsed.clone();
+        without_fragment.set_fragment(None);
+        let base = without_fragment.as_str().trim_end_matches('/');
+
+        for spec in &self.specs {
+            let spec_url = spec.url().trim_end_matches('/');
+            if base == spec_url || base.starts_with(&format!("{spec_url}/")) {
+                return Some((spec.name().to_string(), anchor));
             }
         }
+
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_unknown_url() {
+        let registry = SpecRegistry::new();
+        assert_eq!(registry.resolve_url("https://example.com/#foo"), None);
     }
 }
 

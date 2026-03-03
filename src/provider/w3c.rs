@@ -1,567 +1,136 @@
-use super::SpecProvider;
-use crate::model::SpecInfo;
-use anyhow::Result;
-use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use super::{github::GithubSpecInfo, SpecAccess};
 
-pub struct W3cProvider;
-
-// Registry of known W3C specs.
-// Two flavors:
-//   - CSSWG specs hosted at drafts.csswg.org (monorepo: w3c/csswg-drafts)
-//   - Standalone specs hosted at w3c.github.io (individual repos)
-pub const W3C_SPECS: &[SpecInfo] = &[
-    // --- CSSWG specs (monorepo: w3c/csswg-drafts) ---
-    SpecInfo {
-        name: "CSS-ALIGN",
-        base_url: "https://drafts.csswg.org/css-align-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-ANCHOR-POSITION",
-        base_url: "https://drafts.csswg.org/css-anchor-position-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-ANIMATIONS",
-        base_url: "https://drafts.csswg.org/css-animations-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-BACKGROUNDS",
-        base_url: "https://drafts.csswg.org/css-backgrounds-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-BOX",
-        base_url: "https://drafts.csswg.org/css-box-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-BREAK",
-        base_url: "https://drafts.csswg.org/css-break-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-CASCADE",
-        base_url: "https://drafts.csswg.org/css-cascade-6",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-COLOR",
-        base_url: "https://drafts.csswg.org/css-color-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-COLOR-ADJUST",
-        base_url: "https://drafts.csswg.org/css-color-adjust-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-COMPOSITING",
-        base_url: "https://drafts.csswg.org/compositing-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-CONDITIONAL",
-        base_url: "https://drafts.csswg.org/css-conditional-5",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-CONTAIN",
-        base_url: "https://drafts.csswg.org/css-contain-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-COUNTER-STYLES",
-        base_url: "https://drafts.csswg.org/css-counter-styles-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-DISPLAY",
-        base_url: "https://drafts.csswg.org/css-display-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-EASING",
-        base_url: "https://drafts.csswg.org/css-easing-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-FILTER-EFFECTS",
-        base_url: "https://drafts.csswg.org/filter-effects-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-FLEXBOX",
-        base_url: "https://drafts.csswg.org/css-flexbox-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-FONT-LOADING",
-        base_url: "https://drafts.csswg.org/css-font-loading-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-FONTS",
-        base_url: "https://drafts.csswg.org/css-fonts-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-GRID",
-        base_url: "https://drafts.csswg.org/css-grid-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-HIGHLIGHT-API",
-        base_url: "https://drafts.csswg.org/css-highlight-api-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-IMAGES",
-        base_url: "https://drafts.csswg.org/css-images-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-INLINE",
-        base_url: "https://drafts.csswg.org/css-inline-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-LISTS",
-        base_url: "https://drafts.csswg.org/css-lists-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-LOGICAL",
-        base_url: "https://drafts.csswg.org/css-logical-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-MASKING",
-        base_url: "https://drafts.csswg.org/css-masking-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-MEDIAQUERIES",
-        base_url: "https://drafts.csswg.org/mediaqueries-5",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-MOTION",
-        base_url: "https://drafts.csswg.org/motion-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-MULTICOL",
-        base_url: "https://drafts.csswg.org/css-multicol-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-NESTING",
-        base_url: "https://drafts.csswg.org/css-nesting-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-OVERFLOW",
-        base_url: "https://drafts.csswg.org/css-overflow-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-OVERSCROLL",
-        base_url: "https://drafts.csswg.org/css-overscroll-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-PAGE",
-        base_url: "https://drafts.csswg.org/css-page-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-POSITION",
-        base_url: "https://drafts.csswg.org/css-position-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-PSEUDO",
-        base_url: "https://drafts.csswg.org/css-pseudo-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-RUBY",
-        base_url: "https://drafts.csswg.org/css-ruby-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-SCROLL-ANCHORING",
-        base_url: "https://drafts.csswg.org/css-scroll-anchoring-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-SCROLL-SNAP",
-        base_url: "https://drafts.csswg.org/css-scroll-snap-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-SCROLLBARS",
-        base_url: "https://drafts.csswg.org/css-scrollbars-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-SELECTORS",
-        base_url: "https://drafts.csswg.org/selectors-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-SHADOW-PARTS",
-        base_url: "https://drafts.csswg.org/css-shadow-parts-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-SHAPES",
-        base_url: "https://drafts.csswg.org/css-shapes-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-SIZING",
-        base_url: "https://drafts.csswg.org/css-sizing-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-SYNTAX",
-        base_url: "https://drafts.csswg.org/css-syntax-3",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-TEXT",
-        base_url: "https://drafts.csswg.org/css-text-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-TEXT-DECOR",
-        base_url: "https://drafts.csswg.org/css-text-decor-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-TRANSFORMS",
-        base_url: "https://drafts.csswg.org/css-transforms-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-TRANSITIONS",
-        base_url: "https://drafts.csswg.org/css-transitions-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-UI",
-        base_url: "https://drafts.csswg.org/css-ui-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-VALUES",
-        base_url: "https://drafts.csswg.org/css-values-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-VARIABLES",
-        base_url: "https://drafts.csswg.org/css-variables-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-VIEW-TRANSITIONS",
-        base_url: "https://drafts.csswg.org/css-view-transitions-2",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-WILL-CHANGE",
-        base_url: "https://drafts.csswg.org/css-will-change-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSS-WRITING-MODES",
-        base_url: "https://drafts.csswg.org/css-writing-modes-4",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSSOM",
-        base_url: "https://drafts.csswg.org/cssom-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "CSSOM-VIEW",
-        base_url: "https://drafts.csswg.org/cssom-view-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "GEOMETRY",
-        base_url: "https://drafts.csswg.org/geometry-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "RESIZE-OBSERVER",
-        base_url: "https://drafts.csswg.org/resize-observer-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "SCROLL-ANIMATIONS",
-        base_url: "https://drafts.csswg.org/scroll-animations-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    SpecInfo {
-        name: "WEB-ANIMATIONS",
-        base_url: "https://drafts.csswg.org/web-animations-1",
-        provider: "w3c",
-        github_repo: "w3c/csswg-drafts",
-    },
-    // --- Standalone W3C specs (individual repos) ---
-    SpecInfo {
-        name: "FILE-API",
-        base_url: "https://w3c.github.io/FileAPI",
-        provider: "w3c",
-        github_repo: "w3c/FileAPI",
-    },
-    SpecInfo {
-        name: "PERMISSIONS",
-        base_url: "https://w3c.github.io/permissions",
-        provider: "w3c",
-        github_repo: "w3c/permissions",
-    },
-    SpecInfo {
-        name: "POINTER-EVENTS",
-        base_url: "https://w3c.github.io/pointerevents",
-        provider: "w3c",
-        github_repo: "w3c/pointerevents",
-    },
-    SpecInfo {
-        name: "SERVICE-WORKERS",
-        base_url: "https://w3c.github.io/ServiceWorker",
-        provider: "w3c",
-        github_repo: "w3c/ServiceWorker",
-    },
-    SpecInfo {
-        name: "WEBCODECS",
-        base_url: "https://w3c.github.io/webcodecs",
-        provider: "w3c",
-        github_repo: "w3c/webcodecs",
-    },
-    // --- webaudio GitHub org specs ---
-    SpecInfo {
-        name: "WEB-AUDIO",
-        base_url: "https://webaudio.github.io/web-audio-api",
-        provider: "w3c",
-        github_repo: "webaudio/web-audio-api",
-    },
-    SpecInfo {
-        name: "WEB-MIDI",
-        base_url: "https://webaudio.github.io/web-midi-api",
-        provider: "w3c",
-        github_repo: "webaudio/web-midi-api",
-    },
-    SpecInfo {
-        name: "WEB-SPEECH",
-        base_url: "https://webaudio.github.io/web-speech-api",
-        provider: "w3c",
-        github_repo: "webaudio/web-speech-api",
-    },
-];
-
-/// Extract the CSSWG spec directory name from a base URL.
-/// Returns None for non-CSSWG (standalone) specs.
-fn csswg_spec_dir(spec: &SpecInfo) -> Option<&str> {
-    spec.base_url.strip_prefix("https://drafts.csswg.org/")
+fn csswg_spec(name: &str, dir: &str) -> Box<dyn SpecAccess> {
+    let base_url = format!("https://drafts.csswg.org/{dir}");
+    Box::new(GithubSpecInfo {
+        name: name.into(),
+        url: base_url.clone(),
+        provider: "w3c".into(),
+        github_repo: "w3c/csswg-drafts".into(),
+        html_url_template: format!("{base_url}/"),
+        commit_history_url:
+            "https://api.github.com/repos/w3c/csswg-drafts/commits?per_page=1".into(),
+    })
 }
 
-#[async_trait]
-impl SpecProvider for W3cProvider {
-    fn provider_name(&self) -> &str {
-        "w3c"
+fn github_io_spec(name: &str, org: &str, repo: &str) -> Box<dyn SpecAccess> {
+    let base_url = format!("https://{org}.github.io/{repo}");
+    Box::new(GithubSpecInfo {
+        name: name.into(),
+        url: base_url.clone(),
+        provider: "w3c".into(),
+        github_repo: format!("{org}/{repo}"),
+        html_url_template: format!("{base_url}/"),
+        commit_history_url: format!(
+            "https://api.github.com/repos/{org}/{repo}/commits?per_page=1"
+        ),
+    })
+}
+
+// --- CSSWG specs (monorepo: w3c/csswg-drafts) ---
+const CSSWG_SPECS: &[(&str, &str)] = &[
+    ("CSS-ALIGN", "css-align-3"),
+    ("CSS-ANCHOR-POSITION", "css-anchor-position-1"),
+    ("CSS-ANIMATIONS", "css-animations-2"),
+    ("CSS-BACKGROUNDS", "css-backgrounds-3"),
+    ("CSS-BOX", "css-box-4"),
+    ("CSS-BREAK", "css-break-4"),
+    ("CSS-CASCADE", "css-cascade-6"),
+    ("CSS-COLOR", "css-color-4"),
+    ("CSS-COLOR-ADJUST", "css-color-adjust-1"),
+    ("CSS-COMPOSITING", "compositing-1"),
+    ("CSS-CONDITIONAL", "css-conditional-5"),
+    ("CSS-CONTAIN", "css-contain-3"),
+    ("CSS-COUNTER-STYLES", "css-counter-styles-3"),
+    ("CSS-DISPLAY", "css-display-4"),
+    ("CSS-EASING", "css-easing-2"),
+    ("CSS-FILTER-EFFECTS", "filter-effects-2"),
+    ("CSS-FLEXBOX", "css-flexbox-1"),
+    ("CSS-FONT-LOADING", "css-font-loading-3"),
+    ("CSS-FONTS", "css-fonts-4"),
+    ("CSS-GRID", "css-grid-2"),
+    ("CSS-HIGHLIGHT-API", "css-highlight-api-1"),
+    ("CSS-IMAGES", "css-images-4"),
+    ("CSS-INLINE", "css-inline-3"),
+    ("CSS-LISTS", "css-lists-3"),
+    ("CSS-LOGICAL", "css-logical-1"),
+    ("CSS-MASKING", "css-masking-1"),
+    ("CSS-MEDIAQUERIES", "mediaqueries-5"),
+    ("CSS-MOTION", "motion-1"),
+    ("CSS-MULTICOL", "css-multicol-1"),
+    ("CSS-NESTING", "css-nesting-1"),
+    ("CSS-OVERFLOW", "css-overflow-4"),
+    ("CSS-OVERSCROLL", "css-overscroll-1"),
+    ("CSS-PAGE", "css-page-3"),
+    ("CSS-POSITION", "css-position-4"),
+    ("CSS-PSEUDO", "css-pseudo-4"),
+    ("CSS-RUBY", "css-ruby-1"),
+    ("CSS-SCROLL-ANCHORING", "css-scroll-anchoring-1"),
+    ("CSS-SCROLL-SNAP", "css-scroll-snap-2"),
+    ("CSS-SCROLLBARS", "css-scrollbars-1"),
+    ("CSS-SELECTORS", "selectors-4"),
+    ("CSS-SHADOW-PARTS", "css-shadow-parts-1"),
+    ("CSS-SHAPES", "css-shapes-1"),
+    ("CSS-SIZING", "css-sizing-4"),
+    ("CSS-SYNTAX", "css-syntax-3"),
+    ("CSS-TEXT", "css-text-4"),
+    ("CSS-TEXT-DECOR", "css-text-decor-4"),
+    ("CSS-TRANSFORMS", "css-transforms-2"),
+    ("CSS-TRANSITIONS", "css-transitions-2"),
+    ("CSS-UI", "css-ui-4"),
+    ("CSS-VALUES", "css-values-4"),
+    ("CSS-VARIABLES", "css-variables-2"),
+    ("CSS-VIEW-TRANSITIONS", "css-view-transitions-2"),
+    ("CSS-WILL-CHANGE", "css-will-change-1"),
+    ("CSS-WRITING-MODES", "css-writing-modes-4"),
+    ("CSSOM", "cssom-1"),
+    ("CSSOM-VIEW", "cssom-view-1"),
+    ("GEOMETRY", "geometry-1"),
+    ("RESIZE-OBSERVER", "resize-observer-1"),
+    ("SCROLL-ANIMATIONS", "scroll-animations-1"),
+    ("WEB-ANIMATIONS", "web-animations-1"),
+];
+
+// --- Standalone W3C specs (individual repos) ---
+const W3C_STANDALONE: &[(&str, &str)] = &[
+    ("FILE-API", "FileAPI"),
+    ("PERMISSIONS", "permissions"),
+    ("POINTER-EVENTS", "pointerevents"),
+    ("SERVICE-WORKERS", "ServiceWorker"),
+    ("WEBCODECS", "webcodecs"),
+];
+
+// --- webaudio GitHub org specs ---
+const WEBAUDIO_SPECS: &[(&str, &str)] = &[
+    ("WEB-AUDIO", "web-audio-api"),
+    ("WEB-MIDI", "web-midi-api"),
+    ("WEB-SPEECH", "web-speech-api"),
+];
+
+pub fn specs() -> Vec<Box<dyn SpecAccess>> {
+    let mut out: Vec<Box<dyn SpecAccess>> = Vec::new();
+    for &(name, dir) in CSSWG_SPECS {
+        out.push(csswg_spec(name, dir));
     }
-
-    fn known_specs(&self) -> &[SpecInfo] {
-        W3C_SPECS
+    for &(name, repo) in W3C_STANDALONE {
+        out.push(github_io_spec(name, "w3c", repo));
     }
-
-    /// Fetch the rendered HTML for a W3C spec.
-    /// Always fetches the current editor's draft (SHA parameter is ignored since
-    /// W3C specs don't have commit-snapshot URLs like WHATWG).
-    async fn fetch_html(&self, spec: &SpecInfo, _sha: &str) -> Result<String> {
-        let url = format!("{}/", spec.base_url.trim_end_matches('/'));
-
-        let client = reqwest::Client::new();
-        let response = client
-            .get(&url)
-            .header("User-Agent", "webspec-index/0.3.0")
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to fetch {}: HTTP {}", url, response.status());
-        }
-
-        Ok(response.text().await?)
+    for &(name, repo) in WEBAUDIO_SPECS {
+        out.push(github_io_spec(name, "webaudio", repo));
     }
-
-    /// Fetch the latest commit SHA for the spec's GitHub repo.
-    /// For CSSWG monorepo specs, returns the monorepo HEAD (no path filter),
-    /// so all CSSWG specs share one API call via the repo-level cache.
-    async fn fetch_latest_version(&self, spec: &SpecInfo) -> Result<(String, DateTime<Utc>)> {
-        let url = format!(
-            "https://api.github.com/repos/{}/commits?per_page=1",
-            spec.github_repo
-        );
-
-        let client = reqwest::Client::new();
-        let response = client
-            .get(&url)
-            .header("User-Agent", "webspec-index/0.3.0")
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to fetch latest commit: HTTP {}", response.status());
-        }
-
-        let commits: serde_json::Value = response.json().await?;
-        let commit = commits
-            .as_array()
-            .and_then(|arr| arr.first())
-            .ok_or_else(|| anyhow::anyhow!("No commits found for {}", spec.name))?;
-
-        let sha = commit["sha"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing SHA in commit"))?
-            .to_string();
-
-        let date_str = commit["commit"]["committer"]["date"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing date in commit"))?;
-
-        let date = DateTime::parse_from_rfc3339(date_str)?.with_timezone(&Utc);
-
-        Ok((sha, date))
-    }
-
-    fn resolve_url(&self, url: &str) -> Option<(String, String)> {
-        let parsed = url::Url::parse(url).ok()?;
-        let anchor = parsed.fragment()?.to_string();
-        let host = parsed.host_str()?;
-
-        match host {
-            "drafts.csswg.org" => {
-                let path = parsed.path().trim_matches('/');
-                for spec in W3C_SPECS {
-                    if let Some(dir) = csswg_spec_dir(spec) {
-                        if dir == path {
-                            return Some((spec.name.to_string(), anchor));
-                        }
-                    }
-                }
-                None
-            }
-            "w3c.github.io" | "webaudio.github.io" => {
-                let repo_part = parsed.path().trim_matches('/').split('/').next()?;
-                let base = format!("https://{}/{}", host, repo_part);
-                for spec in W3C_SPECS {
-                    if spec.base_url == base {
-                        return Some((spec.name.to_string(), anchor));
-                    }
-                }
-                None
-            }
-            _ => None,
-        }
-    }
+    out
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    // -- csswg_spec_dir helper --
-
-    #[test]
-    fn test_csswg_spec_dir_extraction() {
-        let spec = &W3C_SPECS
-            .iter()
-            .find(|s| s.name == "CSS-SELECTORS")
-            .unwrap();
-        assert_eq!(csswg_spec_dir(spec), Some("selectors-4"));
-    }
-
-    #[test]
-    fn test_csswg_spec_dir_standalone_returns_none() {
-        let spec = &W3C_SPECS
-            .iter()
-            .find(|s| s.name == "SERVICE-WORKERS")
-            .unwrap();
-        assert_eq!(csswg_spec_dir(spec), None);
-    }
+    use crate::spec_registry::SpecRegistry;
 
     // -- resolve_url --
 
     #[test]
     fn test_resolve_csswg_url() {
-        let provider = W3cProvider;
-        let result = provider.resolve_url("https://drafts.csswg.org/selectors-4/#specificity");
+        let registry = SpecRegistry::new();
+        let result = registry.resolve_url("https://drafts.csswg.org/selectors-4/#specificity");
         assert_eq!(
             result,
             Some(("CSS-SELECTORS".to_string(), "specificity".to_string()))
@@ -570,9 +139,9 @@ mod tests {
 
     #[test]
     fn test_resolve_csswg_url_css_display() {
-        let provider = W3cProvider;
+        let registry = SpecRegistry::new();
         let result =
-            provider.resolve_url("https://drafts.csswg.org/css-display-4/#propdef-display");
+            registry.resolve_url("https://drafts.csswg.org/css-display-4/#propdef-display");
         assert_eq!(
             result,
             Some(("CSS-DISPLAY".to_string(), "propdef-display".to_string()))
@@ -581,9 +150,8 @@ mod tests {
 
     #[test]
     fn test_resolve_csswg_url_with_trailing_slash() {
-        let provider = W3cProvider;
-        // URLs in specs sometimes have trailing slash before fragment
-        let result = provider.resolve_url("https://drafts.csswg.org/css-values-4/#lengths");
+        let registry = SpecRegistry::new();
+        let result = registry.resolve_url("https://drafts.csswg.org/css-values-4/#lengths");
         assert_eq!(
             result,
             Some(("CSS-VALUES".to_string(), "lengths".to_string()))
@@ -592,9 +160,9 @@ mod tests {
 
     #[test]
     fn test_resolve_standalone_url() {
-        let provider = W3cProvider;
+        let registry = SpecRegistry::new();
         let result =
-            provider.resolve_url("https://w3c.github.io/ServiceWorker/#service-worker-concept");
+            registry.resolve_url("https://w3c.github.io/ServiceWorker/#service-worker-concept");
         assert_eq!(
             result,
             Some((
@@ -606,8 +174,8 @@ mod tests {
 
     #[test]
     fn test_resolve_standalone_url_permissions() {
-        let provider = W3cProvider;
-        let result = provider.resolve_url("https://w3c.github.io/permissions/#dfn-permission");
+        let registry = SpecRegistry::new();
+        let result = registry.resolve_url("https://w3c.github.io/permissions/#dfn-permission");
         assert_eq!(
             result,
             Some(("PERMISSIONS".to_string(), "dfn-permission".to_string()))
@@ -616,22 +184,23 @@ mod tests {
 
     #[test]
     fn test_resolve_unknown_csswg_url() {
-        let provider = W3cProvider;
-        let result = provider.resolve_url("https://drafts.csswg.org/not-indexed-spec/#foo");
+        let registry = SpecRegistry::new();
+        let result = registry.resolve_url("https://drafts.csswg.org/not-indexed-spec/#foo");
         assert_eq!(result, None);
     }
 
     #[test]
     fn test_resolve_unknown_standalone_url() {
-        let provider = W3cProvider;
-        let result = provider.resolve_url("https://w3c.github.io/not-indexed/#foo");
+        let registry = SpecRegistry::new();
+        let result = registry.resolve_url("https://w3c.github.io/not-indexed/#foo");
         assert_eq!(result, None);
     }
 
     #[test]
     fn test_resolve_webaudio_url() {
-        let provider = W3cProvider;
-        let result = provider.resolve_url("https://webaudio.github.io/web-audio-api/#AudioContext");
+        let registry = SpecRegistry::new();
+        let result =
+            registry.resolve_url("https://webaudio.github.io/web-audio-api/#AudioContext");
         assert_eq!(
             result,
             Some(("WEB-AUDIO".to_string(), "AudioContext".to_string()))
@@ -640,8 +209,9 @@ mod tests {
 
     #[test]
     fn test_resolve_web_midi_url() {
-        let provider = W3cProvider;
-        let result = provider.resolve_url("https://webaudio.github.io/web-midi-api/#MIDIAccess");
+        let registry = SpecRegistry::new();
+        let result =
+            registry.resolve_url("https://webaudio.github.io/web-midi-api/#MIDIAccess");
         assert_eq!(
             result,
             Some(("WEB-MIDI".to_string(), "MIDIAccess".to_string()))
@@ -650,23 +220,13 @@ mod tests {
 
     #[test]
     fn test_resolve_url_no_fragment() {
-        let provider = W3cProvider;
+        let registry = SpecRegistry::new();
         assert_eq!(
-            provider.resolve_url("https://drafts.csswg.org/selectors-4/"),
+            registry.resolve_url("https://drafts.csswg.org/selectors-4/"),
             None
         );
         assert_eq!(
-            provider.resolve_url("https://w3c.github.io/ServiceWorker/"),
-            None
-        );
-    }
-
-    #[test]
-    fn test_resolve_external_url() {
-        let provider = W3cProvider;
-        assert_eq!(provider.resolve_url("https://example.com/#foo"), None);
-        assert_eq!(
-            provider.resolve_url("https://html.spec.whatwg.org/#navigate"),
+            registry.resolve_url("https://w3c.github.io/ServiceWorker/"),
             None
         );
     }
@@ -675,7 +235,8 @@ mod tests {
 
     #[test]
     fn test_no_duplicate_spec_names() {
-        let mut names: Vec<&str> = W3C_SPECS.iter().map(|s| s.name).collect();
+        let specs = super::specs();
+        let mut names: Vec<&str> = specs.iter().map(|s| s.name()).collect();
         names.sort();
         let before = names.len();
         names.dedup();
@@ -684,7 +245,8 @@ mod tests {
 
     #[test]
     fn test_no_duplicate_base_urls() {
-        let mut urls: Vec<&str> = W3C_SPECS.iter().map(|s| s.base_url).collect();
+        let specs = super::specs();
+        let mut urls: Vec<&str> = specs.iter().map(|s| s.url()).collect();
         urls.sort();
         let before = urls.len();
         urls.dedup();
@@ -693,23 +255,28 @@ mod tests {
 
     #[test]
     fn test_all_specs_have_w3c_provider() {
-        for spec in W3C_SPECS {
+        let specs = super::specs();
+        for spec in &specs {
             assert_eq!(
-                spec.provider, "w3c",
+                spec.provider(),
+                "w3c",
                 "Spec {} has wrong provider: {}",
-                spec.name, spec.provider
+                spec.name(),
+                spec.provider()
             );
         }
     }
 
     #[test]
     fn test_csswg_specs_use_monorepo() {
-        for spec in W3C_SPECS {
-            if spec.base_url.starts_with("https://drafts.csswg.org/") {
+        let specs = super::specs();
+        for spec in &specs {
+            if spec.url().starts_with("https://drafts.csswg.org/") {
                 assert_eq!(
-                    spec.github_repo, "w3c/csswg-drafts",
+                    spec.version_cache_key(),
+                    "w3c/csswg-drafts",
                     "CSSWG spec {} should use monorepo",
-                    spec.name
+                    spec.name()
                 );
             }
         }
@@ -717,38 +284,40 @@ mod tests {
 
     #[test]
     fn test_all_specs_have_valid_base_urls() {
-        for spec in W3C_SPECS {
+        let specs = super::specs();
+        for spec in &specs {
             assert!(
-                spec.base_url.starts_with("https://drafts.csswg.org/")
-                    || spec.base_url.starts_with("https://w3c.github.io/")
-                    || spec.base_url.starts_with("https://webaudio.github.io/"),
-                "Spec {} has unexpected base_url: {}",
-                spec.name,
-                spec.base_url
+                spec.url().starts_with("https://drafts.csswg.org/")
+                    || spec.url().starts_with("https://w3c.github.io/")
+                    || spec.url().starts_with("https://webaudio.github.io/"),
+                "Spec {} has unexpected url: {}",
+                spec.name(),
+                spec.url()
             );
-            // No trailing slashes in base_url (consistency)
             assert!(
-                !spec.base_url.ends_with('/'),
-                "Spec {} base_url should not end with '/': {}",
-                spec.name,
-                spec.base_url
+                !spec.url().ends_with('/'),
+                "Spec {} url should not end with '/': {}",
+                spec.name(),
+                spec.url()
             );
         }
     }
 
     #[test]
     fn test_standalone_specs_have_matching_repo() {
-        for spec in W3C_SPECS {
-            if spec.base_url.starts_with("https://w3c.github.io/") {
+        let specs = super::specs();
+        for spec in &specs {
+            if spec.url().starts_with("https://w3c.github.io/") {
                 let repo_name = spec
-                    .base_url
+                    .url()
                     .strip_prefix("https://w3c.github.io/")
                     .unwrap();
-                let expected_repo = format!("w3c/{}", repo_name);
+                let expected_repo = format!("w3c/{repo_name}");
                 assert_eq!(
-                    spec.github_repo, expected_repo,
+                    spec.version_cache_key(),
+                    expected_repo,
                     "Standalone spec {} repo mismatch",
-                    spec.name
+                    spec.name()
                 );
             }
         }
@@ -756,14 +325,19 @@ mod tests {
 
     #[test]
     fn test_no_name_clashes_with_whatwg() {
-        use crate::provider::whatwg::WHATWG_SPECS;
-        let whatwg_names: std::collections::HashSet<&str> =
-            WHATWG_SPECS.iter().map(|s| s.name).collect();
-        for spec in W3C_SPECS {
+        let registry = SpecRegistry::new();
+        let all_specs = registry.list_all_specs();
+        let whatwg_names: std::collections::HashSet<&str> = all_specs
+            .iter()
+            .filter(|s| s.provider() == "whatwg")
+            .map(|s| s.name())
+            .collect();
+        let w3c_specs = super::specs();
+        for spec in &w3c_specs {
             assert!(
-                !whatwg_names.contains(spec.name),
+                !whatwg_names.contains(spec.name()),
                 "W3C spec name {} clashes with WHATWG",
-                spec.name
+                spec.name()
             );
         }
     }
