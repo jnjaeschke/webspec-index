@@ -403,6 +403,12 @@ pub const W3C_SPECS: &[SpecInfo] = &[
         provider: "w3c",
         github_repo: "w3c/webcodecs",
     },
+    SpecInfo {
+        name: "WEBTRANSPORT",
+        base_url: "https://w3c.github.io/webtransport",
+        provider: "w3c",
+        github_repo: "w3c/webtransport",
+    },
     // --- webaudio GitHub org specs ---
     SpecInfo {
         name: "WEB-AUDIO",
