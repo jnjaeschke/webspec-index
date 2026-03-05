@@ -210,6 +210,24 @@ enum Command {
         graph_format: GraphOutputFormat,
     },
 
+    /// Query dedicated WebIDL definitions
+    #[command(long_about = "Query structured WebIDL definitions.\n\n\
+        Supports exact anchors and canonical names:\n  \
+        webspec-index idl HTML#dom-window-navigation\n  \
+        webspec-index idl Window.navigation\n  \
+        webspec-index idl Window.open()\n\n\
+        Use --spec to narrow to one specification.")]
+    Idl {
+        /// Query string: SPEC#anchor, full URL, or canonical IDL name
+        query: String,
+
+        #[arg(long, short, help = "Limit lookup to a specific spec (e.g. HTML, DOM)")]
+        spec: Option<String>,
+
+        #[arg(long, short, default_value = "20", help = "Maximum number of matches")]
+        limit: usize,
+    },
+
     /// Update specifications to latest versions
     #[command(
         long_about = "Update specifications to latest versions from WHATWG/W3C/TC39.\n\n\
@@ -261,10 +279,12 @@ specs — list all known spec names+URLs
 lsp — start LSP server on stdio
 find-references <TARGET> [-d incoming|outgoing|both(default incoming)] [-l N(10)]
 graph <SPEC#anchor|URL> [-d incoming|outgoing|both(default outgoing)] [--max-depth N(2)] [--max-nodes N(150)] [--include PATTERN --exclude PATTERN --same-spec-only] [--graph-format json|markdown|mermaid|dot]
+idl <Q|SPEC#anchor|URL> [-s SPEC] [-l N(20)] [--format json|markdown]
 SPEC#anchor examples: HTML#navigate, DOM#concept-tree, CSS-GRID#grid-container
 Full URL also works: https://html.spec.whatwg.org/#navigate
 Ex: query HTML#navigate|search "tree order" -s DOM|anchors "*-tree" -s DOM
 Ex: refs HTML#navigate -d incoming|find-references Window.navigation|graph HTML#navigate --graph-format mermaid
+Ex: idl Window.navigation|idl Window.open()|idl HTML#dom-window-navigation
 "#
     );
 }
@@ -410,6 +430,12 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                     print!("{}", format::graph_dot(&result));
                 }
             }
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Command::Idl { query, spec, limit } => {
+            let result = webspec_index::query_idl(&query, spec.as_deref(), limit).await?;
+            print_output(&cli.format, &result, format::idl);
             Ok(ExitCode::SUCCESS)
         }
 

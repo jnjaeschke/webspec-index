@@ -1,5 +1,5 @@
 // Write operations on the database
-use crate::model::{ParsedReference, ParsedSection};
+use crate::model::{ParsedIdlDefinition, ParsedReference, ParsedSection};
 use anyhow::Result;
 use rusqlite::Connection;
 
@@ -110,6 +110,37 @@ pub fn insert_refs_bulk(
     Ok(())
 }
 
+/// Bulk insert IDL definitions for a snapshot
+pub fn insert_idl_defs_bulk(
+    conn: &Connection,
+    snapshot_id: i64,
+    defs: &[ParsedIdlDefinition],
+) -> Result<()> {
+    let tx = conn.unchecked_transaction()?;
+
+    {
+        let mut stmt = tx.prepare(
+            "INSERT INTO idl_defs (snapshot_id, anchor, name, owner, kind, canonical_name, idl_text)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        )?;
+
+        for def in defs {
+            stmt.execute((
+                snapshot_id,
+                &def.anchor,
+                &def.name,
+                &def.owner,
+                &def.kind,
+                &def.canonical_name,
+                &def.idl_text,
+            ))?;
+        }
+    }
+
+    tx.commit()?;
+    Ok(())
+}
+
 /// Delete all indexed data for a spec (snapshot, sections, refs).
 /// Used before re-indexing to enforce exactly one snapshot per spec.
 pub fn delete_spec_data(conn: &Connection, spec_id: i64) -> Result<()> {
@@ -117,6 +148,10 @@ pub fn delete_spec_data(conn: &Connection, spec_id: i64) -> Result<()> {
 
     tx.execute(
         "DELETE FROM refs WHERE snapshot_id IN (SELECT id FROM snapshots WHERE spec_id = ?1)",
+        [spec_id],
+    )?;
+    tx.execute(
+        "DELETE FROM idl_defs WHERE snapshot_id IN (SELECT id FROM snapshots WHERE spec_id = ?1)",
         [spec_id],
     )?;
     tx.execute(
@@ -332,6 +367,47 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM sections", [], |row| row.get(0))
             .unwrap();
         assert_eq!(sec_count, 0);
+    }
+
+    #[test]
+    fn test_insert_idl_defs_bulk() {
+        let conn = db::open_test_db().unwrap();
+        let spec_id =
+            insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+        let snapshot_id =
+            insert_snapshot(&conn, spec_id, "abc123", "2026-01-01T00:00:00Z").unwrap();
+
+        let defs = vec![
+            ParsedIdlDefinition {
+                anchor: "dom-window".to_string(),
+                name: "Window".to_string(),
+                owner: None,
+                kind: "interface".to_string(),
+                canonical_name: "Window".to_string(),
+                idl_text: Some("interface Window {};".to_string()),
+            },
+            ParsedIdlDefinition {
+                anchor: "dom-window-navigation".to_string(),
+                name: "navigation".to_string(),
+                owner: Some("Window".to_string()),
+                kind: "attribute".to_string(),
+                canonical_name: "Window.navigation".to_string(),
+                idl_text: Some(
+                    "interface Window { attribute Navigation navigation; };".to_string(),
+                ),
+            },
+        ];
+
+        insert_idl_defs_bulk(&conn, snapshot_id, &defs).unwrap();
+
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM idl_defs WHERE snapshot_id = ?1",
+                [snapshot_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 2);
     }
 
     #[test]

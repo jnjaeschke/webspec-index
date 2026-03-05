@@ -1,8 +1,8 @@
 //! Markdown output formatters for CLI commands
 
 use crate::model::{
-    AnchorsResult, ExistsResult, FindReferencesResult, GraphResult, ListEntry, QueryResult,
-    RefsResult, SearchResult,
+    AnchorsResult, ExistsResult, FindReferencesResult, GraphResult, IdlResult, ListEntry,
+    QueryResult, RefsResult, SearchResult,
 };
 
 #[cfg(test)]
@@ -378,6 +378,40 @@ pub fn graph_dot(result: &GraphResult) -> String {
 
     out.push_str("}\n");
     out
+}
+
+/// Format an IdlResult as markdown
+pub fn idl(result: &IdlResult) -> String {
+    let mut md = String::new();
+    md.push_str(&format!("# IDL: `{}`\n\n", result.query));
+
+    if result.matches.is_empty() {
+        md.push_str("No IDL matches found.\n");
+        return md;
+    }
+
+    for entry in &result.matches {
+        md.push_str(&format!(
+            "## {} ({})\n\n",
+            entry.canonical_name, entry.kind
+        ));
+        md.push_str(&format!("- Anchor: `{}#{}`\n", entry.spec, entry.anchor));
+        if let Some(owner) = &entry.owner {
+            md.push_str(&format!("- Owner: `{}`\n", owner));
+        }
+        md.push_str(&format!("- Name: `{}`\n", entry.name));
+        if let Some(title) = &entry.title {
+            md.push_str(&format!("- Title: {}\n", title));
+        }
+        if let Some(idl_text) = &entry.idl_text {
+            md.push_str("\n```webidl\n");
+            md.push_str(idl_text);
+            md.push_str("\n```\n");
+        }
+        md.push('\n');
+    }
+
+    md
 }
 
 #[cfg(test)]

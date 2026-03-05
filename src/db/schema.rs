@@ -59,6 +59,21 @@ pub fn initialize_schema(conn: &Connection) -> Result<()> {
         CREATE INDEX idx_refs_outgoing ON refs(snapshot_id, from_anchor);
         CREATE INDEX idx_refs_incoming ON refs(snapshot_id, to_spec, to_anchor);
 
+        CREATE TABLE idl_defs (
+            id             INTEGER PRIMARY KEY,
+            snapshot_id    INTEGER NOT NULL REFERENCES snapshots(id),
+            anchor         TEXT NOT NULL,
+            name           TEXT NOT NULL,
+            owner          TEXT,
+            kind           TEXT NOT NULL,
+            canonical_name TEXT NOT NULL,
+            idl_text       TEXT,
+            UNIQUE(snapshot_id, anchor, kind)
+        );
+
+        CREATE INDEX idx_idl_defs_anchor ON idl_defs(snapshot_id, anchor);
+        CREATE INDEX idx_idl_defs_canonical ON idl_defs(snapshot_id, canonical_name);
+
         CREATE TABLE update_checks (
             spec_id     INTEGER PRIMARY KEY REFERENCES specs(id),
             last_checked TEXT NOT NULL
@@ -103,7 +118,20 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             sha         TEXT NOT NULL,
             commit_date TEXT NOT NULL,
             checked_at  TEXT NOT NULL
-        );",
+        );
+        CREATE TABLE IF NOT EXISTS idl_defs (
+            id             INTEGER PRIMARY KEY,
+            snapshot_id    INTEGER NOT NULL REFERENCES snapshots(id),
+            anchor         TEXT NOT NULL,
+            name           TEXT NOT NULL,
+            owner          TEXT,
+            kind           TEXT NOT NULL,
+            canonical_name TEXT NOT NULL,
+            idl_text       TEXT,
+            UNIQUE(snapshot_id, anchor, kind)
+        );
+        CREATE INDEX IF NOT EXISTS idx_idl_defs_anchor ON idl_defs(snapshot_id, anchor);
+        CREATE INDEX IF NOT EXISTS idx_idl_defs_canonical ON idl_defs(snapshot_id, canonical_name);",
     )?;
     Ok(())
 }
@@ -130,6 +158,7 @@ mod tests {
         assert!(tables.contains(&"snapshots".to_string()));
         assert!(tables.contains(&"sections".to_string()));
         assert!(tables.contains(&"refs".to_string()));
+        assert!(tables.contains(&"idl_defs".to_string()));
         assert!(tables.contains(&"update_checks".to_string()));
     }
 
@@ -156,6 +185,7 @@ mod tests {
             .unwrap();
 
         assert!(tables.contains(&"repo_version_cache".to_string()));
+        assert!(tables.contains(&"idl_defs".to_string()));
     }
 
     #[test]

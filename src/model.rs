@@ -68,11 +68,23 @@ pub struct ParsedReference {
     pub to_anchor: String,
 }
 
+/// A parsed WebIDL definition from `dfn[data-dfn-type]`
+#[derive(Debug, Clone)]
+pub struct ParsedIdlDefinition {
+    pub anchor: String,
+    pub name: String,
+    pub owner: Option<String>,
+    pub kind: String,
+    pub canonical_name: String,
+    pub idl_text: Option<String>,
+}
+
 /// Complete parsed spec
 #[derive(Debug)]
 pub struct ParsedSpec {
     pub sections: Vec<ParsedSection>,
     pub references: Vec<ParsedReference>,
+    pub idl_definitions: Vec<ParsedIdlDefinition>,
 }
 
 /// JSON output for query command
@@ -249,4 +261,26 @@ pub struct FindReferencesMatch {
     pub outgoing: Option<Vec<RefEntry>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub incoming: Option<Vec<RefEntry>>,
+}
+
+/// JSON output for idl command
+#[derive(Debug, Serialize)]
+pub struct IdlResult {
+    pub query: String,
+    pub matches: Vec<IdlEntry>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IdlEntry {
+    pub spec: String,
+    pub anchor: String,
+    pub kind: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    pub canonical_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub idl_text: Option<String>,
 }

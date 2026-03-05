@@ -120,6 +120,18 @@ webspec-index graph 'HTML#navigate' --include '*concept-*' --exclude 're:^URL#'
 Builds a cross-reference graph rooted at a section. Supports JSON (default), Markdown, Mermaid, and Graphviz DOT output.
 Use `--include` and `--exclude` to filter node ids (`SPEC#anchor`) by wildcard patterns (`*`, `?`) or regex (`re:<pattern>`).
 
+### Query dedicated WebIDL definitions
+
+```bash
+webspec-index idl 'HTML#dom-window-navigation'
+webspec-index idl 'Window.navigation'
+webspec-index idl 'Window.open()'
+webspec-index idl 'navigation' --spec HTML --limit 5
+```
+
+Queries structured WebIDL definitions directly. Supports exact anchors (`SPEC#anchor` or URL) and canonical names (`Interface.member`, `Interface.method()`).
+Use this first when the task is about API shape or IDL ownership, then use `find-references` to see algorithm usage.
+
 ## Usage patterns for Gecko development
 
 ### Understanding what you're implementing
@@ -169,4 +181,16 @@ To see what other specs depend on a concept you're changing:
 
 ```bash
 webspec-index refs 'DOM#concept-tree' --direction incoming
+```
+
+### Tracing IDL API usage in algorithms
+
+When implementing or reviewing a DOM API in Gecko:
+
+```bash
+# Find canonical IDL definition + owning interface
+webspec-index idl 'Window.navigation' --format markdown
+
+# Find where the property is used in indexed specs
+webspec-index find-references 'Window.navigation' --direction incoming
 ```

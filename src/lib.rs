@@ -1006,6 +1006,156 @@ fn find_references_from_conn(
     })
 }
 
+fn normalize_idl_query(query: &str) -> String {
+    let trimmed = query.trim();
+    if let Some((owner, member)) = trimmed.rsplit_once('.') {
+        let owner = owner.trim();
+        let member = member.trim().trim_end_matches("()");
+        if owner.is_empty() {
+            return member.to_string();
+        }
+        return format!("{owner}.{member}");
+    }
+    trimmed.trim_end_matches("()").to_string()
+}
+
+fn query_idl_from_conn(
+    conn: &Connection,
+    query: &str,
+    spec_filter: Option<&str>,
+    limit: usize,
+) -> Result<model::IdlResult> {
+    let mut entries = Vec::new();
+
+    // Exact anchor lookup
+    if let Ok((spec_name, anchor)) = parse_spec_anchor(query) {
+        if spec_filter.is_some() && spec_filter != Some(spec_name.as_str()) {
+            return Ok(model::IdlResult {
+                query: query.to_string(),
+                matches: vec![],
+            });
+        }
+
+        let mut stmt = conn.prepare(
+            "SELECT sp.name, d.anchor, d.kind, d.name, d.owner, d.canonical_name, d.idl_text, s.title
+             FROM idl_defs d
+             JOIN snapshots sn ON d.snapshot_id = sn.id
+             JOIN specs sp ON sn.spec_id = sp.id
+             LEFT JOIN sections s ON s.snapshot_id = d.snapshot_id AND s.anchor = d.anchor
+             WHERE sp.name = ?1 AND d.anchor = ?2
+             ORDER BY d.kind
+             LIMIT ?3",
+        )?;
+
+        let rows = stmt
+            .query_map((spec_name, anchor, limit), |row| {
+                Ok(model::IdlEntry {
+                    spec: row.get(0)?,
+                    anchor: row.get(1)?,
+                    kind: row.get(2)?,
+                    name: row.get(3)?,
+                    owner: row.get(4)?,
+                    canonical_name: row.get(5)?,
+                    idl_text: row.get(6)?,
+                    title: row.get(7)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        entries.extend(rows);
+    } else {
+        let normalized = normalize_idl_query(query).to_ascii_lowercase();
+        if normalized.is_empty() {
+            return Ok(model::IdlResult {
+                query: query.to_string(),
+                matches: vec![],
+            });
+        }
+        let like = format!("%{}%", normalized);
+
+        let sql_with_spec = "SELECT sp.name, d.anchor, d.kind, d.name, d.owner, d.canonical_name, d.idl_text, s.title,
+                CASE
+                    WHEN LOWER(d.canonical_name) = ?1 THEN 100
+                    WHEN LOWER(d.name) = ?1 THEN 95
+                    WHEN LOWER(d.anchor) = ?1 THEN 90
+                    WHEN LOWER(d.canonical_name) LIKE ?2 THEN 80
+                    WHEN LOWER(d.name) LIKE ?2 THEN 70
+                    ELSE 0
+                END AS score
+             FROM idl_defs d
+             JOIN snapshots sn ON d.snapshot_id = sn.id
+             JOIN specs sp ON sn.spec_id = sp.id
+             LEFT JOIN sections s ON s.snapshot_id = d.snapshot_id AND s.anchor = d.anchor
+             WHERE sp.name = ?3
+               AND (LOWER(d.canonical_name) = ?1 OR LOWER(d.name) = ?1 OR LOWER(d.anchor) = ?1
+                    OR LOWER(d.canonical_name) LIKE ?2 OR LOWER(d.name) LIKE ?2)
+             ORDER BY score DESC, sp.name, d.canonical_name
+             LIMIT ?4";
+
+        let sql_without_spec = "SELECT sp.name, d.anchor, d.kind, d.name, d.owner, d.canonical_name, d.idl_text, s.title,
+                CASE
+                    WHEN LOWER(d.canonical_name) = ?1 THEN 100
+                    WHEN LOWER(d.name) = ?1 THEN 95
+                    WHEN LOWER(d.anchor) = ?1 THEN 90
+                    WHEN LOWER(d.canonical_name) LIKE ?2 THEN 80
+                    WHEN LOWER(d.name) LIKE ?2 THEN 70
+                    ELSE 0
+                END AS score
+             FROM idl_defs d
+             JOIN snapshots sn ON d.snapshot_id = sn.id
+             JOIN specs sp ON sn.spec_id = sp.id
+             LEFT JOIN sections s ON s.snapshot_id = d.snapshot_id AND s.anchor = d.anchor
+             WHERE (LOWER(d.canonical_name) = ?1 OR LOWER(d.name) = ?1 OR LOWER(d.anchor) = ?1
+                    OR LOWER(d.canonical_name) LIKE ?2 OR LOWER(d.name) LIKE ?2)
+             ORDER BY score DESC, sp.name, d.canonical_name
+             LIMIT ?3";
+
+        let mut stmt = conn.prepare(if spec_filter.is_some() {
+            sql_with_spec
+        } else {
+            sql_without_spec
+        })?;
+
+        if let Some(spec_name) = spec_filter {
+            let rows = stmt
+                .query_map((normalized, like, spec_name, limit), |row| {
+                    Ok(model::IdlEntry {
+                        spec: row.get(0)?,
+                        anchor: row.get(1)?,
+                        kind: row.get(2)?,
+                        name: row.get(3)?,
+                        owner: row.get(4)?,
+                        canonical_name: row.get(5)?,
+                        idl_text: row.get(6)?,
+                        title: row.get(7)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            entries.extend(rows);
+        } else {
+            let rows = stmt
+                .query_map((normalized, like, limit), |row| {
+                    Ok(model::IdlEntry {
+                        spec: row.get(0)?,
+                        anchor: row.get(1)?,
+                        kind: row.get(2)?,
+                        name: row.get(3)?,
+                        owner: row.get(4)?,
+                        canonical_name: row.get(5)?,
+                        idl_text: row.get(6)?,
+                        title: row.get(7)?,
+                    })
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            entries.extend(rows);
+        }
+    }
+
+    Ok(model::IdlResult {
+        query: query.to_string(),
+        matches: entries,
+    })
+}
+
 /// Build a cross-reference graph rooted at SPEC#anchor from currently indexed specs.
 pub async fn graph_section(
     spec_anchor: &str,
@@ -1035,6 +1185,34 @@ pub async fn graph_section(
     build_graph_from_conn(
         &conn, &spec_name, &anchor, direction, max_depth, max_nodes, &filters,
     )
+}
+
+/// Query dedicated WebIDL definitions.
+///
+/// `query` supports:
+/// - exact anchor: `SPEC#anchor` or full URL
+/// - canonical name: `Interface.member`, `Interface.method()`, `Interface`
+pub async fn query_idl(
+    query: &str,
+    spec_filter: Option<&str>,
+    limit: usize,
+) -> Result<model::IdlResult> {
+    let conn = db::open_or_create_db()?;
+    let registry = spec_registry::SpecRegistry::new();
+
+    if let Some(spec_name) = spec_filter {
+        if let Some(spec) = registry.find_spec(spec_name) {
+            let provider = registry.get_provider(spec)?;
+            let _ = fetch::ensure_indexed(&conn, spec, provider).await?;
+        }
+    } else if let Ok((spec_name, _)) = parse_spec_anchor(query) {
+        if let Some(spec) = registry.find_spec(&spec_name) {
+            let provider = registry.get_provider(spec)?;
+            let _ = fetch::ensure_indexed(&conn, spec, provider).await?;
+        }
+    }
+
+    query_idl_from_conn(&conn, query, spec_filter, limit)
 }
 
 /// Find incoming/outgoing references for SPEC#anchor or a shorthand query (e.g. Window.navigation).
@@ -1293,6 +1471,36 @@ mod tests {
             to_anchor: "dom-window-navigation-helper".to_string(),
         }];
         write::insert_refs_bulk(&conn, url_snapshot, &url_refs).unwrap();
+
+        let idl_defs = vec![
+            crate::model::ParsedIdlDefinition {
+                anchor: "dom-window".to_string(),
+                name: "Window".to_string(),
+                owner: None,
+                kind: "interface".to_string(),
+                canonical_name: "Window".to_string(),
+                idl_text: Some("interface Window { ... };".to_string()),
+            },
+            crate::model::ParsedIdlDefinition {
+                anchor: "dom-window-navigation".to_string(),
+                name: "navigation".to_string(),
+                owner: Some("Window".to_string()),
+                kind: "attribute".to_string(),
+                canonical_name: "Window.navigation".to_string(),
+                idl_text: Some(
+                    "interface Window { attribute Navigation navigation; };".to_string(),
+                ),
+            },
+            crate::model::ParsedIdlDefinition {
+                anchor: "dom-window-open".to_string(),
+                name: "open(url)".to_string(),
+                owner: Some("Window".to_string()),
+                kind: "method".to_string(),
+                canonical_name: "Window.open".to_string(),
+                idl_text: Some("interface Window { undefined open(DOMString url); };".to_string()),
+            },
+        ];
+        write::insert_idl_defs_bulk(&conn, html_snapshot, &idl_defs).unwrap();
 
         conn
     }
@@ -1714,5 +1922,35 @@ mod tests {
             .iter()
             .any(|r| r.spec == "URL" && r.anchor == "concept-url"));
         assert!(m.incoming.is_none());
+    }
+
+    #[test]
+    fn query_idl_exact_anchor() {
+        let conn = setup_reference_graph_db();
+        let result = query_idl_from_conn(&conn, "HTML#dom-window-navigation", None, 10).unwrap();
+
+        assert_eq!(result.matches.len(), 1);
+        let m = &result.matches[0];
+        assert_eq!(m.spec, "HTML");
+        assert_eq!(m.kind, "attribute");
+        assert_eq!(m.canonical_name, "Window.navigation");
+    }
+
+    #[test]
+    fn query_idl_by_canonical_member() {
+        let conn = setup_reference_graph_db();
+        let result = query_idl_from_conn(&conn, "Window.navigation", None, 10).unwrap();
+
+        assert!(!result.matches.is_empty());
+        assert_eq!(result.matches[0].canonical_name, "Window.navigation");
+    }
+
+    #[test]
+    fn query_idl_method_parentheses_normalized() {
+        let conn = setup_reference_graph_db();
+        let result = query_idl_from_conn(&conn, "Window.open()", None, 10).unwrap();
+
+        assert!(!result.matches.is_empty());
+        assert_eq!(result.matches[0].canonical_name, "Window.open");
     }
 }

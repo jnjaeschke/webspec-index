@@ -56,6 +56,7 @@ async fn do_index(
     let snapshot_id = write::insert_snapshot(conn, spec_id, sha, &date.to_rfc3339())?;
     write::insert_sections_bulk(conn, snapshot_id, &parsed.sections)?;
     write::insert_refs_bulk(conn, snapshot_id, &parsed.references)?;
+    write::insert_idl_defs_bulk(conn, snapshot_id, &parsed.idl_definitions)?;
 
     Ok(snapshot_id)
 }

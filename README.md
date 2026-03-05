@@ -57,6 +57,11 @@ webspec-index graph "HTML#navigate" --include "*concept-*" --exclude "re:^URL#"
 webspec-index find-references "HTML#dom-window-navigation"
 webspec-index find-references "Window.navigation" --direction incoming
 
+# Query dedicated WebIDL definitions
+webspec-index idl "HTML#dom-window-navigation"
+webspec-index idl "Window.navigation"
+webspec-index idl "Window.open()" --spec HTML
+
 # Update specs to latest versions
 webspec-index update
 ```
@@ -87,7 +92,7 @@ See [editors/vscode/](editors/vscode/) and [editors/zed/](editors/zed/) for deta
 ## Development
 
 ```bash
-cargo test          # 235 tests
+cargo test          # 262 tests
 cargo clippy        # lint
 cargo fmt --check   # format check
 ```
