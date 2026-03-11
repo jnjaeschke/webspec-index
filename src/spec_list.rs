@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -6,6 +7,7 @@ use std::process::Command;
 
 const CSSWG_URL: &str = "https://github.com/w3c/csswg-drafts";
 const GROUPS_URL: &str = "https://github.com/w3c/groups";
+const REMOTE_SPEC_LIST_URL: &str = "https://raw.githubusercontent.com/jnjaeschke/webspec-index/main/data/w3c_specs.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecEntry {
@@ -13,6 +15,26 @@ pub struct SpecEntry {
     pub base_url: String,
     pub provider: String,
     pub github_repo: String,
+}
+
+/// Fetch the W3C spec list from the upstream repository and seed the DB.
+pub async fn fetch_and_seed(conn: &Connection) -> Result<usize> {
+    eprintln!("note: fetching W3C spec list from upstream...");
+    let client = reqwest::Client::new();
+    let response = client
+        .get(REMOTE_SPEC_LIST_URL)
+        .header("User-Agent", "webspec-index/0.5.0")
+        .send()
+        .await?;
+    if !response.status().is_success() {
+        anyhow::bail!("Failed to fetch spec list: HTTP {}", response.status());
+    }
+    let entries: Vec<SpecEntry> = response.json().await?;
+    let count = entries.len();
+    for e in &entries {
+        crate::db::write::seed_spec(conn, &e.name, &e.base_url, &e.provider)?;
+    }
+    Ok(count)
 }
 
 /// Update the W3C spec list from csswg-drafts and w3c/groups.

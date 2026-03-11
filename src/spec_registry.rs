@@ -20,10 +20,10 @@ impl SpecRegistry {
 
     /// Infer (base_url, provider) from a short spec name when possible.
     ///
-    /// This intentionally only handles a narrow, low-ambiguity set:
+    /// Only handles an unambiguous set:
     /// - previously auto-generated `AUTOURL-*` ids
-    /// - `ECMA-262` -> tc39
-    /// - generic WHATWG-style names (`HTML`, `DOM`, `URL`, ...)
+    /// - `ECMA-262` / `ECMA262` -> tc39
+    /// - known WHATWG living standards at `*.spec.whatwg.org`
     pub fn infer_base_url_from_spec_name(&self, spec_name: &str) -> Option<(String, String)> {
         if let Some(base_url) = auto_spec_base_url(spec_name) {
             return Some((
@@ -41,15 +41,21 @@ impl SpecRegistry {
             return Some(("https://tc39.es/ecma262".to_string(), "tc39".to_string()));
         }
 
+        // Only infer for the known set of WHATWG living standards.
+        const WHATWG_SPECS: &[&str] = &[
+            "COMPAT", "CONSOLE", "DOM", "ENCODING", "FETCH", "FULLSCREEN",
+            "HTML", "INFRA", "MIMESNIFF", "NOTIFICATIONS", "STORAGE", "STREAMS",
+            "URL", "WEBSOCKETS", "XHR",
+        ];
         let host_part = token.replace('-', "").to_ascii_lowercase();
-        if host_part.is_empty() {
-            return None;
+        if WHATWG_SPECS.contains(&token.as_str()) {
+            return Some((
+                format!("https://{host_part}.spec.whatwg.org"),
+                "whatwg".to_string(),
+            ));
         }
 
-        Some((
-            format!("https://{host_part}.spec.whatwg.org"),
-            "whatwg".to_string(),
-        ))
+        None
     }
 }
 

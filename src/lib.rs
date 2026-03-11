@@ -94,7 +94,14 @@ async fn ensure_indexed_for_spec_name(
     registry: &spec_registry::SpecRegistry,
     spec_name: &str,
 ) -> Result<(i64, String)> {
-    let (canonical_name, base_url, provider) = resolve_spec_metadata(conn, registry, spec_name)?;
+    let meta = resolve_spec_metadata(conn, registry, spec_name);
+    let (canonical_name, base_url, provider) = match meta {
+        Ok(m) => m,
+        Err(_) => {
+            spec_list::fetch_and_seed(conn).await?;
+            resolve_spec_metadata(conn, registry, spec_name)?
+        }
+    };
     let snapshot_id = fetch::ensure_indexed(conn, &canonical_name, &base_url, &provider).await?;
     Ok((snapshot_id, canonical_name))
 }
