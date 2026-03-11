@@ -9,6 +9,7 @@ pub mod format;
 pub mod lsp;
 pub mod model;
 pub mod parse;
+pub mod spec_list;
 pub mod spec_registry;
 
 use anyhow::Result;

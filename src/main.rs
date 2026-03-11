@@ -255,6 +255,28 @@ enum Command {
 
     /// Start the Language Server Protocol server (stdio)
     Lsp,
+
+    /// Update the local W3C spec list from csswg-drafts and w3c/groups
+    ///
+    /// Clones (or updates) csswg-drafts and w3c/groups, then regenerates
+    /// data/w3c_specs.json. After running this command, rebuild to apply changes.
+    #[command(long_about = "Update the local W3C spec list.\n\n\
+        Clones (or updates) the csswg-drafts and w3c/groups repositories,\n\
+        then regenerates data/w3c_specs.json with all discovered specs.\n\
+        Rebuild after running this to apply the new spec list.\n\n\
+        Examples:\n  \
+        webspec-index update-spec-list\n  \
+        webspec-index update-spec-list --csswg-dir /path/to/csswg-drafts")]
+    UpdateSpecList {
+        #[arg(long, default_value = "csswg-drafts", help = "Path to csswg-drafts clone")]
+        csswg_dir: std::path::PathBuf,
+
+        #[arg(long, default_value = "groups", help = "Path to w3c/groups clone")]
+        groups_dir: std::path::PathBuf,
+
+        #[arg(long, default_value = "data/w3c_specs.json", help = "Output path for the spec list")]
+        output: std::path::PathBuf,
+    },
 }
 
 fn is_llm_environment() -> bool {
@@ -473,6 +495,24 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
 
         Command::Lsp => {
             webspec_index::lsp::serve_stdio().await;
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Command::UpdateSpecList {
+            csswg_dir,
+            groups_dir,
+            output,
+        } => {
+            let (csswg_count, standalone_count) =
+                webspec_index::spec_list::update(&csswg_dir, &groups_dir, &output)?;
+            eprintln!(
+                "wrote {} specs to {} ({} CSSWG + {} standalone)",
+                csswg_count + standalone_count,
+                output.display(),
+                csswg_count,
+                standalone_count
+            );
+            eprintln!("Rebuild to apply the new spec list.");
             Ok(ExitCode::SUCCESS)
         }
     }
