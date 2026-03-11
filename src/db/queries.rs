@@ -1,5 +1,6 @@
 // Query operations on the database
-use crate::model::{ParsedSection, SectionType};
+use crate::model::{ParsedSection, SectionType, SpecInfo};
+use crate::provider::ietf::intern;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::Connection;
@@ -250,6 +251,30 @@ pub fn find_anchors(
     };
 
     Ok(results)
+}
+
+/// Return all specs stored in the DB for a given provider.
+/// Used to find previously-discovered dynamic specs (e.g. IETF) for auto-update.
+pub fn list_specs_by_provider(conn: &Connection, provider: &str) -> Result<Vec<SpecInfo>> {
+    let mut stmt =
+        conn.prepare("SELECT name, base_url FROM specs WHERE provider = ?1")?;
+
+    let rows = stmt
+        .query_map([provider], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Use the IETF intern cache so each unique string is leaked at most once.
+    Ok(rows
+        .into_iter()
+        .map(|(name, base_url)| SpecInfo {
+            name: intern(name),
+            base_url: intern(base_url),
+            provider: "ietf",   // only called with "ietf" today
+            github_repo: "",
+        })
+        .collect())
 }
 
 /// List all headings in a spec

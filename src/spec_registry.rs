@@ -1,5 +1,8 @@
 use crate::model::SpecInfo;
-use crate::provider::{tc39::Tc39Provider, w3c::W3cProvider, whatwg::WhatwgProvider, SpecProvider};
+use crate::provider::{
+    ietf::IETFProvider, tc39::Tc39Provider, w3c::W3cProvider, whatwg::WhatwgProvider,
+    SpecProvider,
+};
 use anyhow::Result;
 
 /// Top-level registry that routes to appropriate providers
@@ -14,11 +17,12 @@ impl SpecRegistry {
                 Box::new(WhatwgProvider),
                 Box::new(W3cProvider),
                 Box::new(Tc39Provider),
+                Box::new(IETFProvider),
             ],
         }
     }
 
-    /// Find a spec by name (case-insensitive)
+    /// Find a spec by name in the static known-specs lists (case-insensitive).
     pub fn find_spec(&self, name: &str) -> Option<&SpecInfo> {
         let name_lower = name.to_lowercase();
         for provider in &self.providers {
@@ -31,6 +35,23 @@ impl SpecRegistry {
         None
     }
 
+    /// Find a spec by name, falling back to dynamic provider lookup.
+    ///
+    /// Tries the static known-specs lists first (zero network I/O), then asks
+    /// each provider's `find_dynamic_spec` in turn.  Returns `Ok(None)` when
+    /// no provider recognises the name.
+    pub async fn find_or_discover_spec(&self, name: &str) -> Result<Option<SpecInfo>> {
+        if let Some(s) = self.find_spec(name) {
+            return Ok(Some(s.clone()));
+        }
+        for provider in &self.providers {
+            if let Some(s) = provider.find_dynamic_spec(name).await? {
+                return Ok(Some(s));
+            }
+        }
+        Ok(None)
+    }
+
     /// Get the provider for a spec
     pub fn get_provider(&self, spec: &SpecInfo) -> Result<&(dyn SpecProvider + Send + Sync)> {
         for provider in &self.providers {
@@ -41,7 +62,7 @@ impl SpecRegistry {
         anyhow::bail!("No provider found for spec {}", spec.name)
     }
 
-    /// List all known specs
+    /// List all statically known specs (does not include dynamic IETF specs)
     pub fn list_all_specs(&self) -> Vec<&SpecInfo> {
         let mut specs = Vec::new();
         for provider in &self.providers {
@@ -50,7 +71,7 @@ impl SpecRegistry {
         specs
     }
 
-    /// Map a URL to (spec_name, anchor) if recognized
+    /// Map a URL to (spec_name, anchor) if recognised by any provider
     pub fn resolve_url(&self, url: &str) -> Option<(String, String)> {
         for provider in &self.providers {
             if let Some(result) = provider.resolve_url(url) {

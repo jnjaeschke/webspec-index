@@ -11,19 +11,32 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::Connection;
 
-/// Get the latest SHA for a spec's GitHub repo, using the DB cache (24h TTL).
-/// Only calls the GitHub API when the cache is missing or stale (or force=true).
-/// The cache key is the repo path (e.g. "w3c/csswg-drafts"), so all specs
-/// sharing a monorepo make at most one API call per 24h window.
+/// Cache key for repo-level SHA tracking.
+/// For providers that share a GitHub monorepo (e.g. W3C CSSWG), the repo path
+/// is used so a single API call serves all specs in the repo.
+/// For providers without a GitHub repo (e.g. IETF), the spec name is used as
+/// a per-document key so each doc gets its own 24-hour cache entry.
+fn sha_cache_key(spec: &SpecInfo) -> &str {
+    if spec.github_repo.is_empty() {
+        spec.name
+    } else {
+        spec.github_repo
+    }
+}
+
+/// Get the latest SHA for a spec, using the DB cache (24h TTL).
+/// Only calls the upstream API when the cache is missing or stale (or force=true).
 async fn get_latest_sha(
     conn: &Connection,
     spec: &SpecInfo,
     provider: &(dyn SpecProvider + Send + Sync),
     force: bool,
 ) -> Result<(String, DateTime<Utc>)> {
+    let cache_key = sha_cache_key(spec);
+
     if !force {
         if let Some((sha, commit_date, checked_at)) =
-            queries::get_repo_sha_cache(conn, spec.github_repo)?
+            queries::get_repo_sha_cache(conn, cache_key)?
         {
             let age = Utc::now().signed_duration_since(checked_at);
             if age.num_hours() < 24 {
@@ -32,9 +45,9 @@ async fn get_latest_sha(
         }
     }
 
-    // Cache miss or stale: call GitHub API and refresh the cache
+    // Cache miss or stale: call the provider's upstream API and refresh the cache
     let (sha, date) = provider.fetch_latest_version(spec).await?;
-    write::update_repo_sha_cache(conn, spec.github_repo, &sha, &date)?;
+    write::update_repo_sha_cache(conn, cache_key, &sha, &date)?;
     Ok((sha, date))
 }
 
@@ -98,8 +111,10 @@ pub async fn update_if_needed(
     Ok(Some(do_index(conn, spec, provider, &sha, &date).await?))
 }
 
-/// Update all specs in the registry.
-/// Returns vector of (spec_name, Option<snapshot_id>) pairs.
+/// Update all specs: static specs from the registry plus any dynamic IETF specs
+/// previously discovered and stored in the database.
+///
+/// Returns vector of (spec_name, Result<Option<snapshot_id>>) pairs.
 pub async fn update_all_specs(
     conn: &Connection,
     registry: &SpecRegistry,
@@ -107,6 +122,7 @@ pub async fn update_all_specs(
 ) -> Vec<(String, Result<Option<i64>>)> {
     let mut results = Vec::new();
 
+    // Static specs (WHATWG, W3C, TC39)
     for spec in registry.list_all_specs() {
         let provider = match registry.get_provider(spec) {
             Ok(p) => p,
@@ -115,7 +131,20 @@ pub async fn update_all_specs(
                 continue;
             }
         };
+        let result = update_if_needed(conn, spec, provider, force).await;
+        results.push((spec.name.to_string(), result));
+    }
 
+    // Dynamic IETF specs previously discovered and stored in the DB
+    let ietf_specs = queries::list_specs_by_provider(conn, "ietf").unwrap_or_default();
+    for spec in &ietf_specs {
+        let provider = match registry.get_provider(spec) {
+            Ok(p) => p,
+            Err(e) => {
+                results.push((spec.name.to_string(), Err(e)));
+                continue;
+            }
+        };
         let result = update_if_needed(conn, spec, provider, force).await;
         results.push((spec.name.to_string(), result));
     }
