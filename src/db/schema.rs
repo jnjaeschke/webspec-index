@@ -76,7 +76,9 @@ pub fn initialize_schema(conn: &Connection) -> Result<()> {
 
         CREATE TABLE update_checks (
             spec_id     INTEGER PRIMARY KEY REFERENCES specs(id),
-            last_checked TEXT NOT NULL
+            last_checked TEXT NOT NULL,
+            last_indexed TEXT,
+            content_hash TEXT
         );
 
         CREATE VIRTUAL TABLE sections_fts USING fts5(
@@ -113,13 +115,7 @@ pub fn initialize_schema(conn: &Connection) -> Result<()> {
 /// Uses CREATE TABLE IF NOT EXISTS to be safe on both new and existing databases.
 pub fn run_migrations(conn: &Connection) -> Result<()> {
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS repo_version_cache (
-            repo        TEXT PRIMARY KEY,
-            sha         TEXT NOT NULL,
-            commit_date TEXT NOT NULL,
-            checked_at  TEXT NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS idl_defs (
+        "CREATE TABLE IF NOT EXISTS idl_defs (
             id             INTEGER PRIMARY KEY,
             snapshot_id    INTEGER NOT NULL REFERENCES snapshots(id),
             anchor         TEXT NOT NULL,
@@ -131,7 +127,33 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
             UNIQUE(snapshot_id, anchor, kind)
         );
         CREATE INDEX IF NOT EXISTS idx_idl_defs_anchor ON idl_defs(snapshot_id, anchor);
-        CREATE INDEX IF NOT EXISTS idx_idl_defs_canonical ON idl_defs(snapshot_id, canonical_name);",
+        CREATE INDEX IF NOT EXISTS idx_idl_defs_canonical ON idl_defs(snapshot_id, canonical_name);
+        CREATE TABLE IF NOT EXISTS update_checks (
+            spec_id      INTEGER PRIMARY KEY REFERENCES specs(id),
+            last_checked TEXT NOT NULL,
+            last_indexed TEXT,
+            content_hash TEXT
+        );",
+    )?;
+
+    ensure_column(conn, "update_checks", "last_indexed", "TEXT")?;
+    ensure_column(conn, "update_checks", "content_hash", "TEXT")?;
+    Ok(())
+}
+
+fn ensure_column(conn: &Connection, table: &str, column: &str, kind: &str) -> Result<()> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(1)?;
+        if name == column {
+            return Ok(());
+        }
+    }
+
+    conn.execute(
+        &format!("ALTER TABLE {table} ADD COLUMN {column} {kind}"),
+        [],
     )?;
     Ok(())
 }
@@ -184,7 +206,6 @@ mod tests {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
 
-        assert!(tables.contains(&"repo_version_cache".to_string()));
         assert!(tables.contains(&"idl_defs".to_string()));
     }
 

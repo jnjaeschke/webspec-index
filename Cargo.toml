@@ -46,6 +46,7 @@ htmd = "0.5"
 chrono = { version = "0.4", features = ["serde"] }
 url = "2.5"
 async-trait = "0.1"
+sha2 = "0.10"
 
 # LSP
 tower-lsp = "0.20"

@@ -7,6 +7,7 @@ Query WHATWG, W3C, and TC39 web specifications from the command line.
 - **Full-text search** across HTML, DOM, URL, CSS, ECMAScript, and 70+ other specifications
 - **Cross-reference tracking** — see incoming/outgoing references between spec sections
 - **Graph traversal** — build cross-reference graphs with JSON, Mermaid, or Graphviz DOT output
+- **Auto URL indexing for whitelisted domains** — query non-hardcoded specs by URL
 - **Fast SQLite indexing** with FTS5 for instant queries
 - **Algorithm and IDL extraction** with rendered markdown content
 - **LSP server** for inline spec hovers and step validation in your editor
@@ -30,6 +31,7 @@ cargo install webspec-index
 # Look up a spec section (algorithm, definition, heading, IDL)
 webspec-index query "HTML#navigate"
 webspec-index query "https://html.spec.whatwg.org/#navigate"
+webspec-index query "https://wicg.github.io/permissions-policy/#permissions-policy"
 webspec-index query "DOM#concept-tree" --format markdown
 
 # Full-text search
@@ -70,6 +72,9 @@ All commands support `--format json` (default) or `--format markdown`.
 
 Spec data is fetched and cached locally on first query — no setup needed.
 
+Spec refreshes are freshness-based: once checked, a spec is considered fresh for 24h.
+When refreshed, the CLI fetches live HTML and re-indexes only if content changed.
+
 ## AI Agent Integration
 
 ### Skill file
@@ -84,15 +89,15 @@ See [editors/vscode/](editors/vscode/) and [editors/zed/](editors/zed/) for deta
 
 ## How It Works
 
-1. **Fetches** spec HTML from WHATWG/W3C/TC39 GitHub repositories
+1. **Fetches** spec HTML from WHATWG/W3C/TC39 spec URLs
 2. **Parses** sections, algorithms, IDL definitions, and cross-references
 3. **Indexes** in SQLite with FTS5 for fast full-text search
-4. **Tracks versions** using git commit SHAs for reproducibility
+4. **Refreshes snapshots** on a 24h cadence with content-hash change detection
 
 ## Development
 
 ```bash
-cargo test          # 262 tests
+cargo test          # 243 tests
 cargo clippy        # lint
 cargo fmt --check   # format check
 ```

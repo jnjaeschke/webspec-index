@@ -3,122 +3,207 @@ pub mod github;
 pub mod snapshot;
 
 use crate::db::{queries, write};
-use crate::model::SpecInfo;
 use crate::parse;
-use crate::provider::SpecProvider;
-use crate::spec_registry::SpecRegistry;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::Connection;
+use sha2::{Digest, Sha256};
 
-/// Get the latest SHA for a spec's GitHub repo, using the DB cache (24h TTL).
-/// Only calls the GitHub API when the cache is missing or stale (or force=true).
-/// The cache key is the repo path (e.g. "w3c/csswg-drafts"), so all specs
-/// sharing a monorepo make at most one API call per 24h window.
-async fn get_latest_sha(
+const CHECK_INTERVAL_HOURS: i64 = 24;
+
+fn is_fresh(last_checked: &DateTime<Utc>, now: &DateTime<Utc>) -> bool {
+    now.signed_duration_since(*last_checked).num_hours() < CHECK_INTERVAL_HOURS
+}
+
+fn hash_html(html: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(html.as_bytes());
+    let digest = hasher.finalize();
+    digest.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn store_update_check(
     conn: &Connection,
-    spec: &SpecInfo,
-    provider: &(dyn SpecProvider + Send + Sync),
-    force: bool,
-) -> Result<(String, DateTime<Utc>)> {
-    if !force {
-        if let Some((sha, commit_date, checked_at)) =
-            queries::get_repo_sha_cache(conn, spec.github_repo)?
-        {
-            let age = Utc::now().signed_duration_since(checked_at);
-            if age.num_hours() < 24 {
-                return Ok((sha, commit_date));
-            }
+    spec_id: i64,
+    now: &DateTime<Utc>,
+    last_indexed: Option<&DateTime<Utc>>,
+    content_hash: Option<&str>,
+) -> Result<()> {
+    let checked = now.to_rfc3339();
+    let indexed = last_indexed.map(|t| t.to_rfc3339());
+    write::record_update_check(conn, spec_id, &checked, indexed.as_deref(), content_hash)
+}
+
+fn sync_from_html(
+    conn: &Connection,
+    spec_id: i64,
+    spec_name: &str,
+    base_url: &str,
+    provider_name: &str,
+    html: String,
+    previous_snapshot_id: Option<i64>,
+    state: Option<queries::UpdateCheckState>,
+    now: &DateTime<Utc>,
+) -> Result<(i64, bool)> {
+    let content_hash = hash_html(&html);
+
+    if let Some(snapshot_id) = previous_snapshot_id {
+        if state.as_ref().and_then(|s| s.content_hash.as_deref()) == Some(content_hash.as_str()) {
+            let existing_indexed = state.as_ref().and_then(|s| s.last_indexed.as_ref());
+            store_update_check(conn, spec_id, now, existing_indexed, Some(&content_hash))?;
+            return Ok((snapshot_id, false));
         }
     }
 
-    // Cache miss or stale: call GitHub API and refresh the cache
-    let (sha, date) = provider.fetch_latest_version(spec).await?;
-    write::update_repo_sha_cache(conn, spec.github_repo, &sha, &date)?;
-    Ok((sha, date))
-}
-
-/// Fetch the spec HTML, parse it, and write to the database.
-/// The SHA and date are provided by the caller (already fetched/cached).
-async fn do_index(
-    conn: &Connection,
-    spec: &SpecInfo,
-    provider: &(dyn SpecProvider + Send + Sync),
-    sha: &str,
-    date: &DateTime<Utc>,
-) -> Result<i64> {
-    let html = provider.fetch_html(spec, sha).await?;
-    let parsed = parse::parse_spec(&html, spec.name, spec.base_url)?;
-
-    let spec_id = write::insert_or_get_spec(conn, spec.name, spec.base_url, spec.provider)?;
+    let parsed = parse::parse_spec(&html, spec_name, base_url)?;
     write::delete_spec_data(conn, spec_id)?;
 
-    let snapshot_id = write::insert_snapshot(conn, spec_id, sha, &date.to_rfc3339())?;
+    let synthetic_sha = format!("hash:{content_hash}");
+    let commit_date = now.to_rfc3339();
+    let spec_id_reloaded = write::insert_or_get_spec(conn, spec_name, base_url, provider_name)?;
+    let snapshot_id = write::insert_snapshot(conn, spec_id_reloaded, &synthetic_sha, &commit_date)?;
     write::insert_sections_bulk(conn, snapshot_id, &parsed.sections)?;
     write::insert_refs_bulk(conn, snapshot_id, &parsed.references)?;
     write::insert_idl_defs_bulk(conn, snapshot_id, &parsed.idl_definitions)?;
 
+    store_update_check(conn, spec_id_reloaded, now, Some(now), Some(&content_hash))?;
+    Ok((snapshot_id, true))
+}
+
+async fn fetch_live_html(base_url: &str) -> Result<String> {
+    let url = format!("{}/", base_url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .header("User-Agent", "webspec-index/0.5.0")
+        .send()
+        .await?;
+    if !response.status().is_success() {
+        anyhow::bail!("Failed to fetch {}: HTTP {}", url, response.status());
+    }
+    Ok(response.text().await?)
+}
+
+async fn sync_known_spec(
+    conn: &Connection,
+    spec_name: &str,
+    base_url: &str,
+    provider_name: &str,
+    force: bool,
+) -> Result<(i64, bool)> {
+    let spec_id = write::insert_or_get_spec(conn, spec_name, base_url, provider_name)?;
+    let previous_snapshot_id = queries::get_snapshot(conn, spec_name)?;
+    let state = queries::get_update_check(conn, spec_id)?;
+    let now = Utc::now();
+
+    if !force {
+        if let (Some(snapshot_id), Some(sync_state)) = (previous_snapshot_id, state.as_ref()) {
+            if is_fresh(&sync_state.last_checked, &now) {
+                return Ok((snapshot_id, false));
+            }
+        }
+    }
+
+    let html = fetch_live_html(base_url).await?;
+    sync_from_html(
+        conn,
+        spec_id,
+        spec_name,
+        base_url,
+        provider_name,
+        html,
+        previous_snapshot_id,
+        state,
+        &now,
+    )
+}
+
+async fn sync_dynamic_spec(
+    conn: &Connection,
+    spec_name: &str,
+    base_url: &str,
+    force: bool,
+) -> Result<(i64, bool)> {
+    let spec_id = write::insert_or_get_spec(conn, spec_name, base_url, "dynamic")?;
+    let previous_snapshot_id = queries::get_snapshot(conn, spec_name)?;
+    let state = queries::get_update_check(conn, spec_id)?;
+    let now = Utc::now();
+
+    if !force {
+        if let (Some(snapshot_id), Some(sync_state)) = (previous_snapshot_id, state.as_ref()) {
+            if is_fresh(&sync_state.last_checked, &now) {
+                return Ok((snapshot_id, false));
+            }
+        }
+    }
+
+    let html = fetch_live_html(base_url).await?;
+    sync_from_html(
+        conn,
+        spec_id,
+        spec_name,
+        base_url,
+        "dynamic",
+        html,
+        previous_snapshot_id,
+        state,
+        &now,
+    )
+}
+
+/// Ensure an ad-hoc URL-based spec is indexed.
+///
+/// This supports domains accepted by `SpecRegistry::resolve_url()` auto resolution.
+pub async fn ensure_indexed_dynamic(
+    conn: &Connection,
+    spec_name: &str,
+    base_url: &str,
+) -> Result<i64> {
+    let (snapshot_id, _) = sync_dynamic_spec(conn, spec_name, base_url, false).await?;
     Ok(snapshot_id)
 }
 
-/// Ensure a spec is indexed and up to date.
+/// Ensure a spec is indexed and reasonably fresh.
 ///
-/// On every call, checks the repo-level SHA cache (24h TTL) and re-indexes
-/// the spec if the upstream SHA has advanced. This is the lazy-update entry
-/// point used by all query paths.
+/// Uses a 24h freshness window based on `update_checks.last_checked`.
+/// When refreshing, fetches live HTML and re-indexes only if content hash changed.
 pub async fn ensure_indexed(
     conn: &Connection,
-    spec: &SpecInfo,
-    provider: &(dyn SpecProvider + Send + Sync),
+    spec_name: &str,
+    base_url: &str,
+    provider_name: &str,
 ) -> Result<i64> {
-    let (sha, date) = get_latest_sha(conn, spec, provider, false).await?;
-
-    if let Some(snapshot_id) = queries::get_snapshot_by_sha(conn, spec.name, &sha)? {
-        return Ok(snapshot_id);
-    }
-
-    do_index(conn, spec, provider, &sha, &date).await
+    let (snapshot_id, _) = sync_known_spec(conn, spec_name, base_url, provider_name, false).await?;
+    Ok(snapshot_id)
 }
 
-/// Update a spec if a newer version is available.
+/// Update a spec if needed.
 ///
-/// Returns `Some(snapshot_id)` if the spec was re-indexed, `None` if already
-/// at the latest SHA. Respects the 24h repo cache unless `force` is true.
+/// Returns `Some(snapshot_id)` only when content changed and was re-indexed.
 pub async fn update_if_needed(
     conn: &Connection,
-    spec: &SpecInfo,
-    provider: &(dyn SpecProvider + Send + Sync),
+    spec_name: &str,
+    base_url: &str,
+    provider_name: &str,
     force: bool,
 ) -> Result<Option<i64>> {
-    let (sha, date) = get_latest_sha(conn, spec, provider, force).await?;
-
-    if queries::get_snapshot_by_sha(conn, spec.name, &sha)?.is_some() {
-        return Ok(None);
-    }
-
-    Ok(Some(do_index(conn, spec, provider, &sha, &date).await?))
+    let (snapshot_id, updated) =
+        sync_known_spec(conn, spec_name, base_url, provider_name, force).await?;
+    Ok(updated.then_some(snapshot_id))
 }
 
 /// Update all specs in the registry.
 /// Returns vector of (spec_name, Option<snapshot_id>) pairs.
 pub async fn update_all_specs(
     conn: &Connection,
-    registry: &SpecRegistry,
+    specs: &[(String, String, String)], // (name, base_url, provider)
     force: bool,
 ) -> Vec<(String, Result<Option<i64>>)> {
     let mut results = Vec::new();
 
-    for spec in registry.list_all_specs() {
-        let provider = match registry.get_provider(spec) {
-            Ok(p) => p,
-            Err(e) => {
-                results.push((spec.name.to_string(), Err(e)));
-                continue;
-            }
-        };
-
-        let result = update_if_needed(conn, spec, provider, force).await;
-        results.push((spec.name.to_string(), result));
+    for (name, base_url, provider) in specs {
+        let result = update_if_needed(conn, name, base_url, provider, force).await;
+        results.push((name.clone(), result));
     }
 
     results

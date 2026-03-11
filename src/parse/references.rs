@@ -460,10 +460,10 @@ mod tests {
         assert_eq!(refs.len(), 2);
         assert!(refs
             .iter()
-            .any(|r| r.to_spec == "CSS-SELECTORS" && r.to_anchor == "specificity"));
+            .any(|r| r.to_spec == "SELECTORS-4" && r.to_anchor == "specificity"));
         assert!(refs
             .iter()
-            .any(|r| r.to_spec == "SERVICE-WORKERS" && r.to_anchor == "service-worker-concept"));
+            .any(|r| r.to_spec == "SERVICEWORKER" && r.to_anchor == "service-worker-concept"));
     }
 
     #[test]

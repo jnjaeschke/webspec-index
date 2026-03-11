@@ -36,11 +36,13 @@ webspec-index query 'HTML#navigate'
 webspec-index query 'DOM#concept-tree'
 webspec-index query 'CSS-GRID#grid-container'
 webspec-index query 'https://html.spec.whatwg.org/#navigate'
+webspec-index query 'https://wicg.github.io/permissions-policy/#permissions-policy'
 ```
 
 Returns the section's title, type (heading/algorithm/definition), full content as markdown, navigation tree (parent/prev/next/children), and cross-references. This is the primary command — use it to read what a spec section says.
 
 Use `--format markdown` for human-readable output, or default `--format json` for structured data.
+For non-hardcoded specs, URL queries are accepted for whitelisted domains (`*.spec.whatwg.org`, `drafts.csswg.org`, `w3c.github.io`, `wicg.github.io`, `webaudio.github.io`, `tc39.es`, and `w3.org/TR/*`).
 
 ### Search across specs
 
@@ -96,6 +98,7 @@ webspec-index update --force
 ```
 
 Fetches latest spec versions. Uses 24h cache unless `--force` is given. Specs are auto-fetched on first query, so you rarely need this.
+Specs are checked on a 24h cadence; re-indexing happens only when fetched HTML content changed.
 
 ### Find references (exact or shorthand)
 

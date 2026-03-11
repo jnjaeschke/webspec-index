@@ -229,15 +229,13 @@ enum Command {
     },
 
     /// Update specifications to latest versions
-    #[command(
-        long_about = "Update specifications to latest versions from WHATWG/W3C/TC39.\n\n\
-        Without --spec, updates all known specs. Uses 24h cache to avoid\n\
-        redundant fetches unless --force is given.\n\n\
+    #[command(long_about = "Update indexed specifications to latest versions.\n\n\
+        Without --spec, updates all currently indexed specs. Uses a 24h\n\
+        freshness window unless --force is given.\n\n\
         Examples:\n  \
         webspec-index update\n  \
         webspec-index update --spec HTML\n  \
-        webspec-index update --force"
-    )]
+        webspec-index update --force")]
     Update {
         #[arg(long, short, help = "Update only this spec")]
         spec: Option<String>,
@@ -252,7 +250,7 @@ enum Command {
         yes: bool,
     },
 
-    /// List all known spec names and base URLs
+    /// List indexed/discovered spec names and base URLs
     Specs,
 
     /// Start the Language Server Protocol server (stdio)
@@ -275,7 +273,7 @@ list <SPEC>
 refs <SPEC#anchor> [-d incoming|outgoing|both(default)]
 update [-s SPEC] [-f force]
 clear-db [-y skip confirm]
-specs — list all known spec names+URLs
+specs — list indexed/discovered spec names+URLs
 lsp — start LSP server on stdio
 find-references <TARGET> [-d incoming|outgoing|both(default incoming)] [-l N(10)]
 graph <SPEC#anchor|URL> [-d incoming|outgoing|both(default outgoing)] [--max-depth N(2)] [--max-nodes N(150)] [--include PATTERN --exclude PATTERN --same-spec-only] [--graph-format json|markdown|mermaid|dot]

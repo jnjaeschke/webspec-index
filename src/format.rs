@@ -391,10 +391,7 @@ pub fn idl(result: &IdlResult) -> String {
     }
 
     for entry in &result.matches {
-        md.push_str(&format!(
-            "## {} ({})\n\n",
-            entry.canonical_name, entry.kind
-        ));
+        md.push_str(&format!("## {} ({})\n\n", entry.canonical_name, entry.kind));
         md.push_str(&format!("- Anchor: `{}#{}`\n", entry.spec, entry.anchor));
         if let Some(owner) = &entry.owner {
             md.push_str(&format!("- Owner: `{}`\n", owner));

@@ -4,7 +4,12 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::Connection;
 
-type RepoShaCache = Option<(String, DateTime<Utc>, DateTime<Utc>)>;
+#[derive(Debug, Clone)]
+pub struct UpdateCheckState {
+    pub last_checked: DateTime<Utc>,
+    pub last_indexed: Option<DateTime<Utc>>,
+    pub content_hash: Option<String>,
+}
 
 /// Get the snapshot for a spec by name (each spec has at most one snapshot)
 pub fn get_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<i64>> {
@@ -23,60 +28,91 @@ pub fn get_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<i64>> {
     }
 }
 
-/// Get the cached latest SHA for a GitHub repo, if present and fresh enough for the caller to decide.
-/// Returns (sha, commit_date, checked_at) if a cache entry exists.
-pub fn get_repo_sha_cache(conn: &Connection, repo: &str) -> Result<RepoShaCache> {
-    let result = conn.query_row(
-        "SELECT sha, commit_date, checked_at FROM repo_version_cache WHERE repo = ?1",
-        [repo],
-        |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-            ))
-        },
+/// Get canonical spec metadata by name (case-insensitive).
+/// Returns (name, base_url, provider).
+pub fn get_spec_meta(
+    conn: &Connection,
+    spec_name: &str,
+) -> Result<Option<(String, String, String)>> {
+    let row = conn.query_row(
+        "SELECT name, base_url, provider
+         FROM specs
+         WHERE LOWER(name) = LOWER(?1)
+         LIMIT 1",
+        [spec_name],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
     );
 
-    match result {
-        Ok((sha, commit_date_str, checked_at_str)) => {
-            let commit_date = DateTime::parse_from_rfc3339(&commit_date_str)
-                .map(|d| d.with_timezone(&Utc))
-                .map_err(|e| {
-                    rusqlite::Error::InvalidColumnType(
-                        1,
-                        e.to_string(),
-                        rusqlite::types::Type::Text,
-                    )
-                })?;
-            let checked_at = DateTime::parse_from_rfc3339(&checked_at_str)
-                .map(|d| d.with_timezone(&Utc))
-                .map_err(|e| {
-                    rusqlite::Error::InvalidColumnType(
-                        2,
-                        e.to_string(),
-                        rusqlite::types::Type::Text,
-                    )
-                })?;
-            Ok(Some((sha, commit_date, checked_at)))
-        }
+    match row {
+        Ok(meta) => Ok(Some(meta)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e.into()),
     }
 }
 
-/// Get a snapshot by spec name and SHA
-pub fn get_snapshot_by_sha(conn: &Connection, spec_name: &str, sha: &str) -> Result<Option<i64>> {
-    let result = conn.query_row(
-        "SELECT s.id FROM snapshots s
-         JOIN specs sp ON s.spec_id = sp.id
-         WHERE sp.name = ?1 AND s.sha = ?2",
-        (spec_name, sha),
-        |row| row.get(0),
+/// List all indexed/discovered specs as (name, base_url, provider).
+pub fn list_specs(conn: &Connection) -> Result<Vec<(String, String, String)>> {
+    let mut stmt = conn.prepare(
+        "SELECT name, base_url, provider
+         FROM specs
+         ORDER BY name",
+    )?;
+
+    let rows = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+/// Get sync metadata for a spec from update_checks.
+pub fn get_update_check(conn: &Connection, spec_id: i64) -> Result<Option<UpdateCheckState>> {
+    let row = conn.query_row(
+        "SELECT last_checked, last_indexed, content_hash
+         FROM update_checks
+         WHERE spec_id = ?1",
+        [spec_id],
+        |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, Option<String>>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        },
     );
 
-    match result {
-        Ok(id) => Ok(Some(id)),
+    match row {
+        Ok((checked, indexed, content_hash)) => {
+            let last_checked = DateTime::parse_from_rfc3339(&checked)
+                .map(|d| d.with_timezone(&Utc))
+                .map_err(|e| {
+                    rusqlite::Error::InvalidColumnType(
+                        0,
+                        e.to_string(),
+                        rusqlite::types::Type::Text,
+                    )
+                })?;
+
+            let last_indexed = match indexed {
+                Some(value) => Some(
+                    DateTime::parse_from_rfc3339(&value)
+                        .map(|d| d.with_timezone(&Utc))
+                        .map_err(|e| {
+                            rusqlite::Error::InvalidColumnType(
+                                1,
+                                e.to_string(),
+                                rusqlite::types::Type::Text,
+                            )
+                        })?,
+                ),
+                None => None,
+            };
+
+            Ok(Some(UpdateCheckState {
+                last_checked,
+                last_indexed,
+                content_hash,
+            }))
+        }
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e.into()),
     }
@@ -339,6 +375,21 @@ mod tests {
     }
 
     #[test]
+    fn test_get_spec_meta_and_list_specs() {
+        let conn = db::open_test_db().unwrap();
+        setup_test_data(&conn).unwrap();
+
+        let meta = get_spec_meta(&conn, "html").unwrap().unwrap();
+        assert_eq!(meta.0, "HTML");
+        assert_eq!(meta.1, "https://html.spec.whatwg.org");
+        assert_eq!(meta.2, "whatwg");
+
+        let specs = list_specs(&conn).unwrap();
+        assert_eq!(specs.len(), 1);
+        assert_eq!(specs[0].0, "HTML");
+    }
+
+    #[test]
     fn test_get_section() {
         let conn = db::open_test_db().unwrap();
         let snapshot_id = setup_test_data(&conn).unwrap();
@@ -392,5 +443,30 @@ mod tests {
         assert_eq!(headings.len(), 2);
         assert_eq!(headings[0].anchor, "intro");
         assert_eq!(headings[1].anchor, "details");
+    }
+
+    #[test]
+    fn test_get_update_check() {
+        let conn = db::open_test_db().unwrap();
+        let spec_id =
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
+                .unwrap();
+
+        write::record_update_check(
+            &conn,
+            spec_id,
+            "2026-01-01T00:00:00Z",
+            Some("2026-01-01T00:00:00Z"),
+            Some("abc123"),
+        )
+        .unwrap();
+
+        let state = get_update_check(&conn, spec_id).unwrap().unwrap();
+        assert_eq!(state.last_checked.to_rfc3339(), "2026-01-01T00:00:00+00:00");
+        assert_eq!(
+            state.last_indexed.as_ref().unwrap().to_rfc3339(),
+            "2026-01-01T00:00:00+00:00"
+        );
+        assert_eq!(state.content_hash.as_deref(), Some("abc123"));
     }
 }

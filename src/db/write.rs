@@ -164,29 +164,18 @@ pub fn delete_spec_data(conn: &Connection, spec_id: i64) -> Result<()> {
     Ok(())
 }
 
-/// Update the per-repo SHA cache entry, creating or replacing it.
-pub fn update_repo_sha_cache(
+/// Record spec sync metadata for freshness/content-hash based updates.
+pub fn record_update_check(
     conn: &Connection,
-    repo: &str,
-    sha: &str,
-    commit_date: &chrono::DateTime<chrono::Utc>,
+    spec_id: i64,
+    last_checked: &str,
+    last_indexed: Option<&str>,
+    content_hash: Option<&str>,
 ) -> Result<()> {
-    let checked_at = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT OR REPLACE INTO repo_version_cache (repo, sha, commit_date, checked_at)
+        "INSERT OR REPLACE INTO update_checks (spec_id, last_checked, last_indexed, content_hash)
          VALUES (?1, ?2, ?3, ?4)",
-        (repo, sha, &commit_date.to_rfc3339(), &checked_at),
-    )?;
-    Ok(())
-}
-
-/// Record that we checked for updates for a spec
-pub fn record_update_check(conn: &Connection, spec_id: i64) -> Result<()> {
-    let timestamp = chrono::Utc::now().to_rfc3339();
-
-    conn.execute(
-        "INSERT OR REPLACE INTO update_checks (spec_id, last_checked) VALUES (?1, ?2)",
-        (spec_id, timestamp),
+        (spec_id, last_checked, last_indexed, content_hash),
     )?;
 
     Ok(())
@@ -417,7 +406,14 @@ mod tests {
         let spec_id =
             insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
 
-        record_update_check(&conn, spec_id).unwrap();
+        record_update_check(
+            &conn,
+            spec_id,
+            "2026-01-01T00:00:00Z",
+            Some("2026-01-01T00:00:00Z"),
+            Some("deadbeef"),
+        )
+        .unwrap();
 
         // Verify it was recorded
         let count: i64 = conn
@@ -430,7 +426,14 @@ mod tests {
         assert_eq!(count, 1);
 
         // Record again (should update, not insert new row)
-        record_update_check(&conn, spec_id).unwrap();
+        record_update_check(
+            &conn,
+            spec_id,
+            "2026-01-02T00:00:00Z",
+            None,
+            Some("beadfeed"),
+        )
+        .unwrap();
 
         let count: i64 = conn
             .query_row(
@@ -440,5 +443,16 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 1);
+
+        let (checked, indexed, hash): (String, Option<String>, Option<String>) = conn
+            .query_row(
+                "SELECT last_checked, last_indexed, content_hash FROM update_checks WHERE spec_id = ?1",
+                [spec_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(checked, "2026-01-02T00:00:00Z");
+        assert_eq!(indexed, None);
+        assert_eq!(hash.as_deref(), Some("beadfeed"));
     }
 }
