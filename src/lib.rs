@@ -10,6 +10,7 @@ pub mod format;
 pub mod lsp;
 pub mod model;
 pub mod parse;
+pub mod provider;
 pub mod spec_list;
 pub mod spec_registry;
 
@@ -90,19 +91,34 @@ fn resolve_spec_metadata(
     anyhow::bail!("Unknown spec: {}", spec_name)
 }
 
+/// Resolve spec metadata, with fallbacks: DB → infer → seed W3C list → IETF discovery.
+async fn lookup_spec_meta(
+    conn: &Connection,
+    registry: &spec_registry::SpecRegistry,
+    spec_name: &str,
+) -> Result<(String, String, String)> {
+    if let Ok(m) = resolve_spec_metadata(conn, registry, spec_name) {
+        return Ok(m);
+    }
+    // Seed W3C spec list and retry
+    if spec_list::fetch_and_seed(conn).is_ok() {
+        if let Ok(m) = resolve_spec_metadata(conn, registry, spec_name) {
+            return Ok(m);
+        }
+    }
+    // Try IETF dynamic resolution (RFC or Internet Draft)
+    if let Some(result) = provider::ietf::discover_ietf_spec(spec_name).await? {
+        return Ok(result);
+    }
+    anyhow::bail!("Unknown spec: {}", spec_name)
+}
+
 async fn ensure_indexed_for_spec_name(
     conn: &Connection,
     registry: &spec_registry::SpecRegistry,
     spec_name: &str,
 ) -> Result<(i64, String)> {
-    let meta = resolve_spec_metadata(conn, registry, spec_name);
-    let (canonical_name, base_url, provider) = match meta {
-        Ok(m) => m,
-        Err(_) => {
-            spec_list::fetch_and_seed(conn)?;
-            resolve_spec_metadata(conn, registry, spec_name)?
-        }
-    };
+    let (canonical_name, base_url, provider) = lookup_spec_meta(conn, registry, spec_name).await?;
     let snapshot_id = fetch::ensure_indexed(conn, &canonical_name, &base_url, &provider).await?;
     Ok((snapshot_id, canonical_name))
 }
@@ -1278,7 +1294,7 @@ pub async fn update_specs(spec: Option<&str>, force: bool) -> Result<Vec<(String
     if let Some(spec_name) = spec {
         // Update single spec
         let (canonical_name, base_url, provider) =
-            resolve_spec_metadata(&conn, &registry, spec_name)?;
+            lookup_spec_meta(&conn, &registry, spec_name).await?;
         let snapshot_id =
             fetch::update_if_needed(&conn, &canonical_name, &base_url, &provider, force).await?;
         results.push((canonical_name, snapshot_id));
@@ -1985,5 +2001,52 @@ mod tests {
 
         assert!(!result.matches.is_empty());
         assert_eq!(result.matches[0].canonical_name, "Window.open");
+    }
+
+    // ── IETF lookup path ─────────────────────────────────────────────────────
+    //
+    // These tests document that `resolve_spec_metadata` (the synchronous,
+    // non-network path) cannot resolve IETF RFC or draft names.  The
+    // `lookup_spec_meta` async helper is therefore required to fall through to
+    // `provider::ietf::discover_ietf_spec` for IETF documents.
+
+    #[test]
+    fn resolve_spec_metadata_rejects_rfc_name() {
+        let conn = db::open_test_db().unwrap();
+        let registry = spec_registry::SpecRegistry::new();
+        // RFC9187 is not a WHATWG/W3C/TC39 spec and is never auto-seeded,
+        // so resolve_spec_metadata must fail — the IETF fallback path is needed.
+        let result = resolve_spec_metadata(&conn, &registry, "RFC9187");
+        assert!(
+            result.is_err(),
+            "RFC names must not resolve without IETF discovery"
+        );
+    }
+
+    #[test]
+    fn resolve_spec_metadata_rejects_draft_name() {
+        let conn = db::open_test_db().unwrap();
+        let registry = spec_registry::SpecRegistry::new();
+        let result = resolve_spec_metadata(&conn, &registry, "draft-touch-sne");
+        assert!(
+            result.is_err(),
+            "Draft names must not resolve without IETF discovery"
+        );
+    }
+
+    #[test]
+    fn resolve_spec_metadata_accepts_known_whatwg_name() {
+        let conn = db::open_test_db().unwrap();
+        let registry = spec_registry::SpecRegistry::new();
+        // WHATWG specs are resolvable without a DB entry or network calls.
+        let result = resolve_spec_metadata(&conn, &registry, "HTML");
+        assert!(
+            result.is_ok(),
+            "WHATWG spec names must resolve without IETF discovery"
+        );
+        let (name, base_url, provider) = result.unwrap();
+        assert_eq!(name, "HTML");
+        assert_eq!(base_url, "https://html.spec.whatwg.org");
+        assert_eq!(provider, "whatwg");
     }
 }

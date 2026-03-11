@@ -12,6 +12,10 @@ impl SpecRegistry {
 
     /// Map a URL to (derived_spec_name, anchor) if recognized.
     pub fn resolve_url(&self, url: &str) -> Option<(String, String)> {
+        // Try IETF URL patterns first (distinct hosts not matched by auto_base_url)
+        if let Some(result) = crate::provider::ietf::resolve_ietf_url(url) {
+            return Some(result);
+        }
         let (base_url, anchor) = auto_base_url_from_url(url)?;
         let spec_name = derive_spec_name_for_base_url(&base_url)
             .unwrap_or_else(|| auto_spec_name_for_base_url(&base_url));

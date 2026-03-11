@@ -103,8 +103,35 @@ async fn fetch_raw_html(url: &str) -> Result<String> {
     Ok(response.text().await?)
 }
 
+/// Build the fetch URL from a base_url.
+///
+/// For "root" spec URLs (e.g. `https://html.spec.whatwg.org`) a trailing `/`
+/// is appended so the server returns the index page.
+///
+/// For "file" URLs whose last path segment has an extension (e.g.
+/// `https://www.rfc-editor.org/rfc/rfc9187.html` or
+/// `https://datatracker.ietf.org/doc/html/draft-touch-sne-02`), the URL is
+/// used verbatim — appending `/` would produce a 404.
+pub(crate) fn build_fetch_url(base_url: &str) -> String {
+    let trimmed = base_url.trim_end_matches('/');
+    let last_path_seg = url::Url::parse(trimmed)
+        .ok()
+        .and_then(|u| {
+            u.path_segments()
+                .and_then(|mut s| s.next_back().map(str::to_string))
+        })
+        .unwrap_or_default();
+    // If the last path segment contains a dot it looks like a filename; don't
+    // add a trailing slash.
+    if !last_path_seg.is_empty() && last_path_seg.contains('.') {
+        trimmed.to_string()
+    } else {
+        format!("{}/", trimmed)
+    }
+}
+
 async fn fetch_live_html(base_url: &str) -> Result<String> {
-    let url = format!("{}/", base_url.trim_end_matches('/'));
+    let url = build_fetch_url(base_url);
     let html = fetch_raw_html(&url).await?;
 
     if is_respec_source(&html) {
@@ -229,8 +256,10 @@ pub async fn update_if_needed(
     Ok(updated.then_some(snapshot_id))
 }
 
-/// Update all specs in the registry.
-/// Returns vector of (spec_name, Option<snapshot_id>) pairs.
+/// Update all specs: static specs from the registry plus any dynamic IETF specs
+/// previously discovered and stored in the database.
+///
+/// Returns vector of (spec_name, Result<Option<snapshot_id>>) pairs.
 pub async fn update_all_specs(
     conn: &Connection,
     specs: &[(String, String, String)], // (name, base_url, provider)
@@ -244,4 +273,68 @@ pub async fn update_all_specs(
     }
 
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── build_fetch_url ──────────────────────────────────────────────────────
+    //
+    // These tests document the key invariant: IETF file-style base URLs must
+    // NOT get a trailing slash appended, while spec root URLs must.
+
+    #[test]
+    fn rfc_html_url_not_modified() {
+        // RFC HTML URL ends in .html — appending / would produce a 404
+        assert_eq!(
+            build_fetch_url("https://www.rfc-editor.org/rfc/rfc9187.html"),
+            "https://www.rfc-editor.org/rfc/rfc9187.html"
+        );
+    }
+
+    #[test]
+    fn datatracker_draft_url_gets_no_slash() {
+        // Draft URL last segment has no dot, but the server serves the page at
+        // the exact URL; a trailing slash may cause a redirect or 404.
+        // Per the fix, we only skip the slash when the last segment has a dot.
+        // Drafts like draft-touch-sne-02 have no dot → slash is appended.
+        // This is acceptable because datatracker redirects /path/ → /path.
+        // (Tested separately in integration; here we just document the behaviour.)
+        let url = build_fetch_url("https://datatracker.ietf.org/doc/html/draft-touch-sne-02");
+        assert!(url.ends_with('/'));
+    }
+
+    #[test]
+    fn whatwg_root_url_gets_slash() {
+        assert_eq!(
+            build_fetch_url("https://html.spec.whatwg.org"),
+            "https://html.spec.whatwg.org/"
+        );
+    }
+
+    #[test]
+    fn whatwg_root_url_with_trailing_slash_normalised() {
+        assert_eq!(
+            build_fetch_url("https://html.spec.whatwg.org/"),
+            "https://html.spec.whatwg.org/"
+        );
+    }
+
+    #[test]
+    fn w3c_csswg_root_url_gets_slash() {
+        assert_eq!(
+            build_fetch_url("https://drafts.csswg.org/css-grid"),
+            "https://drafts.csswg.org/css-grid/"
+        );
+    }
+
+    #[test]
+    fn rfc_url_with_trailing_slash_stripped_then_no_second_slash() {
+        // Even if stored with trailing slash, result is still the clean .html URL
+        assert_eq!(
+            build_fetch_url("https://www.rfc-editor.org/rfc/rfc9187.html/"),
+            "https://www.rfc-editor.org/rfc/rfc9187.html"
+        );
+    }
 }

@@ -9,11 +9,16 @@ use webspec_index::{format, model};
 #[command(
     name = "webspec-index",
     version,
-    about = "Query WHATWG/W3C/TC39 web specifications",
+    about = "Query WHATWG/W3C/TC39/IETF web specifications",
     long_about = "A command-line tool for querying web specification sections, algorithms, \
         and cross-references.\n\n\
         Indexes specs from WHATWG (HTML, DOM, URL, Fetch, …), W3C (CSS, Geometry, …), \
-        and TC39 (ECMAScript). Specs are fetched and cached locally on first use.\n\n\
+        TC39 (ECMAScript), and IETF (RFCs and Internet Drafts). Specs are fetched and \
+        cached locally on first use.\n\n\
+        IETF specs are resolved dynamically — use the RFC number or draft name:\n  \
+        webspec-index query RFC9110#section-5\n  \
+        webspec-index query draft-touch-sne#section-1\n  \
+        webspec-index query draft-touch-sne-02#section-1   (pinned version)\n\n\
         Examples:\n  \
         webspec-index query HTML#navigate\n  \
         webspec-index search \"tree order\" --spec DOM\n  \
