@@ -358,7 +358,11 @@ pub fn parse_anchor_element(
         let html = element.html();
         let md = markdown::element_to_markdown_from_html(&html, converter);
         let trimmed = md.trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
     };
 
     Ok(Some(ParsedSection {

@@ -268,13 +268,21 @@ enum Command {
         webspec-index update-spec-list\n  \
         webspec-index update-spec-list --csswg-dir /path/to/csswg-drafts")]
     UpdateSpecList {
-        #[arg(long, default_value = "csswg-drafts", help = "Path to csswg-drafts clone")]
+        #[arg(
+            long,
+            default_value = "csswg-drafts",
+            help = "Path to csswg-drafts clone"
+        )]
         csswg_dir: std::path::PathBuf,
 
         #[arg(long, default_value = "groups", help = "Path to w3c/groups clone")]
         groups_dir: std::path::PathBuf,
 
-        #[arg(long, default_value = "data/w3c_specs.json", help = "Output path for the spec list")]
+        #[arg(
+            long,
+            default_value = "data/w3c_specs.json",
+            help = "Output path for the spec list"
+        )]
         output: std::path::PathBuf,
     },
 }

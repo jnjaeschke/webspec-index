@@ -98,7 +98,7 @@ async fn ensure_indexed_for_spec_name(
     let (canonical_name, base_url, provider) = match meta {
         Ok(m) => m,
         Err(_) => {
-            spec_list::fetch_and_seed(conn).await?;
+            spec_list::fetch_and_seed(conn)?;
             resolve_spec_metadata(conn, registry, spec_name)?
         }
     };

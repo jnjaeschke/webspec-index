@@ -34,6 +34,7 @@ fn store_update_check(
     write::record_update_check(conn, spec_id, &checked, indexed.as_deref(), content_hash)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn sync_from_html(
     conn: &Connection,
     spec_id: i64,
@@ -81,7 +82,10 @@ async fn render_via_spec_generator(url: &str) -> Result<String> {
     );
     let html = fetch_raw_html(&api_url).await?;
     if html.trim_start().starts_with('{') {
-        anyhow::bail!("spec-generator returned error: {}", &html[..html.len().min(200)]);
+        anyhow::bail!(
+            "spec-generator returned error: {}",
+            &html[..html.len().min(200)]
+        );
     }
     Ok(html)
 }
@@ -104,7 +108,10 @@ async fn fetch_live_html(base_url: &str) -> Result<String> {
     let html = fetch_raw_html(&url).await?;
 
     if is_respec_source(&html) {
-        eprintln!("note: {} is a live ReSpec document; rendering via W3C spec-generator", url);
+        eprintln!(
+            "note: {} is a live ReSpec document; rendering via W3C spec-generator",
+            url
+        );
         match render_via_spec_generator(&url).await {
             Ok(rendered) => return Ok(rendered),
             Err(e) => eprintln!("warning: spec-generator failed ({}), using raw HTML", e),

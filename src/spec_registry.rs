@@ -43,9 +43,21 @@ impl SpecRegistry {
 
         // Only infer for the known set of WHATWG living standards.
         const WHATWG_SPECS: &[&str] = &[
-            "COMPAT", "CONSOLE", "DOM", "ENCODING", "FETCH", "FULLSCREEN",
-            "HTML", "INFRA", "MIMESNIFF", "NOTIFICATIONS", "STORAGE", "STREAMS",
-            "URL", "WEBSOCKETS", "XHR",
+            "COMPAT",
+            "CONSOLE",
+            "DOM",
+            "ENCODING",
+            "FETCH",
+            "FULLSCREEN",
+            "HTML",
+            "INFRA",
+            "MIMESNIFF",
+            "NOTIFICATIONS",
+            "STORAGE",
+            "STREAMS",
+            "URL",
+            "WEBSOCKETS",
+            "XHR",
         ];
         let host_part = token.replace('-', "").to_ascii_lowercase();
         if WHATWG_SPECS.contains(&token.as_str()) {

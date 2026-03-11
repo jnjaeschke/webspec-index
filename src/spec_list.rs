@@ -7,7 +7,7 @@ use std::process::Command;
 
 const CSSWG_URL: &str = "https://github.com/w3c/csswg-drafts";
 const GROUPS_URL: &str = "https://github.com/w3c/groups";
-const REMOTE_SPEC_LIST_URL: &str = "https://raw.githubusercontent.com/jnjaeschke/webspec-index/main/data/w3c_specs.json";
+const BUNDLED_SPEC_LIST: &str = include_str!("../data/w3c_specs.json");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecEntry {
@@ -17,19 +17,10 @@ pub struct SpecEntry {
     pub github_repo: String,
 }
 
-/// Fetch the W3C spec list from the upstream repository and seed the DB.
-pub async fn fetch_and_seed(conn: &Connection) -> Result<usize> {
-    eprintln!("note: fetching W3C spec list from upstream...");
-    let client = reqwest::Client::new();
-    let response = client
-        .get(REMOTE_SPEC_LIST_URL)
-        .header("User-Agent", "webspec-index/0.5.0")
-        .send()
-        .await?;
-    if !response.status().is_success() {
-        anyhow::bail!("Failed to fetch spec list: HTTP {}", response.status());
-    }
-    let entries: Vec<SpecEntry> = response.json().await?;
+/// Seed the DB from the bundled W3C spec list.
+pub fn fetch_and_seed(conn: &Connection) -> Result<usize> {
+    let entries: Vec<SpecEntry> = serde_json::from_str(BUNDLED_SPEC_LIST)
+        .context("Failed to parse bundled w3c_specs.json")?;
     let count = entries.len();
     for e in &entries {
         crate::db::write::seed_spec(conn, &e.name, &e.base_url, &e.provider)?;
@@ -42,7 +33,11 @@ pub async fn fetch_and_seed(conn: &Connection) -> Result<usize> {
 /// This covers W3C specs only. WHATWG specs (HTML, DOM, Fetch, …) and TC39
 /// specs (ECMAScript, …) are small, stable lists hardcoded in their respective
 /// providers (`src/provider/whatwg.rs`, `src/provider/tc39.rs`).
-pub fn update(csswg_dir: &Path, groups_dir: &Path, output: &Path) -> Result<(usize, usize, Vec<SpecEntry>)> {
+pub fn update(
+    csswg_dir: &Path,
+    groups_dir: &Path,
+    output: &Path,
+) -> Result<(usize, usize, Vec<SpecEntry>)> {
     clone_or_update(CSSWG_URL, csswg_dir)?;
     clone_or_update(GROUPS_URL, groups_dir)?;
 
@@ -103,10 +98,7 @@ fn collect_csswg(csswg_dir: &Path) -> Vec<SpecEntry> {
             return entries;
         }
     };
-    let mut dirs: Vec<_> = read_dir
-        .flatten()
-        .filter(|e| e.path().is_dir())
-        .collect();
+    let mut dirs: Vec<_> = read_dir.flatten().filter(|e| e.path().is_dir()).collect();
     dirs.sort_by_key(|e| e.file_name());
 
     for entry in dirs {
@@ -117,7 +109,10 @@ fn collect_csswg(csswg_dir: &Path) -> Vec<SpecEntry> {
         }
         let has_bs = std::fs::read_dir(entry.path())
             .ok()
-            .map(|rd| rd.flatten().any(|f| f.file_name().to_string_lossy().ends_with(".bs")))
+            .map(|rd| {
+                rd.flatten()
+                    .any(|f| f.file_name().to_string_lossy().ends_with(".bs"))
+            })
             .unwrap_or(false);
         if !has_bs {
             continue;
@@ -141,10 +136,16 @@ fn collect_standalone(groups_dir: &Path) -> Result<Vec<SpecEntry>> {
 
     let mut entries = Vec::new();
     for r in &repos {
-        if r.get("isArchived").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if r.get("isArchived")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             continue;
         }
-        if r.get("isPrivate").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if r.get("isPrivate")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             continue;
         }
         let types: Vec<&str> = r
@@ -183,9 +184,7 @@ fn collect_standalone(groups_dir: &Path) -> Result<Vec<SpecEntry>> {
 
         let base_url = if hp.contains(".github.io") && !hp.ends_with(".github.io") {
             hp
-        } else if owner == "w3c"
-            && (hp.starts_with("https://www.w3.org/TR/") || hp.is_empty())
-        {
+        } else if owner == "w3c" && (hp.starts_with("https://www.w3.org/TR/") || hp.is_empty()) {
             format!("https://w3c.github.io/{}", repo_name)
         } else {
             continue;
@@ -205,7 +204,12 @@ fn collect_standalone(groups_dir: &Path) -> Result<Vec<SpecEntry>> {
 mod tests {
     use super::*;
 
-    fn make_repo(owner: &str, name: &str, homepage: &str, repo_types: &[&str]) -> serde_json::Value {
+    fn make_repo(
+        owner: &str,
+        name: &str,
+        homepage: &str,
+        repo_types: &[&str],
+    ) -> serde_json::Value {
         serde_json::json!({
             "name": name,
             "owner": {"login": owner},
@@ -220,9 +224,12 @@ mod tests {
 
     #[test]
     fn test_collect_standalone_github_io_url() {
-        let repos = serde_json::json!([
-            make_repo("w3c", "webcodecs", "https://w3c.github.io/webcodecs/", &["rec-track"])
-        ]);
+        let repos = serde_json::json!([make_repo(
+            "w3c",
+            "webcodecs",
+            "https://w3c.github.io/webcodecs/",
+            &["rec-track"]
+        )]);
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("repositories.json");
         std::fs::write(&path, repos.to_string()).unwrap();
@@ -235,9 +242,12 @@ mod tests {
 
     #[test]
     fn test_collect_standalone_tr_url_becomes_github_io() {
-        let repos = serde_json::json!([
-            make_repo("w3c", "permissions", "https://www.w3.org/TR/permissions/", &["rec-track"])
-        ]);
+        let repos = serde_json::json!([make_repo(
+            "w3c",
+            "permissions",
+            "https://www.w3.org/TR/permissions/",
+            &["rec-track"]
+        )]);
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("repositories.json");
         std::fs::write(&path, repos.to_string()).unwrap();
@@ -248,9 +258,12 @@ mod tests {
 
     #[test]
     fn test_collect_standalone_bare_hostname_gets_https() {
-        let repos = serde_json::json!([
-            make_repo("w3c", "rdf-tests", "w3c.github.io/rdf-tests", &["rec-track"])
-        ]);
+        let repos = serde_json::json!([make_repo(
+            "w3c",
+            "rdf-tests",
+            "w3c.github.io/rdf-tests",
+            &["rec-track"]
+        )]);
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("repositories.json");
         std::fs::write(&path, repos.to_string()).unwrap();
@@ -261,7 +274,12 @@ mod tests {
 
     #[test]
     fn test_collect_standalone_skips_archived() {
-        let mut r = make_repo("w3c", "old-spec", "https://w3c.github.io/old-spec/", &["rec-track"]);
+        let mut r = make_repo(
+            "w3c",
+            "old-spec",
+            "https://w3c.github.io/old-spec/",
+            &["rec-track"],
+        );
         r["isArchived"] = serde_json::json!(true);
         let repos = serde_json::json!([r]);
         let dir = tempfile::tempdir().unwrap();
@@ -284,9 +302,12 @@ mod tests {
 
     #[test]
     fn test_collect_standalone_includes_cg_report() {
-        let repos = serde_json::json!([
-            make_repo("WICG", "keyboard-lock", "https://wicg.github.io/keyboard-lock/", &["cg-report"])
-        ]);
+        let repos = serde_json::json!([make_repo(
+            "WICG",
+            "keyboard-lock",
+            "https://wicg.github.io/keyboard-lock/",
+            &["cg-report"]
+        )]);
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("repositories.json"), repos.to_string()).unwrap();
         let entries = collect_standalone(dir.path()).unwrap();
@@ -296,9 +317,12 @@ mod tests {
 
     #[test]
     fn test_collect_standalone_skips_csswg_monorepo() {
-        let repos = serde_json::json!([
-            make_repo("w3c", "csswg-drafts", "https://drafts.csswg.org/index.html", &["rec-track"])
-        ]);
+        let repos = serde_json::json!([make_repo(
+            "w3c",
+            "csswg-drafts",
+            "https://drafts.csswg.org/index.html",
+            &["rec-track"]
+        )]);
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("repositories.json"), repos.to_string()).unwrap();
         let entries = collect_standalone(dir.path()).unwrap();
@@ -308,8 +332,18 @@ mod tests {
     #[test]
     fn test_resolve_collisions_disambiguates_by_org() {
         let mut entries = vec![
-            SpecEntry { name: "SPEC".into(), base_url: "https://foo.github.io/spec".into(), provider: "w3c".into(), github_repo: "foo/spec".into() },
-            SpecEntry { name: "SPEC".into(), base_url: "https://bar.github.io/spec".into(), provider: "w3c".into(), github_repo: "bar/spec".into() },
+            SpecEntry {
+                name: "SPEC".into(),
+                base_url: "https://foo.github.io/spec".into(),
+                provider: "w3c".into(),
+                github_repo: "foo/spec".into(),
+            },
+            SpecEntry {
+                name: "SPEC".into(),
+                base_url: "https://bar.github.io/spec".into(),
+                provider: "w3c".into(),
+                github_repo: "bar/spec".into(),
+            },
         ];
         resolve_collisions(&mut entries);
         let names: Vec<&str> = entries.iter().map(|e| e.name.as_str()).collect();
@@ -328,13 +362,21 @@ mod tests {
         names.sort();
         let before = names.len();
         names.dedup();
-        assert_eq!(names.len(), before, "Duplicate names in data/w3c_specs.json");
+        assert_eq!(
+            names.len(),
+            before,
+            "Duplicate names in data/w3c_specs.json"
+        );
 
         let mut urls: Vec<&str> = specs.iter().map(|s| s.base_url.as_str()).collect();
         urls.sort();
         let before = urls.len();
         urls.dedup();
-        assert_eq!(urls.len(), before, "Duplicate base_urls in data/w3c_specs.json");
+        assert_eq!(
+            urls.len(),
+            before,
+            "Duplicate base_urls in data/w3c_specs.json"
+        );
     }
 
     #[test]
@@ -355,7 +397,7 @@ mod tests {
     }
 }
 
-fn resolve_collisions(entries: &mut Vec<SpecEntry>) {
+fn resolve_collisions(entries: &mut [SpecEntry]) {
     let mut counts: HashMap<String, usize> = HashMap::new();
     for e in entries.iter() {
         *counts.entry(e.name.clone()).or_insert(0) += 1;
