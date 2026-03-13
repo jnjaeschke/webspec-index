@@ -4,11 +4,11 @@ use regex::Regex;
 
 /// A spec URL found in a document.
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct UrlMatch {
     pub line: usize,
     pub col_start: usize,
     pub col_end: usize,
+    pub indent: usize,
     pub spec: String,
     pub anchor: String,
     pub url: String,
@@ -20,6 +20,7 @@ pub struct StepComment {
     pub line: usize,
     pub col_start: usize,
     pub col_end: usize,
+    pub indent: usize,
     pub number: Vec<u32>,
     pub text: String,
     /// Last line for multi-line comments (None = same as `line`)
@@ -54,6 +55,11 @@ pub fn build_spec_lookup(spec_urls: &[SpecUrl]) -> std::collections::HashMap<Str
         .collect()
 }
 
+/// Count leading whitespace characters on a line.
+fn leading_indent(line: &str) -> usize {
+    line.len() - line.trim_start().len()
+}
+
 /// Scan document text for spec URLs.
 ///
 /// Returns list of `UrlMatch` sorted by (line, col_start).
@@ -64,6 +70,7 @@ pub fn scan_document(
 ) -> Vec<UrlMatch> {
     let mut matches = Vec::new();
     for (line_num, line) in text.lines().enumerate() {
+        let indent = leading_indent(line);
         for m in pattern.find_iter(line) {
             // Re-run with captures to get groups
             if let Some(caps) = pattern.captures(&line[m.start()..]) {
@@ -74,6 +81,7 @@ pub fn scan_document(
                     line: line_num,
                     col_start: m.start(),
                     col_end: m.end(),
+                    indent,
                     spec,
                     anchor: anchor.to_string(),
                     url: m.as_str().to_string(),
@@ -132,6 +140,7 @@ pub fn scan_steps(text: &str) -> Vec<StepComment> {
                 continue;
             }
 
+            let indent = leading_indent(lines[i]);
             let col_start = caps.get(0).map_or(0, |m| m.start());
             let mut col_end = caps.get(0).map_or(0, |m| m.end());
 
@@ -167,6 +176,7 @@ pub fn scan_steps(text: &str) -> Vec<StepComment> {
                 line: i,
                 col_start,
                 col_end,
+                indent,
                 number,
                 text: step_text,
                 end_line,
@@ -186,10 +196,24 @@ pub fn find_url_at_position(matches: &[UrlMatch], line: usize, col: usize) -> Op
         .find(|m| m.line == line && m.col_start <= col && col <= m.col_end)
 }
 
-/// Associate step comments with their nearest preceding spec URL.
+/// Associate step comments with spec URLs using indentation-based scoping.
 ///
-/// A spec URL opens a scope that extends until the next spec URL or EOF.
+/// Scoping rules:
+/// - A spec URL comment at indent level N opens a scope.
+/// - A URL at the same indent as the top of the scope stack replaces it;
+///   a URL at deeper indent stacks on top (nested scope).
+/// - Step comments are assigned to the innermost (top-of-stack) scope.
+/// - Scopes close when a non-blank line at indent L satisfies:
+///   - `L < N` (left the block entirely), OR
+///   - `L == N` and the scope saw deeper content (`max_seen > N`) —
+///     this catches closing braces returning to the scope's indent level.
+///
+/// This correctly handles:
+/// - Comments above a function (scope survives the function signature, closes at `}`)
+/// - Comments inside a function body (scope closes at `}` which is at lower indent)
+/// - Nested spec URLs (inner algorithm inside an outer one)
 pub fn build_scopes(
+    text: &str,
     url_matches: &[UrlMatch],
     step_comments: &[StepComment],
 ) -> Vec<(UrlMatch, Vec<StepComment>)> {
@@ -197,32 +221,116 @@ pub fn build_scopes(
         return Vec::new();
     }
 
-    let mut sorted_urls: Vec<&UrlMatch> = url_matches.iter().collect();
-    sorted_urls.sort_by_key(|u| u.line);
+    // Index url_matches and step_comments by line number for O(1) lookup.
+    let mut url_by_line: std::collections::HashMap<usize, Vec<&UrlMatch>> =
+        std::collections::HashMap::new();
+    for u in url_matches {
+        url_by_line.entry(u.line).or_default().push(u);
+    }
 
-    let mut sorted_steps: Vec<&StepComment> = step_comments.iter().collect();
-    sorted_steps.sort_by_key(|s| s.line);
+    let mut step_by_line: std::collections::HashMap<usize, Vec<&StepComment>> =
+        std::collections::HashMap::new();
+    for s in step_comments {
+        step_by_line.entry(s.line).or_default().push(s);
+    }
 
-    let mut scopes: Vec<(UrlMatch, Vec<StepComment>)> = sorted_urls
-        .iter()
-        .map(|u| ((*u).clone(), Vec::new()))
-        .collect();
+    // Scope stack: each entry tracks the URL, its indent, the maximum indent seen
+    // since it was pushed, and the collected step comments.
+    struct Scope {
+        url: UrlMatch,
+        indent: usize,
+        max_seen: usize,
+        steps: Vec<StepComment>,
+    }
 
-    for step in sorted_steps {
-        let mut best_scope = None;
-        for (i, (url, _)) in scopes.iter().enumerate() {
-            if url.line <= step.line {
-                best_scope = Some(i);
+    let mut stack: Vec<Scope> = Vec::new();
+    let mut finished: Vec<(UrlMatch, Vec<StepComment>)> = Vec::new();
+
+    let lines: Vec<&str> = text.lines().collect();
+
+    for (line_num, line_text) in lines.iter().enumerate() {
+        let indent = leading_indent(line_text);
+        let is_blank = line_text.trim().is_empty();
+
+        // Blank lines don't affect scoping.
+        if is_blank {
+            continue;
+        }
+
+        // Check if this line has URL matches — handle scope push/replace.
+        if let Some(urls) = url_by_line.get(&line_num) {
+            for url in urls {
+                let url_indent = url.indent;
+
+                // If the top of stack has the same indent, replace it (same block,
+                // different algorithm). Otherwise stack (nested scope).
+                if let Some(top) = stack.last() {
+                    if url_indent <= top.indent {
+                        // Pop scopes at same or higher indent before pushing.
+                        while let Some(top) = stack.last() {
+                            if top.indent >= url_indent {
+                                let popped = stack.pop().unwrap();
+                                finished.push((popped.url, popped.steps));
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                stack.push(Scope {
+                    url: (*url).clone(),
+                    indent: url_indent,
+                    max_seen: url_indent,
+                    steps: Vec::new(),
+                });
+            }
+            continue;
+        }
+
+        // Check if this line has step comments — assign to top of stack.
+        if let Some(steps) = step_by_line.get(&line_num) {
+            if let Some(top) = stack.last_mut() {
+                if indent > top.max_seen {
+                    top.max_seen = indent;
+                }
+                for step in steps {
+                    top.steps.push((*step).clone());
+                }
+            }
+            // Step comment lines don't close scopes (they're comments).
+            continue;
+        }
+
+        // Regular line: update max_seen and check scope closing.
+        // Close scopes from top of stack where the closing condition is met.
+        while let Some(top) = stack.last() {
+            let should_close =
+                indent < top.indent || (indent == top.indent && top.max_seen > top.indent);
+            if should_close {
+                let popped = stack.pop().unwrap();
+                finished.push((popped.url, popped.steps));
             } else {
                 break;
             }
         }
-        if let Some(idx) = best_scope {
-            scopes[idx].1.push(step.clone());
+
+        // Update max_seen for remaining top scope.
+        if let Some(top) = stack.last_mut() {
+            if indent > top.max_seen {
+                top.max_seen = indent;
+            }
         }
     }
 
-    scopes
+    // Flush remaining scopes (EOF closes everything).
+    while let Some(scope) = stack.pop() {
+        finished.push((scope.url, scope.steps));
+    }
+
+    // Sort by the URL's line number so output order is deterministic.
+    finished.sort_by_key(|(url, _)| url.line);
+    finished
 }
 
 #[cfg(test)]
@@ -252,6 +360,13 @@ mod tests {
 
     fn lookup() -> std::collections::HashMap<String, String> {
         build_spec_lookup(&test_spec_urls())
+    }
+
+    /// Helper: scan text and build scopes in one call.
+    fn scopes_for(text: &str) -> Vec<(UrlMatch, Vec<StepComment>)> {
+        let urls = scan_document(text, &pattern(), &lookup());
+        let steps = scan_steps(text);
+        build_scopes(text, &urls, &steps)
     }
 
     // ── URL pattern tests ──
@@ -334,6 +449,15 @@ mod tests {
         assert_eq!(matches[0].spec, "HTML");
         assert_eq!(matches[0].anchor, "navigate");
         assert_eq!(matches[0].line, 0);
+        assert_eq!(matches[0].indent, 0);
+    }
+
+    #[test]
+    fn indented_url() {
+        let text = "    // https://html.spec.whatwg.org/#navigate";
+        let matches = scan_document(text, &pattern(), &lookup());
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].indent, 4);
     }
 
     #[test]
@@ -363,6 +487,15 @@ mod tests {
         assert_eq!(steps.len(), 1);
         assert_eq!(steps[0].number, vec![5, 1]);
         assert!(steps[0].text.contains("Assert"));
+        assert_eq!(steps[0].indent, 0);
+    }
+
+    #[test]
+    fn indented_step() {
+        let text = "      // Step 1. Do something";
+        let steps = scan_steps(text);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].indent, 6);
     }
 
     #[test]
@@ -521,50 +654,263 @@ mod tests {
         assert!(find_url_at_position(&matches, 1, 0).is_none());
     }
 
-    // ── build_scopes tests ──
+    // ── build_scopes tests (indentation-based) ──
 
     #[test]
-    fn single_url_with_steps() {
-        let text =
-            "// https://html.spec.whatwg.org/#navigate\n// Step 1. First\n// Step 2. Second\n";
-        let urls = scan_document(text, &pattern(), &lookup());
-        let steps = scan_steps(text);
-        let scopes = build_scopes(&urls, &steps);
+    fn scope_simple_flat() {
+        // All at indent 0: URL + steps, no closing brace.
+        let text = "\
+// https://html.spec.whatwg.org/#navigate
+// Step 1. First
+// Step 2. Second
+";
+        let scopes = scopes_for(text);
         assert_eq!(scopes.len(), 1);
         assert_eq!(scopes[0].0.anchor, "navigate");
         assert_eq!(scopes[0].1.len(), 2);
     }
 
     #[test]
-    fn two_urls_split_steps() {
-        let text = "// https://html.spec.whatwg.org/#navigate\n// Step 1. From navigate\n// https://dom.spec.whatwg.org/#concept-tree\n// Step 1. From tree\n";
-        let urls = scan_document(text, &pattern(), &lookup());
-        let steps = scan_steps(text);
-        let scopes = build_scopes(&urls, &steps);
-        assert_eq!(scopes.len(), 2);
+    fn scope_comment_above_function() {
+        // URL at indent 0, function body at indent 4, closing } at indent 0.
+        let text = "\
+// https://html.spec.whatwg.org/#navigate
+void DoNavigate() {
+    // Step 1. First
+    code();
+    // Step 2. Second
+    more_code();
+}
+";
+        let scopes = scopes_for(text);
+        assert_eq!(scopes.len(), 1);
         assert_eq!(scopes[0].0.anchor, "navigate");
-        assert_eq!(scopes[0].1.len(), 1);
-        assert_eq!(scopes[1].0.anchor, "concept-tree");
-        assert_eq!(scopes[1].1.len(), 1);
+        assert_eq!(scopes[0].1.len(), 2);
     }
 
     #[test]
-    fn steps_before_any_url() {
-        let text = "// Step 1. Orphan step\n// https://html.spec.whatwg.org/#navigate\n// Step 2. Assigned step\n";
-        let urls = scan_document(text, &pattern(), &lookup());
-        let steps = scan_steps(text);
-        let scopes = build_scopes(&urls, &steps);
+    fn scope_comment_inside_function() {
+        // URL at indent 4 (inside function body), } at indent 0 closes it.
+        let text = "\
+void DoNavigate() {
+    // https://html.spec.whatwg.org/#navigate
+    // Step 1. First
+    code();
+    // Step 2. Second
+}
+";
+        let scopes = scopes_for(text);
+        assert_eq!(scopes.len(), 1);
+        assert_eq!(scopes[0].0.anchor, "navigate");
+        assert_eq!(scopes[0].1.len(), 2);
+    }
+
+    #[test]
+    fn scope_class_member_closes_at_brace() {
+        // URL at indent 2 (class member), function body at indent 4, } at indent 2 closes scope.
+        let text = "\
+class Foo {
+  // https://html.spec.whatwg.org/#navigate
+  void foo() {
+    // Step 1. Do this
+    do_this();
+    // Step 2. Do that
+    do_that();
+  }
+
+  void bar() {
+    // Step 3. Should not be in navigate scope
+    other();
+  }
+}
+";
+        let scopes = scopes_for(text);
+        assert_eq!(scopes.len(), 1);
+        assert_eq!(scopes[0].0.anchor, "navigate");
+        assert_eq!(scopes[0].1.len(), 2);
+        assert_eq!(scopes[0].1[0].number, vec![1]);
+        assert_eq!(scopes[0].1[1].number, vec![2]);
+    }
+
+    #[test]
+    fn scope_two_separate_functions() {
+        // Two functions, each with its own spec URL.
+        let text = "\
+class Foo {
+  // https://html.spec.whatwg.org/#navigate
+  void navigate() {
+    // Step 1. Nav step
+    nav();
+  }
+
+  // https://dom.spec.whatwg.org/#concept-tree
+  void tree() {
+    // Step 1. Tree step
+    tree_op();
+  }
+}
+";
+        let scopes = scopes_for(text);
+        assert_eq!(scopes.len(), 2);
+        assert_eq!(scopes[0].0.anchor, "navigate");
+        assert_eq!(scopes[0].1.len(), 1);
+        assert_eq!(scopes[0].1[0].number, vec![1]);
+        assert_eq!(scopes[1].0.anchor, "concept-tree");
+        assert_eq!(scopes[1].1.len(), 1);
+        assert_eq!(scopes[1].1[0].number, vec![1]);
+    }
+
+    #[test]
+    fn scope_nested_stacked() {
+        // Outer algorithm with an inner algorithm nested inside.
+        let text = "\
+void Navigate() {
+    // https://html.spec.whatwg.org/#navigate
+    // Step 1. Outer step one
+    code();
+    if (cond) {
+        // https://dom.spec.whatwg.org/#concept-tree
+        // Step 1. Inner step one
+        inner_code();
+    }
+    // Step 2. Outer step two
+    more_code();
+}
+";
+        let scopes = scopes_for(text);
+        assert_eq!(scopes.len(), 2);
+        // Inner scope
+        assert_eq!(scopes[1].0.anchor, "concept-tree");
+        assert_eq!(scopes[1].1.len(), 1);
+        assert_eq!(scopes[1].1[0].number, vec![1]);
+        // Outer scope
+        assert_eq!(scopes[0].0.anchor, "navigate");
+        assert_eq!(scopes[0].1.len(), 2);
+        assert_eq!(scopes[0].1[0].number, vec![1]);
+        assert_eq!(scopes[0].1[1].number, vec![2]);
+    }
+
+    #[test]
+    fn scope_same_indent_replaces() {
+        // Two URLs at the same indent level replace each other.
+        let text = "\
+void foo() {
+    // https://html.spec.whatwg.org/#navigate
+    // Step 1. Navigate step
+    code();
+
+    // https://dom.spec.whatwg.org/#concept-tree
+    // Step 1. Tree step
+    more_code();
+}
+";
+        let scopes = scopes_for(text);
+        assert_eq!(scopes.len(), 2);
+        assert_eq!(scopes[0].0.anchor, "navigate");
+        assert_eq!(scopes[0].1.len(), 1);
+        assert_eq!(scopes[0].1[0].text, "Navigate step");
+        assert_eq!(scopes[1].0.anchor, "concept-tree");
+        assert_eq!(scopes[1].1.len(), 1);
+        assert_eq!(scopes[1].1[0].text, "Tree step");
+    }
+
+    #[test]
+    fn scope_orphan_steps_ignored() {
+        // Steps before any URL are not assigned to any scope.
+        let text = "\
+// Step 1. Orphan step
+// https://html.spec.whatwg.org/#navigate
+// Step 2. Assigned step
+";
+        let scopes = scopes_for(text);
         assert_eq!(scopes.len(), 1);
         assert_eq!(scopes[0].1.len(), 1);
         assert_eq!(scopes[0].1[0].number, vec![2]);
     }
 
     #[test]
-    fn no_urls_empty_scopes() {
+    fn scope_no_urls_empty() {
         let text = "// Step 1. Orphan";
-        let urls = scan_document(text, &pattern(), &lookup());
-        let steps = scan_steps(text);
-        let scopes = build_scopes(&urls, &steps);
+        let scopes = scopes_for(text);
         assert!(scopes.is_empty());
+    }
+
+    #[test]
+    fn scope_deeply_nested_stack() {
+        // Three levels of nesting.
+        let text = "\
+class Outer {
+  // https://html.spec.whatwg.org/#navigate
+  void foo() {
+    // Step 1. Outer step
+    if (a) {
+      // https://dom.spec.whatwg.org/#concept-tree
+      // Step 1. Middle step
+      if (b) {
+        // https://url.spec.whatwg.org/#url-parsing
+        // Step 1. Inner step
+        parse();
+      }
+      // Step 2. Middle step two
+      tree();
+    }
+    // Step 2. Outer step two
+    done();
+  }
+}
+";
+        let scopes = scopes_for(text);
+        assert_eq!(scopes.len(), 3);
+
+        let nav = scopes.iter().find(|(u, _)| u.anchor == "navigate").unwrap();
+        assert_eq!(nav.1.len(), 2);
+        assert_eq!(nav.1[0].number, vec![1]);
+        assert_eq!(nav.1[1].number, vec![2]);
+
+        let tree = scopes
+            .iter()
+            .find(|(u, _)| u.anchor == "concept-tree")
+            .unwrap();
+        assert_eq!(tree.1.len(), 2);
+        assert_eq!(tree.1[0].number, vec![1]);
+        assert_eq!(tree.1[1].number, vec![2]);
+
+        let url = scopes
+            .iter()
+            .find(|(u, _)| u.anchor == "url-parsing")
+            .unwrap();
+        assert_eq!(url.1.len(), 1);
+        assert_eq!(url.1[0].number, vec![1]);
+    }
+
+    #[test]
+    fn scope_existing_fixture_compat() {
+        // Matches the existing test fixture: input.cpp
+        let text = "\
+// https://html.spec.whatwg.org/#navigate
+void DoNavigate(bool userInvolvement) {
+  // Step 1. Let cspNavigationType be form-submission
+  auto cspNavigationType = GetCSPNavType();
+
+  // Step 2. Let sourceSnapshotParams be the result of snapshotting
+  auto params = SnapshotParams();
+
+  // Step 3. If url is about:blank, then return
+  if (IsAboutBlank(url)) {
+    return;
+  }
+
+  // Step 99. Nonexistent step
+  DoSomething();
+}
+";
+        let scopes = scopes_for(text);
+        assert_eq!(scopes.len(), 1);
+        assert_eq!(scopes[0].0.anchor, "navigate");
+        assert_eq!(scopes[0].1.len(), 4);
+        assert_eq!(scopes[0].1[0].number, vec![1]);
+        assert_eq!(scopes[0].1[1].number, vec![2]);
+        assert_eq!(scopes[0].1[2].number, vec![3]);
+        assert_eq!(scopes[0].1[3].number, vec![99]);
     }
 }

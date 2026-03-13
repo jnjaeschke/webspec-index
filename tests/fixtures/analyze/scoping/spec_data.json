@@ -1,0 +1,4 @@
+{
+  "HTML#navigate": "1. Let *cspNavigationType* be \"`form-submission`\" if *formDataEntryList* is non-null; otherwise \"`other`\".\n2. Let *sourceSnapshotParams* be the result of snapshotting source snapshot params given *sourceDocument*.\n3. If *url* is `about:blank`, then return.",
+  "DOM#concept-tree": "1. Let *root* be the tree root of *object*.\n2. Return *root*."
+}

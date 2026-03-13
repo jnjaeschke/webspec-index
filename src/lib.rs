@@ -3,6 +3,7 @@
 //! This library provides parsing, indexing, and querying of web specifications.
 //! It's designed to be used via Python bindings (PyO3), but can also be used directly from Rust.
 
+pub mod analyze;
 pub mod db;
 pub mod fetch;
 pub mod format;

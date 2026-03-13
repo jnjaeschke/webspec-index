@@ -60,10 +60,13 @@ fn longest_increasing_subsequence_length(seq: &[usize]) -> usize {
     tails.len()
 }
 
-/// A step validation result (minimal interface to avoid circular dependency).
+/// A step validation result pairing a source comment with its match outcome.
+#[derive(Debug, Clone)]
 pub struct StepValidation {
     pub step: StepComment,
     pub result: MatchResult,
+    pub spec_text: String,
+    pub algo_anchor: String,
 }
 
 /// Compute coverage of an algorithm from step validations.
@@ -138,7 +141,7 @@ pub fn compute_coverage(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lsp::steps::parse_steps;
+    use crate::analyze::steps::parse_steps;
 
     const SIMPLE_ALGO: &str = "1. First.\n2. Second.\n3. Third.";
     const NESTED_ALGO: &str = "1. Parent.\n\n    1. Child one.\n    2. Child two.\n2. Other.\n";
@@ -149,11 +152,14 @@ mod tests {
                 line: 0,
                 col_start: 0,
                 col_end: 10,
+                indent: 0,
                 number,
                 text: String::new(),
                 end_line: None,
             },
             result,
+            spec_text: String::new(),
+            algo_anchor: String::new(),
         }
     }
 
