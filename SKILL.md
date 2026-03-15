@@ -85,9 +85,10 @@ Returns all heading-level sections with their anchors, titles, types, and depths
 webspec-index refs 'HTML#navigate' --direction incoming
 webspec-index refs 'HTML#navigate' --direction outgoing
 webspec-index refs 'HTML#navigate'
+webspec-index refs 'Window.navigation' --limit 5
 ```
 
-Shows which sections reference this one (incoming), which sections this one references (outgoing), or both (default). Useful for understanding how a concept connects across specs.
+Shows which sections reference this one (incoming), which sections this one references (outgoing), or both (default). Target can be exact (`SPEC#anchor` or full URL) or shorthand (`Interface.member`) resolved heuristically against currently indexed sections. Use `--limit` to cap results when using shorthand queries.
 
 ### Update specs
 
@@ -99,16 +100,6 @@ webspec-index update --force
 
 Fetches latest spec versions. Uses 24h cache unless `--force` is given. Specs are auto-fetched on first query, so you rarely need this.
 Specs are checked on a 24h cadence; re-indexing happens only when fetched HTML content changed.
-
-### Find references (exact or shorthand)
-
-```bash
-webspec-index find-references 'HTML#dom-window-navigation'
-webspec-index find-references 'Window.navigation' --direction incoming
-webspec-index find-references 'Window.navigation' --direction both
-```
-
-Find references for a section. Target can be exact (`SPEC#anchor` or full URL) or shorthand (`Interface.member`) resolved heuristically against currently indexed sections.
 
 ### Graph traversal
 
@@ -133,7 +124,7 @@ webspec-index idl 'navigation' --spec HTML --limit 5
 ```
 
 Queries structured WebIDL definitions directly. Supports exact anchors (`SPEC#anchor` or URL) and canonical names (`Interface.member`, `Interface.method()`).
-Use this first when the task is about API shape or IDL ownership, then use `find-references` to see algorithm usage.
+Use this first when the task is about API shape or IDL ownership, then use `refs` to see algorithm usage.
 
 ## Usage patterns for Gecko development
 
@@ -195,5 +186,5 @@ When implementing or reviewing a DOM API in Gecko:
 webspec-index idl 'Window.navigation' --format markdown
 
 # Find where the property is used in indexed specs
-webspec-index find-references 'Window.navigation' --direction incoming
+webspec-index refs 'Window.navigation' --direction incoming
 ```

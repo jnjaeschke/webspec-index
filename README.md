@@ -46,18 +46,15 @@ webspec-index anchors "*-tree" --spec DOM
 # List all headings in a spec
 webspec-index list HTML
 
-# Cross-references
+# Cross-references (exact or shorthand)
 webspec-index refs "HTML#navigate" --direction incoming
+webspec-index refs "Window.navigation" --limit 5
 
 # Graph traversal
 webspec-index graph "HTML#navigate" --max-depth 2 --graph-format mermaid
 webspec-index graph "HTML#navigate" --graph-format dot
 webspec-index graph "HTML#navigate" --same-spec-only
 webspec-index graph "HTML#navigate" --include "*concept-*" --exclude "re:^URL#"
-
-# Find references (exact or shorthand)
-webspec-index find-references "HTML#dom-window-navigation"
-webspec-index find-references "Window.navigation" --direction incoming
 
 # Query dedicated WebIDL definitions
 webspec-index idl "HTML#dom-window-navigation"
@@ -97,7 +94,7 @@ See [editors/vscode/](editors/vscode/) and [editors/zed/](editors/zed/) for deta
 ## Development
 
 ```bash
-cargo test          # 243 tests
+cargo test
 cargo clippy        # lint
 cargo fmt --check   # format check
 ```

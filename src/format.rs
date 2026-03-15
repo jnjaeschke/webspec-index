@@ -1,8 +1,8 @@
 //! Markdown output formatters for CLI commands
 
 use crate::model::{
-    AnchorsResult, ExistsResult, FindReferencesResult, GraphResult, IdlResult, ListEntry,
-    QueryResult, RefsResult, SearchResult,
+    AnchorsResult, ExistsResult, GraphResult, IdlResult, ListEntry, QueryResult, RefsResult,
+    SearchResult,
 };
 
 #[cfg(test)]
@@ -194,36 +194,8 @@ pub fn list(entries: &[ListEntry]) -> String {
 /// Format a RefsResult as markdown
 pub fn refs(result: &RefsResult) -> String {
     let mut md = String::new();
-
-    md.push_str(&format!("# Refs for `{}`\n\n", result.anchor));
-
-    if let Some(outgoing) = &result.outgoing {
-        md.push_str(&format!("## Outgoing ({})\n\n", outgoing.len()));
-        for ref_entry in outgoing {
-            md.push_str(&format!("- {}#{}\n", ref_entry.spec, ref_entry.anchor));
-        }
-        md.push('\n');
-    }
-
-    if let Some(incoming) = &result.incoming {
-        md.push_str(&format!("## Incoming ({})\n\n", incoming.len()));
-        for ref_entry in incoming {
-            md.push_str(&format!("- {}#{}\n", ref_entry.spec, ref_entry.anchor));
-        }
-    }
-
-    if result.outgoing.is_none() && result.incoming.is_none() {
-        md.push_str("No references found\n");
-    }
-
-    md
-}
-
-/// Format a FindReferencesResult as markdown
-pub fn find_references(result: &FindReferencesResult) -> String {
-    let mut md = String::new();
     md.push_str(&format!(
-        "# find-references: `{}` ({})\n\n",
+        "# refs: `{}` ({})\n\n",
         result.query, result.direction
     ));
 
@@ -414,7 +386,7 @@ pub fn idl(result: &IdlResult) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{NavEntry, Navigation, RefEntry};
+    use crate::model::{NavEntry, Navigation, RefEntry, RefsMatch};
 
     #[test]
     fn test_query_format_minimal() {
@@ -616,44 +588,51 @@ mod tests {
     #[test]
     fn test_refs_format_both_directions() {
         let result = RefsResult {
-            anchor: "navigate".to_string(),
+            query: "HTML#navigate".to_string(),
             direction: "both".to_string(),
-            outgoing: Some(vec![
-                RefEntry {
-                    spec: "URL".to_string(),
-                    anchor: "concept-url".to_string(),
-                },
-                RefEntry {
-                    spec: "INFRA".to_string(),
-                    anchor: "assert".to_string(),
-                },
-            ]),
-            incoming: Some(vec![RefEntry {
+            matches: vec![RefsMatch {
                 spec: "HTML".to_string(),
-                anchor: "navigate-fragid".to_string(),
-            }]),
+                anchor: "navigate".to_string(),
+                title: None,
+                section_type: "algorithm".to_string(),
+                resolution: "exact".to_string(),
+                outgoing: Some(vec![
+                    RefEntry {
+                        spec: "URL".to_string(),
+                        anchor: "concept-url".to_string(),
+                    },
+                    RefEntry {
+                        spec: "INFRA".to_string(),
+                        anchor: "assert".to_string(),
+                    },
+                ]),
+                incoming: Some(vec![RefEntry {
+                    spec: "HTML".to_string(),
+                    anchor: "navigate-fragid".to_string(),
+                }]),
+            }],
         };
 
         let md = refs(&result);
-        assert!(md.contains("# Refs for `navigate`"));
-        assert!(md.contains("## Outgoing (2)"));
+        assert!(md.contains("# refs: `HTML#navigate`"));
+        assert!(md.contains("## HTML#navigate"));
+        assert!(md.contains("Outgoing: 2"));
         assert!(md.contains("- URL#concept-url"));
         assert!(md.contains("- INFRA#assert"));
-        assert!(md.contains("## Incoming (1)"));
+        assert!(md.contains("Incoming: 1"));
         assert!(md.contains("- HTML#navigate-fragid"));
     }
 
     #[test]
-    fn test_refs_format_no_refs() {
+    fn test_refs_format_no_matches() {
         let result = RefsResult {
-            anchor: "orphan".to_string(),
+            query: "HTML#orphan".to_string(),
             direction: "both".to_string(),
-            outgoing: None,
-            incoming: None,
+            matches: vec![],
         };
 
         let md = refs(&result);
-        assert!(md.contains("# Refs for `orphan`"));
-        assert!(md.contains("No references found"));
+        assert!(md.contains("# refs: `HTML#orphan`"));
+        assert!(md.contains("No matches found"));
     }
 }

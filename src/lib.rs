@@ -431,57 +431,6 @@ pub async fn list_headings(spec: &str) -> Result<Vec<model::ListEntry>> {
 /// Get cross-references for a section
 ///
 /// # Arguments
-/// * `spec_anchor` - Format: "SPEC#anchor"
-/// * `direction` - "incoming", "outgoing", or "both"
-///
-/// # Returns
-/// `RefsResult` with incoming and/or outgoing references
-pub async fn get_references(spec_anchor: &str, direction: &str) -> Result<model::RefsResult> {
-    let (spec_name, anchor, base_url_hint) = parse_spec_anchor(spec_anchor)?;
-    let conn = db::open_or_create_db()?;
-    let registry = spec_registry::SpecRegistry::new();
-    let (snapshot_id, spec_name) =
-        ensure_indexed_for_spec_name(&conn, &registry, &spec_name, base_url_hint.as_deref())
-            .await?;
-
-    // Get references based on direction
-    let outgoing = if direction == "outgoing" || direction == "both" {
-        let out_refs = db::queries::get_outgoing_refs(&conn, snapshot_id, &anchor)?;
-        Some(
-            out_refs
-                .iter()
-                .map(|(to_spec, to_anchor)| model::RefEntry {
-                    spec: to_spec.clone(),
-                    anchor: to_anchor.clone(),
-                })
-                .collect(),
-        )
-    } else {
-        None
-    };
-
-    let incoming = if direction == "incoming" || direction == "both" {
-        let in_refs = db::queries::get_incoming_refs(&conn, &spec_name, &anchor)?;
-        Some(
-            in_refs
-                .iter()
-                .map(|(from_spec, from_anchor)| model::RefEntry {
-                    spec: from_spec.clone(),
-                    anchor: from_anchor.clone(),
-                })
-                .collect(),
-        )
-    } else {
-        None
-    };
-
-    Ok(model::RefsResult {
-        anchor,
-        direction: direction.to_string(),
-        outgoing,
-        incoming,
-    })
-}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum RefDirection {
@@ -987,7 +936,7 @@ fn find_references_from_conn(
     query: &str,
     direction: &str,
     limit: u32,
-) -> Result<model::FindReferencesResult> {
+) -> Result<model::RefsResult> {
     let dir = parse_ref_direction(direction)?;
     let mut matches = Vec::new();
     let exact_mode = exact_target.is_some();
@@ -1035,7 +984,7 @@ fn find_references_from_conn(
             None
         };
 
-        matches.push(model::FindReferencesMatch {
+        matches.push(model::RefsMatch {
             spec: candidate.spec,
             anchor: candidate.anchor,
             title: candidate.title,
@@ -1050,7 +999,7 @@ fn find_references_from_conn(
         });
     }
 
-    Ok(model::FindReferencesResult {
+    Ok(model::RefsResult {
         query: query.to_string(),
         direction: direction.to_ascii_lowercase(),
         matches,
@@ -1265,7 +1214,7 @@ pub async fn find_references(
     target: &str,
     direction: &str,
     limit: u32,
-) -> Result<model::FindReferencesResult> {
+) -> Result<model::RefsResult> {
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
 

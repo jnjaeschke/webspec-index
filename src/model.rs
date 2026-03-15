@@ -181,17 +181,6 @@ pub struct UpdateEntry {
     pub updated: bool,
 }
 
-/// JSON output for refs command
-#[derive(Debug, Serialize)]
-pub struct RefsResult {
-    pub anchor: String,
-    pub direction: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub outgoing: Option<Vec<RefEntry>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub incoming: Option<Vec<RefEntry>>,
-}
-
 /// JSON output for graph command
 #[derive(Debug, Serialize)]
 pub struct GraphResult {
@@ -231,16 +220,16 @@ pub struct GraphEdge {
     pub kind: String, // currently always "reference"
 }
 
-/// JSON output for find-references command
+/// JSON output for refs command
 #[derive(Debug, Serialize)]
-pub struct FindReferencesResult {
+pub struct RefsResult {
     pub query: String,
     pub direction: String,
-    pub matches: Vec<FindReferencesMatch>,
+    pub matches: Vec<RefsMatch>,
 }
 
 #[derive(Debug, Serialize)]
-pub struct FindReferencesMatch {
+pub struct RefsMatch {
     pub spec: String,
     pub anchor: String,
     #[serde(skip_serializing_if = "Option::is_none")]

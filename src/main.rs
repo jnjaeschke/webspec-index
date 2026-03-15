@@ -130,37 +130,20 @@ enum Command {
     #[command(long_about = "Get cross-references for a section.\n\n\
         Shows which other spec sections reference this one (incoming)\n\
         and which sections this one references (outgoing).\n\n\
-        Examples:\n  \
-        webspec-index refs HTML#navigate\n  \
-        webspec-index refs HTML#navigate --direction incoming")]
-    Refs {
-        /// Section identifier: SPEC#anchor or full URL
-        spec_anchor: String,
-
-        #[arg(
-            long,
-            short,
-            default_value = "both",
-            help = "Reference direction: incoming, outgoing, or both"
-        )]
-        direction: String,
-    },
-
-    /// Find references for SPEC#anchor or shorthand (e.g. Window.navigation)
-    #[command(long_about = "Find references for a target section.\n\n\
         Target can be SPEC#anchor (exact), full URL, or shorthand such as\n\
         Interface.member (heuristic match against indexed sections).\n\n\
         Examples:\n  \
-        webspec-index find-references HTML#navigate\n  \
-        webspec-index find-references Window.navigation --direction incoming")]
-    FindReferences {
-        /// Target identifier: SPEC#anchor, full URL, or shorthand (e.g. Window.navigation)
+        webspec-index refs HTML#navigate\n  \
+        webspec-index refs HTML#navigate --direction incoming\n  \
+        webspec-index refs Window.navigation --limit 5")]
+    Refs {
+        /// Target: SPEC#anchor, full URL, or shorthand (e.g. Window.navigation)
         target: String,
 
         #[arg(
             long,
             short,
-            default_value = "incoming",
+            default_value = "both",
             help = "Reference direction: incoming, outgoing, or both"
         )]
         direction: String,
@@ -362,18 +345,17 @@ search <Q> [-s SPEC] [-l N(20)] [--format json|markdown]
 exists <SPEC#anchor|URL> exit:0=found,1=not
 anchors <GLOB> [-s SPEC] [-l N(50)]
 list <SPEC>
-refs <SPEC#anchor> [-d incoming|outgoing|both(default)]
+refs <SPEC#anchor|TARGET> [-d incoming|outgoing|both(default)] [-l N(10)]
 update [-s SPEC] [-f force]
 clear-db [-y skip confirm]
 specs — list indexed/discovered spec names+URLs
 lsp — start LSP server on stdio
-find-references <TARGET> [-d incoming|outgoing|both(default incoming)] [-l N(10)]
 graph <SPEC#anchor|URL> [-d incoming|outgoing|both(default outgoing)] [--max-depth N(2)] [--max-nodes N(150)] [--include PATTERN --exclude PATTERN --same-spec-only] [--graph-format json|markdown|mermaid|dot]
 idl <Q|SPEC#anchor|URL> [-s SPEC] [-l N(20)] [--format json|markdown]
 SPEC#anchor examples: HTML#navigate, DOM#concept-tree, CSS-GRID#grid-container
 Full URL also works: https://html.spec.whatwg.org/#navigate
 Ex: query HTML#navigate|search "tree order" -s DOM|anchors "*-tree" -s DOM
-Ex: refs HTML#navigate -d incoming|find-references Window.navigation|graph HTML#navigate --graph-format mermaid
+Ex: refs HTML#navigate -d incoming|refs Window.navigation|graph HTML#navigate --graph-format mermaid
 Ex: idl Window.navigation|idl Window.open()|idl HTML#dom-window-navigation
 "#
     );
@@ -468,21 +450,12 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
         }
 
         Command::Refs {
-            spec_anchor,
-            direction,
-        } => {
-            let result = webspec_index::get_references(&spec_anchor, &direction).await?;
-            print_output(&cli.format, &result, format::refs);
-            Ok(ExitCode::SUCCESS)
-        }
-
-        Command::FindReferences {
             target,
             direction,
             limit,
         } => {
             let result = webspec_index::find_references(&target, &direction, limit).await?;
-            print_output(&cli.format, &result, format::find_references);
+            print_output(&cli.format, &result, format::refs);
             Ok(ExitCode::SUCCESS)
         }
 
