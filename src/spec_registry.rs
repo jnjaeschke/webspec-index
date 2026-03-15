@@ -1,5 +1,7 @@
 use std::fmt::Write;
 
+use crate::ietf;
+
 const AUTO_SPEC_PREFIX: &str = "AUTOURL-";
 
 /// URL resolver and lightweight name/base-url inference.
@@ -18,6 +20,10 @@ impl SpecRegistry {
 
     /// Map a URL to (derived_spec_name, anchor, base_url) if recognized.
     pub fn resolve_url_with_base(&self, url: &str) -> Option<(String, String, String)> {
+        // Try IETF URL resolution first (datatracker, rfc-editor, ietf.org)
+        if let Some(result) = ietf::resolve_url(url) {
+            return Some(result);
+        }
         let (base_url, anchor) = auto_base_url_from_url(url)?;
         let spec_name = derive_spec_name_for_base_url(&base_url)
             .unwrap_or_else(|| auto_spec_name_for_base_url(&base_url));
@@ -45,6 +51,15 @@ impl SpecRegistry {
 
         if token == "ECMA-262" || token == "ECMA262" {
             return Some(("https://tc39.es/ecma262".to_string(), "tc39".to_string()));
+        }
+
+        // IETF RFCs can be resolved statically (immutable documents).
+        // Drafts require async Datatracker lookup, handled elsewhere.
+        if ietf::is_ietf_name(spec_name) {
+            if let ietf::IetfDocKind::Rfc = ietf::parse_ietf_name(spec_name).kind {
+                let (_, url) = ietf::rfc_name_and_url(spec_name);
+                return Some((url, "ietf".to_string()));
+            }
         }
 
         // Only infer for the known set of WHATWG living standards.
@@ -215,6 +230,12 @@ pub fn provider_for_base_url(base_url: &str) -> &'static str {
     }
     if matches!(
         host.as_str(),
+        "datatracker.ietf.org" | "www.rfc-editor.org" | "www.ietf.org"
+    ) {
+        return "ietf";
+    }
+    if matches!(
+        host.as_str(),
         "drafts.csswg.org"
             | "w3c.github.io"
             | "wicg.github.io"
@@ -295,6 +316,14 @@ mod tests {
             provider_for_base_url("https://w3c.github.io/ServiceWorker"),
             "w3c"
         );
+        assert_eq!(
+            provider_for_base_url("https://www.rfc-editor.org/rfc/rfc9110.html"),
+            "ietf"
+        );
+        assert_eq!(
+            provider_for_base_url("https://datatracker.ietf.org/doc/html/rfc9110"),
+            "ietf"
+        );
     }
 
     #[test]
@@ -307,6 +336,10 @@ mod tests {
         let (base, provider) = registry.infer_base_url_from_spec_name("ECMA-262").unwrap();
         assert_eq!(base, "https://tc39.es/ecma262");
         assert_eq!(provider, "tc39");
+
+        let (base, provider) = registry.infer_base_url_from_spec_name("RFC9110").unwrap();
+        assert_eq!(base, "https://www.rfc-editor.org/rfc/rfc9110.html");
+        assert_eq!(provider, "ietf");
     }
 
     #[test]

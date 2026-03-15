@@ -104,7 +104,11 @@ async fn fetch_raw_html(url: &str) -> Result<String> {
 }
 
 async fn fetch_live_html(base_url: &str) -> Result<String> {
-    let url = format!("{}/", base_url.trim_end_matches('/'));
+    let url = if base_url.ends_with(".html") || base_url.ends_with(".txt") {
+        base_url.to_string()
+    } else {
+        format!("{}/", base_url.trim_end_matches('/'))
+    };
     let html = fetch_raw_html(&url).await?;
 
     if is_respec_source(&html) {

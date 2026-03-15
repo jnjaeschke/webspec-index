@@ -7,6 +7,7 @@ pub mod analyze;
 pub mod db;
 pub mod fetch;
 pub mod format;
+pub mod ietf;
 pub mod lsp;
 pub mod model;
 pub mod parse;
@@ -112,6 +113,13 @@ async fn ensure_indexed_for_spec_name(
     let meta = resolve_spec_metadata(conn, registry, spec_name, base_url_hint);
     let (canonical_name, base_url, provider) = match meta {
         Ok(m) => m,
+        Err(_) if ietf::is_ietf_name(spec_name) => {
+            if let Some((name, url)) = ietf::discover_spec(spec_name).await? {
+                (name, url, "ietf".to_string())
+            } else {
+                anyhow::bail!("IETF document not found: {}", spec_name);
+            }
+        }
         Err(_) => {
             spec_list::fetch_and_seed(conn)?;
             resolve_spec_metadata(conn, registry, spec_name, base_url_hint)?
@@ -1570,6 +1578,31 @@ mod tests {
         let (spec, anchor, _) = parse_spec_anchor("html.spec.whatwg.org/#navigate").unwrap();
         assert_eq!(spec, "HTML");
         assert_eq!(anchor, "navigate");
+    }
+
+    #[test]
+    fn parse_spec_anchor_ietf_rfc_url() {
+        let (spec, anchor, base_url) =
+            parse_spec_anchor("https://www.rfc-editor.org/rfc/rfc9110.html#section-5").unwrap();
+        assert_eq!(spec, "RFC9110");
+        assert_eq!(anchor, "section-5");
+        assert!(base_url.is_some());
+    }
+
+    #[test]
+    fn parse_spec_anchor_ietf_datatracker_url() {
+        let (spec, anchor, base_url) =
+            parse_spec_anchor("https://datatracker.ietf.org/doc/html/rfc9110#section-5").unwrap();
+        assert_eq!(spec, "RFC9110");
+        assert_eq!(anchor, "section-5");
+        assert!(base_url.is_some());
+    }
+
+    #[test]
+    fn parse_spec_anchor_ietf_draft() {
+        let (spec, anchor, _) = parse_spec_anchor("RFC9110#section-5").unwrap();
+        assert_eq!(spec, "RFC9110");
+        assert_eq!(anchor, "section-5");
     }
 
     #[test]
