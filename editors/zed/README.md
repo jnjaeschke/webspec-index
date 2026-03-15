@@ -14,7 +14,7 @@
 The extension starts the language server in this order:
 
 1. `webspec-index` on `PATH`
-2. Managed binary downloaded from `jnjaeschke/webspec-index` release `v0.6.0` for your platform
+2. Managed binary downloaded from the latest `jnjaeschke/webspec-index` release for your platform
 
 Managed binaries are installed under Zed's extension work directory.
 

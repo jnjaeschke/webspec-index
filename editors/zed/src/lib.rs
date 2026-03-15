@@ -247,17 +247,18 @@ mod tests {
 
     #[test]
     fn builds_expected_managed_paths() {
+        let tag = Ext::release_tag();
         let path = Ext::managed_binary_path(zed::Os::Linux);
         assert!(path.ends_with(
             Path::new("webspec-index")
-                .join("v0.6.0")
+                .join(&tag)
                 .join("webspec-index")
         ));
 
         let path = Ext::managed_binary_path(zed::Os::Windows);
         assert!(path.ends_with(
             Path::new("webspec-index")
-                .join("v0.6.0")
+                .join(&tag)
                 .join("webspec-index.exe")
         ));
     }
