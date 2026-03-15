@@ -88,7 +88,7 @@ enum Command {
         spec: Option<String>,
 
         #[arg(long, short, default_value = "20", help = "Maximum number of results")]
-        limit: usize,
+        limit: u32,
     },
 
     /// Check if a section exists (exit code 0 = found, 1 = not found)
@@ -112,7 +112,7 @@ enum Command {
         spec: Option<String>,
 
         #[arg(long, short, default_value = "50", help = "Maximum number of results")]
-        limit: usize,
+        limit: u32,
     },
 
     /// List all headings in a specification
@@ -161,7 +161,7 @@ enum Command {
         direction: String,
 
         #[arg(long, short, default_value = "10", help = "Maximum number of matches")]
-        limit: usize,
+        limit: u32,
     },
 
     /// Build a cross-reference graph rooted at a section
@@ -231,7 +231,7 @@ enum Command {
         spec: Option<String>,
 
         #[arg(long, short, default_value = "20", help = "Maximum number of matches")]
-        limit: usize,
+        limit: u32,
     },
 
     /// Update specifications to latest versions

@@ -220,7 +220,7 @@ pub fn search_sections(
     conn: &Connection,
     query: &str,
     spec_filter: Option<&str>,
-    limit: usize,
+    limit: u32,
 ) -> Result<Vec<(String, String, Option<String>)>> {
     let sql = if let Some(_spec) = spec_filter {
         "SELECT s.anchor, sp.name, snippet(sections_fts, 2, '<mark>', '</mark>', '...', 64)
@@ -261,7 +261,7 @@ pub fn find_anchors(
     conn: &Connection,
     pattern: &str,
     spec_filter: Option<&str>,
-    limit: usize,
+    limit: u32,
 ) -> Result<Vec<(String, String)>> {
     let sql = if let Some(_spec) = spec_filter {
         "SELECT s.anchor, sp.name FROM sections s

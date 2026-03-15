@@ -17,14 +17,13 @@ path = "src/main.rs"
 [dependencies]
 # HTML parsing
 scraper = "0.25"
-html5ever = "0.38"
-markup5ever_rcdom = "0.35"  # TODO: 0.36 conflicts with scraper's version
+markup5ever_rcdom = "0.36"
 
 # HTTP client
 reqwest = { version = "0.13", features = ["gzip", "json"] }
 
 # Database
-rusqlite = { version = "0.32", features = ["bundled"] }
+rusqlite = { version = "0.39", features = ["bundled"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }

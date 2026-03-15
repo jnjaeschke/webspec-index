@@ -237,7 +237,7 @@ pub async fn check_exists(spec_anchor: &str) -> Result<model::ExistsResult> {
 pub fn find_anchors(
     pattern: &str,
     spec: Option<&str>,
-    limit: usize,
+    limit: u32,
 ) -> Result<model::AnchorsResult> {
     let conn = db::open_or_create_db()?;
 
@@ -301,7 +301,7 @@ pub fn find_anchors(
 pub fn search_sections(
     query: &str,
     spec: Option<&str>,
-    limit: usize,
+    limit: u32,
 ) -> Result<model::SearchResult> {
     let conn = db::open_or_create_db()?;
     let entries = match search_sections_fts(&conn, query, spec, limit) {
@@ -326,7 +326,7 @@ fn search_sections_fts(
     conn: &Connection,
     query: &str,
     spec: Option<&str>,
-    limit: usize,
+    limit: u32,
 ) -> rusqlite::Result<Vec<model::SearchEntry>> {
     let sql = if spec.is_some() {
         "SELECT s.anchor, sp.name, s.title, s.section_type, snippet(sections_fts, 2, '<mark>', '</mark>', '...', 64)
@@ -834,7 +834,7 @@ struct Candidate {
 fn resolve_find_references_candidates(
     conn: &Connection,
     query: &str,
-    limit: usize,
+    limit: u32,
 ) -> Result<Vec<Candidate>> {
     let q = query.trim().to_ascii_lowercase();
     if q.is_empty() {
@@ -958,7 +958,7 @@ fn resolve_find_references_candidates(
     });
     let mut seen: HashSet<(String, String)> = HashSet::new();
     candidates.retain(|c| seen.insert((c.spec.clone(), c.anchor.clone())));
-    candidates.truncate(limit);
+    candidates.truncate(limit as usize);
 
     Ok(candidates)
 }
@@ -968,7 +968,7 @@ fn find_references_from_conn(
     exact_target: Option<(String, String)>,
     query: &str,
     direction: &str,
-    limit: usize,
+    limit: u32,
 ) -> Result<model::FindReferencesResult> {
     let dir = parse_ref_direction(direction)?;
     let mut matches = Vec::new();
@@ -1056,7 +1056,7 @@ fn query_idl_from_conn(
     conn: &Connection,
     query: &str,
     spec_filter: Option<&str>,
-    limit: usize,
+    limit: u32,
 ) -> Result<model::IdlResult> {
     let mut entries = Vec::new();
 
@@ -1225,7 +1225,7 @@ pub async fn graph_section(
 pub async fn query_idl(
     query: &str,
     spec_filter: Option<&str>,
-    limit: usize,
+    limit: u32,
 ) -> Result<model::IdlResult> {
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
@@ -1243,7 +1243,7 @@ pub async fn query_idl(
 pub async fn find_references(
     target: &str,
     direction: &str,
-    limit: usize,
+    limit: u32,
 ) -> Result<model::FindReferencesResult> {
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
