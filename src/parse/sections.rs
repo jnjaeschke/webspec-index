@@ -347,7 +347,13 @@ pub fn parse_anchor_element(
         None
     } else {
         let truncated = if title_text.len() > 120 {
-            format!("{}…", &title_text[..120])
+            let boundary = title_text
+                .char_indices()
+                .map(|(i, _)| i)
+                .take_while(|&i| i <= 120)
+                .last()
+                .unwrap_or(0);
+            format!("{}…", &title_text[..boundary])
         } else {
             title_text.to_string()
         };
