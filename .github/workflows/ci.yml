@@ -79,7 +79,10 @@ jobs:
             "SELECTORS-4#specificity" \
             "CSS-DISPLAY-4#propdef-display" \
             "MEDIACAPTURE-MAIN#dom-mediatracksupportedconstraints-latency" \
-            "WEBCODECS#dom-audiodecoder-configure"; do
+            "WEBCODECS#dom-audiodecoder-configure" \
+            "WEBGPU#textures" \
+            "WGSL#textureload"
+          do
             echo "Querying $anchor..."
             ./target/debug/webspec-index query "$anchor" | jq -e '.anchor' > /dev/null
           done
