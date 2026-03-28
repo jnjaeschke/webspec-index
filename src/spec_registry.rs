@@ -53,6 +53,19 @@ impl SpecRegistry {
             return Some(("https://tc39.es/ecma262".to_string(), "tc39".to_string()));
         }
 
+        if token == "WEBGPU" {
+            return Some((
+                "https://gpuweb.github.io/gpuweb".to_string(),
+                "gpuweb".to_string(),
+            ));
+        }
+        if token == "WGSL" {
+            return Some((
+                "https://gpuweb.github.io/gpuweb/wgsl".to_string(),
+                "gpuweb".to_string(),
+            ));
+        }
+
         // IETF RFCs can be resolved statically (immutable documents).
         // Drafts require async Datatracker lookup, handled elsewhere.
         if ietf::is_ietf_name(spec_name) {
@@ -108,6 +121,12 @@ impl SpecRegistry {
                     ));
                 }
                 "TC39" => return Some((format!("https://tc39.es/{slug}"), "tc39".to_string())),
+                "GPUWEB" => {
+                    return Some((
+                        format!("https://gpuweb.github.io/gpuweb/{slug}"),
+                        "gpuweb".to_string(),
+                    ))
+                }
                 _ => {}
             }
         }
@@ -146,6 +165,13 @@ fn derive_spec_name_for_base_url(base_url: &str) -> Option<String> {
     let name = if host.ends_with(".spec.whatwg.org") {
         let slug = host.strip_suffix(".spec.whatwg.org")?;
         normalize_spec_token(slug)
+    } else if host == "gpuweb.github.io" {
+        let segs: Vec<&str> = parsed.path_segments()?.filter(|s| !s.is_empty()).collect();
+        match segs.as_slice() {
+            ["gpuweb", "wgsl"] => "WGSL".to_string(),
+            ["gpuweb"] => "WEBGPU".to_string(),
+            _ => return None,
+        }
     } else if host == "drafts.csswg.org"
         || host == "w3c.github.io"
         || host == "wicg.github.io"
@@ -192,6 +218,13 @@ fn auto_base_url_from_url(url: &str) -> Option<(String, String)> {
 
     let base_url = if host.ends_with(".spec.whatwg.org") {
         format!("{scheme}://{host}")
+    } else if host == "gpuweb.github.io" {
+        let segs: Vec<&str> = parsed.path_segments()?.filter(|s| !s.is_empty()).collect();
+        match segs.as_slice() {
+            ["gpuweb", "wgsl", ..] => format!("{scheme}://gpuweb.github.io/gpuweb/wgsl"),
+            ["gpuweb", ..] => format!("{scheme}://gpuweb.github.io/gpuweb"),
+            _ => return None,
+        }
     } else if matches!(
         host.as_str(),
         "drafts.csswg.org" | "w3c.github.io" | "wicg.github.io" | "webaudio.github.io" | "tc39.es"
@@ -233,6 +266,9 @@ pub fn provider_for_base_url(base_url: &str) -> &'static str {
         "datatracker.ietf.org" | "www.rfc-editor.org" | "www.ietf.org"
     ) {
         return "ietf";
+    }
+    if host == "gpuweb.github.io" {
+        return "gpuweb";
     }
     if matches!(
         host.as_str(),
@@ -374,5 +410,58 @@ mod tests {
         assert!(registry
             .infer_base_url_from_spec_name("UNKNOWN/foo")
             .is_none());
+    }
+
+    #[test]
+    fn resolve_webgpu_urls() {
+        let registry = SpecRegistry::new();
+
+        let (spec, anchor) = registry
+            .resolve_url("https://gpuweb.github.io/gpuweb/#dom-gpudevice")
+            .unwrap();
+        assert_eq!(spec, "WEBGPU");
+        assert_eq!(anchor, "dom-gpudevice");
+
+        let (spec, anchor) = registry
+            .resolve_url("https://gpuweb.github.io/gpuweb/wgsl/#syntax")
+            .unwrap();
+        assert_eq!(spec, "WGSL");
+        assert_eq!(anchor, "syntax");
+    }
+
+    #[test]
+    fn infer_webgpu_from_short_name() {
+        let registry = SpecRegistry::new();
+
+        let (base, provider) = registry.infer_base_url_from_spec_name("WEBGPU").unwrap();
+        assert_eq!(base, "https://gpuweb.github.io/gpuweb");
+        assert_eq!(provider, "gpuweb");
+
+        let (base, provider) = registry.infer_base_url_from_spec_name("WGSL").unwrap();
+        assert_eq!(base, "https://gpuweb.github.io/gpuweb/wgsl");
+        assert_eq!(provider, "gpuweb");
+    }
+
+    #[test]
+    fn infer_gpuweb_org_prefix() {
+        let registry = SpecRegistry::new();
+
+        let (base, provider) = registry
+            .infer_base_url_from_spec_name("GPUWEB/wgsl")
+            .unwrap();
+        assert_eq!(base, "https://gpuweb.github.io/gpuweb/wgsl");
+        assert_eq!(provider, "gpuweb");
+    }
+
+    #[test]
+    fn webgpu_provider_inference() {
+        assert_eq!(
+            provider_for_base_url("https://gpuweb.github.io/gpuweb"),
+            "gpuweb"
+        );
+        assert_eq!(
+            provider_for_base_url("https://gpuweb.github.io/gpuweb/wgsl"),
+            "gpuweb"
+        );
     }
 }
