@@ -78,18 +78,24 @@ impl SpecRegistry {
         // Only infer for the known set of WHATWG living standards.
         const WHATWG_SPECS: &[&str] = &[
             "COMPAT",
+            "COMPRESSION",
             "CONSOLE",
             "DOM",
             "ENCODING",
             "FETCH",
+            "FS",
             "FULLSCREEN",
             "HTML",
             "INFRA",
             "MIMESNIFF",
             "NOTIFICATIONS",
+            "QUIRKS",
             "STORAGE",
             "STREAMS",
+            "TESTUTILS",
             "URL",
+            "URLPATTERN",
+            "WEBIDL",
             "WEBSOCKETS",
             "XHR",
         ];
@@ -372,6 +378,20 @@ mod tests {
         let (base, provider) = registry.infer_base_url_from_spec_name("ECMA-262").unwrap();
         assert_eq!(base, "https://tc39.es/ecma262");
         assert_eq!(provider, "tc39");
+
+        let (base, provider) = registry.infer_base_url_from_spec_name("WEBIDL").unwrap();
+        assert_eq!(base, "https://webidl.spec.whatwg.org");
+        assert_eq!(provider, "whatwg");
+
+        let (base, provider) = registry
+            .infer_base_url_from_spec_name("URLPATTERN")
+            .unwrap();
+        assert_eq!(base, "https://urlpattern.spec.whatwg.org");
+        assert_eq!(provider, "whatwg");
+
+        let (base, provider) = registry.infer_base_url_from_spec_name("FS").unwrap();
+        assert_eq!(base, "https://fs.spec.whatwg.org");
+        assert_eq!(provider, "whatwg");
 
         let (base, provider) = registry.infer_base_url_from_spec_name("RFC9110").unwrap();
         assert_eq!(base, "https://www.rfc-editor.org/rfc/rfc9110.html");

@@ -94,7 +94,10 @@ async fn fetch_raw_html(url: &str) -> Result<String> {
     let client = reqwest::Client::new();
     let response = client
         .get(url)
-        .header("User-Agent", concat!("webspec-index/", env!("CARGO_PKG_VERSION")))
+        .header(
+            "User-Agent",
+            concat!("webspec-index/", env!("CARGO_PKG_VERSION")),
+        )
         .send()
         .await?;
     if !response.status().is_success() {
