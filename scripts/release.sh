@@ -49,8 +49,13 @@ echo "  editors/vscode/package.json -> $VERSION"
 echo "  editors/zed/Cargo.toml  -> $VERSION"
 echo "  editors/zed/extension.toml  -> $VERSION"
 
+# 5. Regenerate Cargo.lock to reflect the new version
+cargo generate-lockfile --quiet
+echo "  Cargo.lock              -> regenerated"
+
 git add \
     "$ROOT/Cargo.toml" \
+    "$ROOT/Cargo.lock" \
     "$ROOT/editors/vscode/package.json" \
     "$ROOT/editors/zed/Cargo.toml" \
     "$ROOT/editors/zed/extension.toml"
