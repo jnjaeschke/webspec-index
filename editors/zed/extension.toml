@@ -1,6 +1,6 @@
 id = "webspec-lens"
 name = "webspec-lens"
-version = "0.6.0"
+version = "0.7.0"
 schema_version = 1
 description = "Hover WHATWG/W3C/TC39 spec URLs, validate steps, and track algorithm coverage."
 repository = "https://github.com/jnjaeschke/webspec-index"
