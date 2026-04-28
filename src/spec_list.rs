@@ -169,6 +169,9 @@ fn collect_standalone(groups_dir: &Path) -> Result<Vec<SpecEntry>> {
         if owner == "w3c" && repo_name == "csswg-drafts" {
             continue;
         }
+        if owner == "WebAssembly" {
+            continue;
+        }
 
         let hp_raw = r
             .get("homepageUrl")
@@ -321,6 +324,20 @@ mod tests {
             "w3c",
             "csswg-drafts",
             "https://drafts.csswg.org/index.html",
+            &["rec-track"]
+        )]);
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("repositories.json"), repos.to_string()).unwrap();
+        let entries = collect_standalone(dir.path()).unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn test_collect_standalone_skips_webassembly_org() {
+        let repos = serde_json::json!([make_repo(
+            "WebAssembly",
+            "threads",
+            "https://webassembly.github.io/threads/",
             &["rec-track"]
         )]);
         let dir = tempfile::tempdir().unwrap();

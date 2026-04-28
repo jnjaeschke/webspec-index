@@ -42,7 +42,7 @@ webspec-index query 'https://w3c.github.io/webappsec-permissions-policy/#permiss
 Returns the section's title, type (heading/algorithm/definition), full content as markdown, navigation tree (parent/prev/next/children), and cross-references. This is the primary command — use it to read what a spec section says.
 
 Use `--format markdown` for human-readable output, or default `--format json` for structured data.
-For non-hardcoded specs, URL queries are accepted for whitelisted domains (`*.spec.whatwg.org`, `drafts.csswg.org`, `w3c.github.io`, `wicg.github.io`, `webaudio.github.io`, `tc39.es`, and `w3.org/TR/*`).
+For non-hardcoded specs, URL queries are accepted for whitelisted domains (`*.spec.whatwg.org`, `drafts.csswg.org`, `w3c.github.io`, `wicg.github.io`, `webaudio.github.io`, `tc39.es`, `w3.org/TR/*`, and `webassembly.github.io`).
 
 ### Search across specs
 
