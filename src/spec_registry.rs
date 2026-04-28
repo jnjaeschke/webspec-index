@@ -280,9 +280,6 @@ fn auto_base_url_from_url(url: &str) -> Option<(String, String)> {
     } else if host == "webassembly.github.io" {
         let segs: Vec<&str> = parsed.path_segments()?.filter(|s| !s.is_empty()).collect();
         match segs.as_slice() {
-            ["spec", "core", ..] => format!("{scheme}://webassembly.github.io/spec/core/bikeshed"),
-            ["spec", "js-api", ..] => format!("{scheme}://webassembly.github.io/spec/js-api"),
-            ["spec", "web-api", ..] => format!("{scheme}://webassembly.github.io/spec/web-api"),
             [p, "core", "bikeshed", ..] => {
                 format!("{scheme}://webassembly.github.io/{p}/core/bikeshed")
             }
