@@ -1266,12 +1266,6 @@
     "github_repo": "w3c/epub-specs"
   },
   {
-    "name": "ESM-INTEGRATION",
-    "base_url": "https://webassembly.github.io/esm-integration/js-api/index.html#esm-integration",
-    "provider": "w3c",
-    "github_repo": "WebAssembly/esm-integration"
-  },
-  {
     "name": "EVENT-TIMING",
     "base_url": "https://w3c.github.io/event-timing",
     "provider": "w3c",
@@ -1336,12 +1330,6 @@
     "base_url": "https://drafts.csswg.org/filter-effects-2",
     "provider": "w3c",
     "github_repo": "w3c/csswg-drafts"
-  },
-  {
-    "name": "FLEXIBLE-VECTORS",
-    "base_url": "https://webassembly.github.io/flexible-vectors",
-    "provider": "w3c",
-    "github_repo": "WebAssembly/flexible-vectors"
   },
   {
     "name": "FXTF-DRAFTS",
@@ -1546,12 +1534,6 @@
     "base_url": "https://wicg.github.io/is-input-pending",
     "provider": "w3c",
     "github_repo": "WICG/is-input-pending"
-  },
-  {
-    "name": "JIT-INTERFACE",
-    "base_url": "https://webassembly.github.io/spec",
-    "provider": "w3c",
-    "github_repo": "WebAssembly/jit-interface"
   },
   {
     "name": "JSON-LD-API",
@@ -2556,12 +2538,6 @@
     "github_repo": "w3c/system-wake-lock"
   },
   {
-    "name": "THREADS",
-    "base_url": "https://webassembly.github.io/threads",
-    "provider": "w3c",
-    "github_repo": "WebAssembly/threads"
-  },
-  {
     "name": "TRACE-CONTEXT",
     "base_url": "https://w3c.github.io/trace-context",
     "provider": "w3c",
@@ -3196,12 +3172,6 @@
     "base_url": "https://immersive-web.github.io/webxr-hand-input",
     "provider": "w3c",
     "github_repo": "immersive-web/webxr-hand-input"
-  },
-  {
-    "name": "WIDE-ARITHMETIC",
-    "base_url": "https://webassembly.github.io/wide-arithmetic",
-    "provider": "w3c",
-    "github_repo": "WebAssembly/wide-arithmetic"
   },
   {
     "name": "WINDOW-CONTROLS-OVERLAY",

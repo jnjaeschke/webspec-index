@@ -36,6 +36,7 @@ impl SpecRegistry {
     /// - previously auto-generated `AUTOURL-*` ids
     /// - `ECMA-262` / `ECMA262` -> tc39
     /// - known WHATWG living standards at `*.spec.whatwg.org`
+    /// - WebAssembly
     pub fn infer_base_url_from_spec_name(&self, spec_name: &str) -> Option<(String, String)> {
         if let Some(base_url) = auto_spec_base_url(spec_name) {
             return Some((
@@ -63,6 +64,34 @@ impl SpecRegistry {
             return Some((
                 "https://gpuweb.github.io/gpuweb/wgsl".to_string(),
                 "gpuweb".to_string(),
+            ));
+        }
+
+        if token == "WEBASSEMBLY" {
+            return Some((
+                "https://webassembly.github.io/spec/core/bikeshed".to_string(),
+                "webassembly".to_string(),
+            ));
+        }
+        if token == "WEBASSEMBLY-JS-API" {
+            return Some((
+                "https://webassembly.github.io/spec/js-api".to_string(),
+                "webassembly".to_string(),
+            ));
+        }
+        if token == "WEBASSEMBLY-WEB-API" {
+            return Some((
+                "https://webassembly.github.io/spec/web-api".to_string(),
+                "webassembly".to_string(),
+            ));
+        }
+        // The threads proposal is standard enough to merit inclusion by
+        // default for now, but should be removed when it is finally merged
+        // into the core spec repo.
+        if token == "WEBASSEMBLY-THREADS" {
+            return Some((
+                "https://webassembly.github.io/threads/core/bikeshed".to_string(),
+                "webassembly".to_string(),
             ));
         }
 
@@ -190,6 +219,17 @@ fn derive_spec_name_for_base_url(base_url: &str) -> Option<String> {
         } else {
             normalize_spec_token(first)
         }
+    } else if host == "webassembly.github.io" {
+        let segs: Vec<&str> = parsed.path_segments()?.filter(|s| !s.is_empty()).collect();
+        match segs.as_slice() {
+            ["spec", "core", "bikeshed"] => "WEBASSEMBLY".to_string(),
+            ["spec", "js-api"] => "WEBASSEMBLY-JS-API".to_string(),
+            ["spec", "web-api"] => "WEBASSEMBLY-WEB-API".to_string(),
+            [p, "core", "bikeshed"] => format!("WEBASSEMBLY-{}", normalize_spec_token(p)),
+            [p, "js-api"] => format!("WEBASSEMBLY-{}-JS-API", normalize_spec_token(p)),
+            [p, "web-api"] => format!("WEBASSEMBLY-{}-WEB-API", normalize_spec_token(p)),
+            _ => return None,
+        }
     } else if host == "w3.org" || host == "www.w3.org" {
         let mut segs = parsed.path_segments()?;
         let first = segs.next()?;
@@ -237,6 +277,16 @@ fn auto_base_url_from_url(url: &str) -> Option<(String, String)> {
     ) {
         let first = parsed.path_segments()?.find(|seg| !seg.is_empty())?;
         format!("{scheme}://{host}/{first}")
+    } else if host == "webassembly.github.io" {
+        let segs: Vec<&str> = parsed.path_segments()?.filter(|s| !s.is_empty()).collect();
+        match segs.as_slice() {
+            [p, "core", "bikeshed", ..] => {
+                format!("{scheme}://webassembly.github.io/{p}/core/bikeshed")
+            }
+            [p, "js-api", ..] => format!("{scheme}://webassembly.github.io/{p}/js-api"),
+            [p, "web-api", ..] => format!("{scheme}://webassembly.github.io/{p}/web-api"),
+            _ => return None,
+        }
     } else if host == "w3.org" || host == "www.w3.org" {
         let mut segs = parsed.path_segments()?;
         let first = segs.next()?;
@@ -275,6 +325,9 @@ pub fn provider_for_base_url(base_url: &str) -> &'static str {
     }
     if host == "gpuweb.github.io" {
         return "gpuweb";
+    }
+    if host == "webassembly.github.io" {
+        return "webassembly";
     }
     if matches!(
         host.as_str(),
@@ -482,6 +535,84 @@ mod tests {
         assert_eq!(
             provider_for_base_url("https://gpuweb.github.io/gpuweb/wgsl"),
             "gpuweb"
+        );
+    }
+
+    #[test]
+    fn resolve_webassembly_urls() {
+        let registry = SpecRegistry::new();
+
+        let (spec, anchor) = registry
+            .resolve_url("https://webassembly.github.io/spec/core/bikeshed/#syntax-instr")
+            .unwrap();
+        assert_eq!(spec, "WEBASSEMBLY");
+        assert_eq!(anchor, "syntax-instr");
+
+        let (spec, anchor) = registry
+            .resolve_url("https://webassembly.github.io/spec/js-api/#dom-memory")
+            .unwrap();
+        assert_eq!(spec, "WEBASSEMBLY-JS-API");
+        assert_eq!(anchor, "dom-memory");
+
+        let (spec, anchor) = registry
+            .resolve_url("https://webassembly.github.io/spec/web-api/#streaming")
+            .unwrap();
+        assert_eq!(spec, "WEBASSEMBLY-WEB-API");
+        assert_eq!(anchor, "streaming");
+
+        let (spec, anchor) = registry
+            .resolve_url("https://webassembly.github.io/threads/core/bikeshed/#atomic")
+            .unwrap();
+        assert_eq!(spec, "WEBASSEMBLY-THREADS");
+        assert_eq!(anchor, "atomic");
+
+        let (spec, anchor) = registry
+            .resolve_url("https://webassembly.github.io/threads/js-api/#dom-memory-shared")
+            .unwrap();
+        assert_eq!(spec, "WEBASSEMBLY-THREADS-JS-API");
+        assert_eq!(anchor, "dom-memory-shared");
+
+        let (spec, anchor) = registry
+            .resolve_url(
+                "https://webassembly.github.io/compact-import-section/core/bikeshed/#syntax-instr",
+            )
+            .unwrap();
+        assert_eq!(spec, "WEBASSEMBLY-COMPACT-IMPORT-SECTION");
+        assert_eq!(anchor, "syntax-instr");
+    }
+
+    #[test]
+    fn infer_webassembly_from_short_name() {
+        let registry = SpecRegistry::new();
+
+        let (base, provider) = registry
+            .infer_base_url_from_spec_name("WEBASSEMBLY")
+            .unwrap();
+        assert_eq!(base, "https://webassembly.github.io/spec/core/bikeshed");
+        assert_eq!(provider, "webassembly");
+
+        let (base, provider) = registry
+            .infer_base_url_from_spec_name("WEBASSEMBLY-JS-API")
+            .unwrap();
+        assert_eq!(base, "https://webassembly.github.io/spec/js-api");
+        assert_eq!(provider, "webassembly");
+
+        let (base, provider) = registry
+            .infer_base_url_from_spec_name("WEBASSEMBLY-WEB-API")
+            .unwrap();
+        assert_eq!(base, "https://webassembly.github.io/spec/web-api");
+        assert_eq!(provider, "webassembly");
+    }
+
+    #[test]
+    fn webassembly_provider_inference() {
+        assert_eq!(
+            provider_for_base_url("https://webassembly.github.io/spec/core/bikeshed"),
+            "webassembly"
+        );
+        assert_eq!(
+            provider_for_base_url("https://webassembly.github.io/threads/js-api"),
+            "webassembly"
         );
     }
 }
