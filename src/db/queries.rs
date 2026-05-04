@@ -396,7 +396,47 @@ pub fn list_headings(conn: &Connection, snapshot_id: i64) -> Result<Vec<ParsedSe
 }
 
 fn normalize_content(s: &str) -> String {
-    s.split_whitespace().collect::<Vec<_>>().join(" ")
+    let collapsed: String = s.split_whitespace().collect::<Vec<_>>().join(" ");
+    // Normalize intra-spec link targets. Single-page specs use absolute self-refs
+    // like "(https://html.spec.whatwg.org#anchor)" while multipage PR previews
+    // use relative refs like "(dom.html#anchor)". Strip everything between "]("
+    // and "#" in markdown links so both compare as "](#anchor)".
+    normalize_link_targets(&collapsed)
+}
+
+fn normalize_link_targets(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        // Look for "](" pattern — start of a markdown link target
+        if i + 1 < bytes.len() && bytes[i] == b']' && bytes[i + 1] == b'(' {
+            result.push_str("](");
+            i += 2;
+            // Find the next '#' or ')' — whichever comes first
+            let link_start = i;
+            let mut found_hash = false;
+            while i < bytes.len() && bytes[i] != b')' {
+                if bytes[i] == b'#' {
+                    found_hash = true;
+                    break;
+                }
+                i += 1;
+            }
+            if found_hash {
+                // Skip everything between "](" and "#", keep from "#" onwards
+                // This normalizes both "https://html.spec.whatwg.org#x" and "dom.html#x" to "#x"
+            } else {
+                // No fragment — keep the URL as-is
+                let url = std::str::from_utf8(&bytes[link_start..i]).unwrap();
+                result.push_str(url);
+            }
+        } else {
+            result.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+    result
 }
 
 fn content_eq(a: Option<&str>, b: Option<&str>) -> bool {
