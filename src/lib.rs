@@ -135,13 +135,24 @@ async fn ensure_indexed_for_spec_name(
 ///
 /// # Arguments
 /// * `spec_anchor` - Format: "SPEC#anchor" (e.g., "HTML#navigate")
-pub async fn query_section(spec_anchor: &str) -> Result<model::QueryResult> {
+/// * `pr` - Optional PR number to query against a WHATWG PR preview
+pub async fn query_section(spec_anchor: &str, pr: Option<i64>) -> Result<model::QueryResult> {
     let (spec_name, anchor, base_url_hint) = parse_spec_anchor(spec_anchor)?;
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
-    let (snapshot_id, spec_name) =
-        ensure_indexed_for_spec_name(&conn, &registry, &spec_name, base_url_hint.as_deref())
-            .await?;
+
+    let (snapshot_id, spec_name, fallback_snapshot_id) = if let Some(pr_number) = pr {
+        let (canonical_name, base_url, provider) =
+            resolve_spec_metadata(&conn, &registry, &spec_name, base_url_hint.as_deref())?;
+        let _ = ensure_indexed_for_spec_name(&conn, &registry, &spec_name, base_url_hint.as_deref()).await?;
+        let (pr_snap, base_snap) =
+            fetch::whatpr::ensure_pr_indexed(&conn, &canonical_name, &base_url, &provider, pr_number).await?;
+        (pr_snap, canonical_name, Some(base_snap))
+    } else {
+        let (snap_id, name) =
+            ensure_indexed_for_spec_name(&conn, &registry, &spec_name, base_url_hint.as_deref()).await?;
+        (snap_id, name, None)
+    };
 
     let snapshot_sha: String = conn.query_row(
         "SELECT sha FROM snapshots WHERE id = ?1",
@@ -150,6 +161,11 @@ pub async fn query_section(spec_anchor: &str) -> Result<model::QueryResult> {
     )?;
 
     let section = db::queries::get_section(&conn, snapshot_id, &anchor)?
+        .or_else(|| {
+            fallback_snapshot_id.and_then(|fb_id| {
+                db::queries::get_section(&conn, fb_id, &anchor).ok().flatten()
+            })
+        })
         .ok_or_else(|| anyhow::anyhow!("Section not found: {}#{}", spec_name, anchor))?;
 
     let children = db::queries::get_children(&conn, snapshot_id, &anchor)?
@@ -223,19 +239,35 @@ pub async fn query_section(spec_anchor: &str) -> Result<model::QueryResult> {
 ///
 /// # Arguments
 /// * `spec_anchor` - Format: "SPEC#anchor"
+/// * `pr` - Optional PR number to query against a WHATWG PR preview
 ///
 /// # Returns
 /// `ExistsResult` with existence status and section type if found
-pub async fn check_exists(spec_anchor: &str) -> Result<model::ExistsResult> {
+pub async fn check_exists(spec_anchor: &str, pr: Option<i64>) -> Result<model::ExistsResult> {
     let (spec_name, anchor, base_url_hint) = parse_spec_anchor(spec_anchor)?;
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
-    let (snapshot_id, spec_name) =
-        ensure_indexed_for_spec_name(&conn, &registry, &spec_name, base_url_hint.as_deref())
-            .await?;
 
-    // Check if section exists
-    let section = db::queries::get_section(&conn, snapshot_id, &anchor)?;
+    let (snapshot_id, spec_name, fallback_snapshot_id) = if let Some(pr_number) = pr {
+        let (canonical_name, base_url, provider) =
+            resolve_spec_metadata(&conn, &registry, &spec_name, base_url_hint.as_deref())?;
+        let _ = ensure_indexed_for_spec_name(&conn, &registry, &spec_name, base_url_hint.as_deref()).await?;
+        let (pr_snap, base_snap) =
+            fetch::whatpr::ensure_pr_indexed(&conn, &canonical_name, &base_url, &provider, pr_number).await?;
+        (pr_snap, canonical_name, Some(base_snap))
+    } else {
+        let (snap_id, name) =
+            ensure_indexed_for_spec_name(&conn, &registry, &spec_name, base_url_hint.as_deref()).await?;
+        (snap_id, name, None)
+    };
+
+    // Check if section exists, with fallback to merge base
+    let section = db::queries::get_section(&conn, snapshot_id, &anchor)?
+        .or_else(|| {
+            fallback_snapshot_id.and_then(|fb_id| {
+                db::queries::get_section(&conn, fb_id, &anchor).ok().flatten()
+            })
+        });
     let exists = section.is_some();
     let section_type = section
         .as_ref()
@@ -402,14 +434,25 @@ fn sanitize_for_fts(query: &str) -> Option<String> {
 ///
 /// # Arguments
 /// * `spec` - Spec name
+/// * `pr` - Optional PR number to query against a WHATWG PR preview
 ///
 /// # Returns
 /// Vector of `ListEntry` with heading hierarchy
-pub async fn list_headings(spec: &str) -> Result<Vec<model::ListEntry>> {
+pub async fn list_headings(spec: &str, pr: Option<i64>) -> Result<Vec<model::ListEntry>> {
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
-    let (snapshot_id, _spec_name) =
-        ensure_indexed_for_spec_name(&conn, &registry, spec, None).await?;
+
+    let snapshot_id = if let Some(pr_number) = pr {
+        let (canonical_name, base_url, provider) =
+            resolve_spec_metadata(&conn, &registry, spec, None)?;
+        let _ = ensure_indexed_for_spec_name(&conn, &registry, spec, None).await?;
+        let (pr_snap, _base_snap) =
+            fetch::whatpr::ensure_pr_indexed(&conn, &canonical_name, &base_url, &provider, pr_number).await?;
+        pr_snap
+    } else {
+        let (snap_id, _name) = ensure_indexed_for_spec_name(&conn, &registry, spec, None).await?;
+        snap_id
+    };
 
     // Get all headings
     let headings = db::queries::list_headings(&conn, snapshot_id)?;
@@ -1194,16 +1237,31 @@ pub async fn query_idl(
     query: &str,
     spec_filter: Option<&str>,
     limit: u32,
+    pr: Option<i64>,
 ) -> Result<model::IdlResult> {
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
 
     if let Some(spec_name) = spec_filter {
         let _ = ensure_indexed_for_spec_name(&conn, &registry, spec_name, None).await?;
+        if let Some(pr_number) = pr {
+            let (canonical_name, base_url, provider) =
+                resolve_spec_metadata(&conn, &registry, spec_name, None)?;
+            let _ = fetch::whatpr::ensure_pr_indexed(
+                &conn, &canonical_name, &base_url, &provider, pr_number,
+            ).await?;
+        }
     } else if let Ok((spec_name, _, base_url_hint)) = parse_spec_anchor(query) {
         let _ =
             ensure_indexed_for_spec_name(&conn, &registry, &spec_name, base_url_hint.as_deref())
                 .await?;
+        if let Some(pr_number) = pr {
+            let (canonical_name, base_url, provider) =
+                resolve_spec_metadata(&conn, &registry, &spec_name, base_url_hint.as_deref())?;
+            let _ = fetch::whatpr::ensure_pr_indexed(
+                &conn, &canonical_name, &base_url, &provider, pr_number,
+            ).await?;
+        }
     }
 
     query_idl_from_conn(&conn, query, spec_filter, limit)
@@ -1214,6 +1272,7 @@ pub async fn find_references(
     target: &str,
     direction: &str,
     limit: u32,
+    pr: Option<i64>,
 ) -> Result<model::RefsResult> {
     let conn = db::open_or_create_db()?;
     let registry = spec_registry::SpecRegistry::new();
@@ -1227,12 +1286,55 @@ pub async fn find_references(
                 base_url_hint.as_deref(),
             )
             .await?;
+            if let Some(pr_number) = pr {
+                let (canonical_name, base_url, provider) =
+                    resolve_spec_metadata(&conn, &registry, &canonical_spec_name, None)?;
+                let _ = fetch::whatpr::ensure_pr_indexed(
+                    &conn, &canonical_name, &base_url, &provider, pr_number,
+                ).await?;
+            }
             Some((canonical_spec_name, anchor))
         }
         Err(_) => None,
     };
 
     find_references_from_conn(&conn, exact_target, target, direction, limit)
+}
+
+/// Compute diff between a PR preview and its merge base for a spec.
+pub async fn pr_diff(spec: &str, pr_number: i64) -> Result<model::PrDiffResult> {
+    let conn = db::open_or_create_db()?;
+    let registry = spec_registry::SpecRegistry::new();
+    let (canonical_name, base_url, provider) =
+        resolve_spec_metadata(&conn, &registry, spec, None)?;
+    let _ = ensure_indexed_for_spec_name(&conn, &registry, spec, None).await?;
+    let (pr_snap_id, base_snap_id) =
+        fetch::whatpr::ensure_pr_indexed(&conn, &canonical_name, &base_url, &provider, pr_number).await?;
+
+    let pr_sha: String = conn.query_row(
+        "SELECT sha FROM snapshots WHERE id = ?1",
+        [pr_snap_id],
+        |row| row.get(0),
+    )?;
+    let base_sha: String = conn.query_row(
+        "SELECT sha FROM snapshots WHERE id = ?1",
+        [base_snap_id],
+        |row| row.get(0),
+    )?;
+
+    let changes = db::queries::compute_pr_diff(&conn, pr_snap_id, base_snap_id)?;
+    let added = changes.iter().filter(|c| c.change_type == "added").count();
+    let removed = changes.iter().filter(|c| c.change_type == "removed").count();
+    let modified = changes.iter().filter(|c| c.change_type == "modified").count();
+
+    Ok(model::PrDiffResult {
+        spec: canonical_name,
+        pr_number,
+        head_sha: pr_sha,
+        merge_base_sha: base_sha,
+        summary: model::PrDiffSummary { added, removed, modified },
+        changes,
+    })
 }
 
 /// Update specifications to latest versions
