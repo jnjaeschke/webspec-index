@@ -234,18 +234,21 @@ mod tests {
         conn.execute(
             "INSERT INTO specs (name, base_url, provider) VALUES ('TEST', 'https://test', 'test')",
             [],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO snapshots (spec_id, sha, commit_date, indexed_at, pr_number, merge_base_sha)
              VALUES (1, 'abc', '2026-01-01', '2026-01-01', 12345, 'def456')",
             [],
         ).unwrap();
 
-        let (pr, base): (Option<i64>, Option<String>) = conn.query_row(
-            "SELECT pr_number, merge_base_sha FROM snapshots WHERE sha = 'abc'",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        ).unwrap();
+        let (pr, base): (Option<i64>, Option<String>) = conn
+            .query_row(
+                "SELECT pr_number, merge_base_sha FROM snapshots WHERE sha = 'abc'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
         assert_eq!(pr, Some(12345));
         assert_eq!(base.as_deref(), Some("def456"));
 
@@ -254,12 +257,15 @@ mod tests {
             "INSERT INTO snapshots (spec_id, sha, commit_date, indexed_at)
              VALUES (1, 'xyz', '2026-01-01', '2026-01-01')",
             [],
-        ).unwrap();
-        let pr: Option<i64> = conn.query_row(
-            "SELECT pr_number FROM snapshots WHERE sha = 'xyz'",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        )
+        .unwrap();
+        let pr: Option<i64> = conn
+            .query_row(
+                "SELECT pr_number FROM snapshots WHERE sha = 'xyz'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(pr, None);
     }
 
@@ -272,18 +278,21 @@ mod tests {
         conn.execute(
             "INSERT INTO specs (name, base_url, provider) VALUES ('TEST', 'https://test', 'test')",
             [],
-        ).unwrap();
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO snapshots (spec_id, sha, commit_date, indexed_at, pr_number, merge_base_sha, pr_pages)
              VALUES (1, 'abc', '2026-01-01', '2026-01-01', 123, 'def', 'page1.html,page2.html')",
             [],
         ).unwrap();
 
-        let pages: Option<String> = conn.query_row(
-            "SELECT pr_pages FROM snapshots WHERE sha = 'abc'",
-            [],
-            |row| row.get(0),
-        ).unwrap();
+        let pages: Option<String> = conn
+            .query_row(
+                "SELECT pr_pages FROM snapshots WHERE sha = 'abc'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(pages.as_deref(), Some("page1.html,page2.html"));
     }
 }

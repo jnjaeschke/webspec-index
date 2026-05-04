@@ -1,7 +1,7 @@
-use anyhow::{Context, Result};
 use crate::db::{queries, write};
 use crate::model::ParsedSpec;
 use crate::parse;
+use anyhow::{Context, Result};
 use rusqlite::Connection;
 
 /// Parsed PR preview metadata extracted from a GitHub PR body.
@@ -61,7 +61,11 @@ pub fn parse_pr_body(pr_number: i64, body: &str) -> Result<PrPreview> {
                 }
             }
 
-            pages.push(PrPage { page_path, url, diff_url });
+            pages.push(PrPage {
+                page_path,
+                url,
+                diff_url,
+            });
         }
     }
 
@@ -75,7 +79,12 @@ pub fn parse_pr_body(pr_number: i64, body: &str) -> Result<PrPreview> {
         anyhow::bail!("Could not extract merge base SHA from PR body");
     }
 
-    Ok(PrPreview { pr_number, head_sha, merge_base_sha, pages })
+    Ok(PrPreview {
+        pr_number,
+        head_sha,
+        merge_base_sha,
+        pages,
+    })
 }
 
 fn extract_href(line: &str) -> Option<String> {
@@ -148,7 +157,11 @@ pub fn merge_parsed_specs(specs: Vec<ParsedSpec>) -> ParsedSpec {
         references.extend(spec.references);
         idl_definitions.extend(spec.idl_definitions);
     }
-    ParsedSpec { sections, references, idl_definitions }
+    ParsedSpec {
+        sections,
+        references,
+        idl_definitions,
+    }
 }
 
 /// Resolve a short SHA to a full SHA via GitHub API.
@@ -157,7 +170,10 @@ pub async fn resolve_full_sha(repo: &str, short_sha: &str) -> Result<String> {
     let client = reqwest::Client::new();
     let resp = client
         .get(&url)
-        .header("User-Agent", concat!("webspec-index/", env!("CARGO_PKG_VERSION")))
+        .header(
+            "User-Agent",
+            concat!("webspec-index/", env!("CARGO_PKG_VERSION")),
+        )
         .header("Accept", "application/vnd.github+json")
         .send()
         .await?
@@ -175,24 +191,32 @@ pub async fn fetch_pr_preview(repo: &str, pr_number: i64) -> Result<PrPreview> {
     let client = reqwest::Client::new();
     let resp = client
         .get(&url)
-        .header("User-Agent", concat!("webspec-index/", env!("CARGO_PKG_VERSION")))
+        .header(
+            "User-Agent",
+            concat!("webspec-index/", env!("CARGO_PKG_VERSION")),
+        )
         .header("Accept", "application/vnd.github+json")
         .send()
         .await?
         .error_for_status()
         .context(format!("Failed to fetch PR #{pr_number} from {repo}"))?;
     let json: serde_json::Value = resp.json().await?;
-    let body = json["body"]
-        .as_str()
-        .context("PR has no body")?;
+    let body = json["body"].as_str().context("PR has no body")?;
     parse_pr_body(pr_number, body)
 }
 
 /// Fetch all preview pages from whatpr.org for a PR and parse them.
-async fn fetch_pr_pages(preview: &PrPreview, spec_name: &str, base_url: &str) -> Result<ParsedSpec> {
+async fn fetch_pr_pages(
+    preview: &PrPreview,
+    spec_name: &str,
+    base_url: &str,
+) -> Result<ParsedSpec> {
     let mut parsed_pages = Vec::new();
     for page in &preview.pages {
-        eprintln!("Fetching PR #{} page: {}", preview.pr_number, page.page_path);
+        eprintln!(
+            "Fetching PR #{} page: {}",
+            preview.pr_number, page.page_path
+        );
         let html = super::fetch_raw_html(&page.url).await?;
         let parsed = parse::parse_spec(&html, spec_name, base_url)?;
         parsed_pages.push(parsed);
@@ -201,16 +225,16 @@ async fn fetch_pr_pages(preview: &PrPreview, spec_name: &str, base_url: &str) ->
 }
 
 /// Fetch the merge base spec from WHATWG commit snapshots.
-async fn fetch_merge_base(
-    spec_name: &str,
-    base_url: &str,
-    full_sha: &str,
-) -> Result<ParsedSpec> {
+async fn fetch_merge_base(spec_name: &str, base_url: &str, full_sha: &str) -> Result<ParsedSpec> {
     let host = base_url
         .trim_start_matches("https://")
         .trim_end_matches('/');
     let url = format!("https://{host}/commit-snapshots/{full_sha}/");
-    eprintln!("Fetching merge base {}: {}", spec_name, &url[..url.len().min(80)]);
+    eprintln!(
+        "Fetching merge base {}: {}",
+        spec_name,
+        &url[..url.len().min(80)]
+    );
     let html = super::fetch_raw_html(&url).await?;
     parse::parse_spec(&html, spec_name, base_url)
 }
@@ -242,7 +266,9 @@ pub async fn ensure_pr_indexed(
 
     // Fast path: if not forcing, check 24h freshness before hitting the GitHub API.
     if !force {
-        if let Some((pr_snap_id, stored_base_sha)) = queries::get_pr_snapshot(conn, spec_name, pr_number)? {
+        if let Some((pr_snap_id, stored_base_sha)) =
+            queries::get_pr_snapshot(conn, spec_name, pr_number)?
+        {
             if is_pr_snapshot_valid(conn, pr_snap_id) {
                 let indexed_at: String = conn.query_row(
                     "SELECT indexed_at FROM snapshots WHERE id = ?1",
@@ -252,7 +278,9 @@ pub async fn ensure_pr_indexed(
                 if let Ok(indexed) = chrono::DateTime::parse_from_rfc3339(&indexed_at) {
                     let indexed_utc = indexed.with_timezone(&chrono::Utc);
                     if super::is_fresh(&indexed_utc, &chrono::Utc::now()) {
-                        if let Some(base_snap_id) = queries::get_commit_snapshot(conn, spec_id, &stored_base_sha)? {
+                        if let Some(base_snap_id) =
+                            queries::get_commit_snapshot(conn, spec_id, &stored_base_sha)?
+                        {
                             return Ok((pr_snap_id, base_snap_id));
                         }
                     }
@@ -268,7 +296,9 @@ pub async fn ensure_pr_indexed(
     let preview = fetch_pr_preview(&repo, pr_number).await?;
 
     // Check if we already have this PR indexed with the same head SHA
-    if let Some((pr_snap_id, stored_base_sha)) = queries::get_pr_snapshot(conn, spec_name, pr_number)? {
+    if let Some((pr_snap_id, stored_base_sha)) =
+        queries::get_pr_snapshot(conn, spec_name, pr_number)?
+    {
         let pr_sha: String = conn.query_row(
             "SELECT sha FROM snapshots WHERE id = ?1",
             [pr_snap_id],
@@ -276,7 +306,9 @@ pub async fn ensure_pr_indexed(
         )?;
         if pr_sha.ends_with(&preview.head_sha) && is_pr_snapshot_valid(conn, pr_snap_id) {
             // Still fresh — find the merge base snapshot
-            if let Some(base_snap_id) = queries::get_commit_snapshot(conn, spec_id, &stored_base_sha)? {
+            if let Some(base_snap_id) =
+                queries::get_commit_snapshot(conn, spec_id, &stored_base_sha)?
+            {
                 return Ok((pr_snap_id, base_snap_id));
             }
         }
@@ -288,17 +320,18 @@ pub async fn ensure_pr_indexed(
     let full_base_sha = resolve_full_sha(&repo, &preview.merge_base_sha).await?;
 
     // Fetch or reuse merge base snapshot
-    let base_snap_id = if let Some(id) = queries::get_commit_snapshot(conn, spec_id, &full_base_sha)? {
-        id
-    } else {
-        let base_parsed = fetch_merge_base(spec_name, base_url, &full_base_sha).await?;
-        let commit_date = chrono::Utc::now().to_rfc3339();
-        let id = write::insert_snapshot(conn, spec_id, &full_base_sha, &commit_date)?;
-        write::insert_sections_bulk(conn, id, &base_parsed.sections)?;
-        write::insert_refs_bulk(conn, id, &base_parsed.references)?;
-        write::insert_idl_defs_bulk(conn, id, &base_parsed.idl_definitions)?;
-        id
-    };
+    let base_snap_id =
+        if let Some(id) = queries::get_commit_snapshot(conn, spec_id, &full_base_sha)? {
+            id
+        } else {
+            let base_parsed = fetch_merge_base(spec_name, base_url, &full_base_sha).await?;
+            let commit_date = chrono::Utc::now().to_rfc3339();
+            let id = write::insert_snapshot(conn, spec_id, &full_base_sha, &commit_date)?;
+            write::insert_sections_bulk(conn, id, &base_parsed.sections)?;
+            write::insert_refs_bulk(conn, id, &base_parsed.references)?;
+            write::insert_idl_defs_bulk(conn, id, &base_parsed.idl_definitions)?;
+            id
+        };
 
     // Fetch and parse PR pages
     let pr_parsed = fetch_pr_pages(&preview, spec_name, base_url).await?;
@@ -306,7 +339,13 @@ pub async fn ensure_pr_indexed(
     let commit_date = chrono::Utc::now().to_rfc3339();
     let page_paths: Vec<String> = preview.pages.iter().map(|p| p.page_path.clone()).collect();
     let pr_snap_id = write::insert_pr_snapshot(
-        conn, spec_id, &pr_sha, &commit_date, pr_number, &full_base_sha, &page_paths,
+        conn,
+        spec_id,
+        &pr_sha,
+        &commit_date,
+        pr_number,
+        &full_base_sha,
+        &page_paths,
     )?;
     write::insert_sections_bulk(conn, pr_snap_id, &pr_parsed.sections)?;
     write::insert_refs_bulk(conn, pr_snap_id, &pr_parsed.references)?;
@@ -344,7 +383,10 @@ mod tests {
         assert_eq!(preview.head_sha, "7ceff82");
         assert_eq!(preview.merge_base_sha, "74cbe0a");
         assert_eq!(preview.pages.len(), 4);
-        assert_eq!(preview.pages[0].page_path, "form-control-infrastructure.html");
+        assert_eq!(
+            preview.pages[0].page_path,
+            "form-control-infrastructure.html"
+        );
         assert_eq!(
             preview.pages[0].url,
             "https://whatpr.org/html/11741/form-control-infrastructure.html"
@@ -373,41 +415,65 @@ mod tests {
         use crate::db::write;
 
         let conn = db::open_test_db().unwrap();
-        let spec_id = write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+        let spec_id =
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
+                .unwrap();
 
         write::insert_pr_snapshot(
-            &conn, spec_id, "pr:99:deadbeef", "2026-01-01T00:00:00Z", 99, "basesha", &[],
-        ).unwrap();
+            &conn,
+            spec_id,
+            "pr:99:deadbeef",
+            "2026-01-01T00:00:00Z",
+            99,
+            "basesha",
+            &[],
+        )
+        .unwrap();
         write::insert_snapshot(&conn, spec_id, "basesha", "2026-01-01T00:00:00Z").unwrap();
 
-        let pr_snap_id: i64 = conn.query_row(
-            "SELECT id FROM snapshots WHERE sha = 'pr:99:deadbeef'",
-            [], |row| row.get(0),
-        ).unwrap();
+        let pr_snap_id: i64 = conn
+            .query_row(
+                "SELECT id FROM snapshots WHERE sha = 'pr:99:deadbeef'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert!(!is_pr_snapshot_valid(&conn, pr_snap_id));
     }
 
     #[test]
     fn test_merge_parsed_specs() {
-        use crate::model::{ParsedSpec, ParsedSection, ParsedReference, SectionType};
+        use crate::model::{ParsedReference, ParsedSection, ParsedSpec, SectionType};
 
         let spec1 = ParsedSpec {
             sections: vec![ParsedSection {
-                anchor: "sec-a".into(), title: Some("A".into()), content_text: None,
-                section_type: SectionType::Heading, parent_anchor: None,
-                prev_anchor: None, next_anchor: None, depth: Some(2),
+                anchor: "sec-a".into(),
+                title: Some("A".into()),
+                content_text: None,
+                section_type: SectionType::Heading,
+                parent_anchor: None,
+                prev_anchor: None,
+                next_anchor: None,
+                depth: Some(2),
             }],
             references: vec![],
             idl_definitions: vec![],
         };
         let spec2 = ParsedSpec {
             sections: vec![ParsedSection {
-                anchor: "sec-b".into(), title: Some("B".into()), content_text: None,
-                section_type: SectionType::Heading, parent_anchor: None,
-                prev_anchor: None, next_anchor: None, depth: Some(2),
+                anchor: "sec-b".into(),
+                title: Some("B".into()),
+                content_text: None,
+                section_type: SectionType::Heading,
+                parent_anchor: None,
+                prev_anchor: None,
+                next_anchor: None,
+                depth: Some(2),
             }],
             references: vec![ParsedReference {
-                from_anchor: "sec-b".into(), to_spec: "DOM".into(), to_anchor: "concept-tree".into(),
+                from_anchor: "sec-b".into(),
+                to_spec: "DOM".into(),
+                to_anchor: "concept-tree".into(),
             }],
             idl_definitions: vec![],
         };

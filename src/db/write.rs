@@ -513,15 +513,24 @@ mod tests {
             insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
 
         let snapshot_id = insert_pr_snapshot(
-            &conn, spec_id, "hash:abc123", "2026-01-01T00:00:00Z", 12345, "def456full", &[],
-        ).unwrap();
+            &conn,
+            spec_id,
+            "hash:abc123",
+            "2026-01-01T00:00:00Z",
+            12345,
+            "def456full",
+            &[],
+        )
+        .unwrap();
         assert!(snapshot_id > 0);
 
-        let (pr, base): (Option<i64>, Option<String>) = conn.query_row(
-            "SELECT pr_number, merge_base_sha FROM snapshots WHERE id = ?1",
-            [snapshot_id],
-            |row| Ok((row.get(0)?, row.get(1)?)),
-        ).unwrap();
+        let (pr, base): (Option<i64>, Option<String>) = conn
+            .query_row(
+                "SELECT pr_number, merge_base_sha FROM snapshots WHERE id = ?1",
+                [snapshot_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
         assert_eq!(pr, Some(12345));
         assert_eq!(base.as_deref(), Some("def456full"));
     }
@@ -534,35 +543,70 @@ mod tests {
 
         // Insert trunk snapshot
         let trunk_id = insert_snapshot(&conn, spec_id, "trunk1", "2026-01-01T00:00:00Z").unwrap();
-        insert_sections_bulk(&conn, trunk_id, &[ParsedSection {
-            anchor: "intro".into(), title: Some("Intro".into()), content_text: None,
-            section_type: SectionType::Heading, parent_anchor: None,
-            prev_anchor: None, next_anchor: None, depth: Some(2),
-        }]).unwrap();
+        insert_sections_bulk(
+            &conn,
+            trunk_id,
+            &[ParsedSection {
+                anchor: "intro".into(),
+                title: Some("Intro".into()),
+                content_text: None,
+                section_type: SectionType::Heading,
+                parent_anchor: None,
+                prev_anchor: None,
+                next_anchor: None,
+                depth: Some(2),
+            }],
+        )
+        .unwrap();
 
         // Insert PR snapshot
-        let pr_id = insert_pr_snapshot(&conn, spec_id, "pr1", "2026-01-01T00:00:00Z", 123, "base1", &[]).unwrap();
-        insert_sections_bulk(&conn, pr_id, &[ParsedSection {
-            anchor: "new-section".into(), title: Some("New".into()), content_text: None,
-            section_type: SectionType::Heading, parent_anchor: None,
-            prev_anchor: None, next_anchor: None, depth: Some(2),
-        }]).unwrap();
+        let pr_id = insert_pr_snapshot(
+            &conn,
+            spec_id,
+            "pr1",
+            "2026-01-01T00:00:00Z",
+            123,
+            "base1",
+            &[],
+        )
+        .unwrap();
+        insert_sections_bulk(
+            &conn,
+            pr_id,
+            &[ParsedSection {
+                anchor: "new-section".into(),
+                title: Some("New".into()),
+                content_text: None,
+                section_type: SectionType::Heading,
+                parent_anchor: None,
+                prev_anchor: None,
+                next_anchor: None,
+                depth: Some(2),
+            }],
+        )
+        .unwrap();
 
         // Delete only PR data
         delete_pr_data(&conn, spec_id, 123).unwrap();
 
         // Trunk still exists
-        let trunk_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM snapshots WHERE spec_id = ?1 AND pr_number IS NULL",
-            [spec_id], |row| row.get(0),
-        ).unwrap();
+        let trunk_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM snapshots WHERE spec_id = ?1 AND pr_number IS NULL",
+                [spec_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(trunk_count, 1);
 
         // PR is gone
-        let pr_count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM snapshots WHERE spec_id = ?1 AND pr_number = 123",
-            [spec_id], |row| row.get(0),
-        ).unwrap();
+        let pr_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM snapshots WHERE spec_id = ?1 AND pr_number = 123",
+                [spec_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(pr_count, 0);
     }
 
@@ -575,15 +619,27 @@ mod tests {
         // Insert trunk (hash: prefix), commit snapshot (real SHA), and PR snapshot
         insert_snapshot(&conn, spec_id, "hash:abc123", "2026-01-01T00:00:00Z").unwrap();
         insert_snapshot(&conn, spec_id, "74cbe0af38fee8a0", "2026-01-01T00:00:00Z").unwrap();
-        insert_pr_snapshot(&conn, spec_id, "pr:123:def", "2026-01-01T00:00:00Z", 123, "74cbe0af38fee8a0", &[]).unwrap();
+        insert_pr_snapshot(
+            &conn,
+            spec_id,
+            "pr:123:def",
+            "2026-01-01T00:00:00Z",
+            123,
+            "74cbe0af38fee8a0",
+            &[],
+        )
+        .unwrap();
 
         // delete_spec_data should only delete trunk (hash: prefix)
         delete_spec_data(&conn, spec_id).unwrap();
 
-        let total: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM snapshots WHERE spec_id = ?1",
-            [spec_id], |row| row.get(0),
-        ).unwrap();
+        let total: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM snapshots WHERE spec_id = ?1",
+                [spec_id],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(total, 2); // PR snapshot + commit snapshot remain
     }
 

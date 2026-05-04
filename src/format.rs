@@ -451,7 +451,9 @@ pub fn pr_diff(result: &PrDiffResult) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{NavEntry, Navigation, PrDiffEntry, PrDiffResult, PrDiffSummary, RefEntry, RefsMatch};
+    use crate::model::{
+        NavEntry, Navigation, PrDiffEntry, PrDiffResult, PrDiffSummary, RefEntry, RefsMatch,
+    };
 
     #[test]
     fn test_query_format_minimal() {
@@ -708,7 +710,11 @@ mod tests {
             pr_number: 123,
             head_sha: "pr:123:abc".to_string(),
             merge_base_sha: "def456".to_string(),
-            summary: PrDiffSummary { added: 1, removed: 0, modified: 1 },
+            summary: PrDiffSummary {
+                added: 1,
+                removed: 0,
+                modified: 1,
+            },
             changes: vec![
                 PrDiffEntry {
                     anchor: "sec-a".to_string(),
