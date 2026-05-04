@@ -310,6 +310,94 @@ pub async fn check_exists(
     })
 }
 
+fn find_anchors_sql(
+    conn: &Connection,
+    sql_pattern: &str,
+    spec: Option<&str>,
+    snapshot_ids: Option<(i64, i64)>,
+    limit: u32,
+) -> Result<Vec<(String, String, Option<String>, String)>> {
+    if let Some((pr_snap, base_snap)) = snapshot_ids {
+        let mut stmt = conn.prepare(
+            "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
+             JOIN snapshots sn ON s.snapshot_id = sn.id
+             JOIN specs sp ON sn.spec_id = sp.id
+             WHERE s.anchor LIKE ?1 AND sn.id IN (?2, ?3)
+             LIMIT ?4",
+        )?;
+        let rows = stmt
+            .query_map((sql_pattern, pr_snap, base_snap, limit), |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    } else if let Some(spec_name) = spec {
+        let mut stmt = conn.prepare(
+            "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
+             JOIN snapshots sn ON s.snapshot_id = sn.id
+             JOIN specs sp ON sn.spec_id = sp.id
+             WHERE s.anchor LIKE ?1 AND sp.name = ?2 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'
+             LIMIT ?3",
+        )?;
+        let rows = stmt
+            .query_map((sql_pattern, spec_name, limit), |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    } else {
+        let mut stmt = conn.prepare(
+            "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
+             JOIN snapshots sn ON s.snapshot_id = sn.id
+             JOIN specs sp ON sn.spec_id = sp.id
+             WHERE s.anchor LIKE ?1 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'
+             LIMIT ?2",
+        )?;
+        let rows = stmt
+            .query_map((sql_pattern, limit), |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+}
+
+fn search_sections_pr(
+    conn: &Connection,
+    query: &str,
+    pr_snap: i64,
+    base_snap: i64,
+    limit: u32,
+) -> Result<Vec<model::SearchEntry>> {
+    let mut stmt = conn.prepare(
+        "SELECT s.anchor, sp.name, s.title, s.section_type,
+                snippet(sections_fts, 2, '<mark>', '</mark>', '...', 64)
+         FROM sections_fts
+         JOIN sections s ON sections_fts.rowid = s.id
+         JOIN snapshots sn ON s.snapshot_id = sn.id
+         JOIN specs sp ON sn.spec_id = sp.id
+         WHERE sections_fts MATCH ?1 AND sn.id IN (?2, ?3)
+         LIMIT ?4",
+    )?;
+    let mut seen = HashSet::new();
+    let rows = stmt
+        .query_map((query, pr_snap, base_snap, limit), |row| {
+            Ok(model::SearchEntry {
+                anchor: row.get(0)?,
+                spec: row.get(1)?,
+                title: row.get(2)?,
+                section_type: row.get(3)?,
+                snippet: row.get::<_, Option<String>>(4)?.unwrap_or_default(),
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    // Deduplicate: PR snapshot sections override merge base
+    Ok(rows
+        .into_iter()
+        .filter(|e| seen.insert(e.anchor.clone()))
+        .collect())
+}
+
 /// Find anchors matching a glob pattern
 ///
 /// # Arguments
@@ -319,49 +407,53 @@ pub async fn check_exists(
 ///
 /// # Returns
 /// `AnchorsResult` with matching anchors
-pub fn find_anchors(pattern: &str, spec: Option<&str>, limit: u32) -> Result<model::AnchorsResult> {
+pub async fn find_anchors(
+    pattern: &str,
+    spec: Option<&str>,
+    limit: u32,
+    pr: Option<&model::PrOpts>,
+) -> Result<model::AnchorsResult> {
     let conn = db::open_or_create_db()?;
-
-    // Convert glob pattern to SQL LIKE pattern
     let sql_pattern = pattern.replace('*', "%");
 
-    // Find matching anchors
-    let sql = if spec.is_some() {
-        "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
-         JOIN snapshots sn ON s.snapshot_id = sn.id
-         JOIN specs sp ON sn.spec_id = sp.id
-         WHERE s.anchor LIKE ?1 AND sp.name = ?2 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'          LIMIT ?3"
-    } else {
-        "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
-         JOIN snapshots sn ON s.snapshot_id = sn.id
-         JOIN specs sp ON sn.spec_id = sp.id
-         WHERE s.anchor LIKE ?1 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'          LIMIT ?2"
-    };
-
-    let mut stmt = conn.prepare(sql)?;
-    let results: Vec<(String, String, Option<String>, String)> = if let Some(spec_name) = spec {
-        stmt.query_map((&sql_pattern, spec_name, limit), |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-        })?
-        .collect::<Result<Vec<_>, _>>()?
-    } else {
-        stmt.query_map((&sql_pattern, limit), |row| {
-            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
-        })?
-        .collect::<Result<Vec<_>, _>>()?
-    };
-
-    // Convert to AnchorEntry format
-    let entries: Vec<model::AnchorEntry> = results
-        .iter()
-        .map(
-            |(anchor, spec_name, title, section_type)| model::AnchorEntry {
-                spec: spec_name.clone(),
-                anchor: anchor.clone(),
-                title: title.clone(),
-                section_type: section_type.clone(),
-            },
+    let snapshot_ids = if let Some(pr_opts) = pr {
+        let spec_name = spec.context("--pr requires --spec for anchor search")?;
+        let registry = spec_registry::SpecRegistry::new();
+        let (canonical_name, base_url, provider) =
+            resolve_spec_metadata(&conn, &registry, spec_name, None)?;
+        let _ = ensure_indexed_for_spec_name(&conn, &registry, spec_name, None).await?;
+        let (pr_snap, base_snap) = fetch::whatpr::ensure_pr_indexed(
+            &conn,
+            &canonical_name,
+            &base_url,
+            &provider,
+            pr_opts.pr_number,
+            pr_opts.force_update,
         )
+        .await?;
+        Some((pr_snap, base_snap))
+    } else {
+        None
+    };
+
+    let results: Vec<(String, String, Option<String>, String)> =
+        if let Some((pr_snap, base_snap)) = snapshot_ids {
+            find_anchors_sql(&conn, &sql_pattern, None, Some((pr_snap, base_snap)), limit)?
+        } else {
+            find_anchors_sql(&conn, &sql_pattern, spec, None, limit)?
+        };
+
+    // Deduplicate by anchor (PR snapshot may overlap with merge base)
+    let mut seen = HashSet::new();
+    let entries: Vec<model::AnchorEntry> = results
+        .into_iter()
+        .filter(|(anchor, _, _, _)| seen.insert(anchor.clone()))
+        .map(|(anchor, spec_name, title, section_type)| model::AnchorEntry {
+            spec: spec_name,
+            anchor,
+            title,
+            section_type,
+        })
         .collect();
 
     Ok(model::AnchorsResult {
@@ -379,18 +471,48 @@ pub fn find_anchors(pattern: &str, spec: Option<&str>, limit: u32) -> Result<mod
 ///
 /// # Returns
 /// `SearchResult` with matching sections and snippets
-pub fn search_sections(query: &str, spec: Option<&str>, limit: u32) -> Result<model::SearchResult> {
+pub async fn search_sections(
+    query: &str,
+    spec: Option<&str>,
+    limit: u32,
+    pr: Option<&model::PrOpts>,
+) -> Result<model::SearchResult> {
     let conn = db::open_or_create_db()?;
-    let entries = match search_sections_fts(&conn, query, spec, limit) {
-        Ok(entries) => entries,
-        Err(err) if is_fts_syntax_error(&err) => {
-            if let Some(sanitized) = sanitize_for_fts(query) {
-                search_sections_fts(&conn, &sanitized, spec, limit)?
-            } else {
-                vec![]
+
+    let snapshot_ids = if let Some(pr_opts) = pr {
+        let spec_name = spec.context("--pr requires --spec for search")?;
+        let registry = spec_registry::SpecRegistry::new();
+        let (canonical_name, base_url, provider) =
+            resolve_spec_metadata(&conn, &registry, spec_name, None)?;
+        let _ = ensure_indexed_for_spec_name(&conn, &registry, spec_name, None).await?;
+        let (pr_snap, base_snap) = fetch::whatpr::ensure_pr_indexed(
+            &conn,
+            &canonical_name,
+            &base_url,
+            &provider,
+            pr_opts.pr_number,
+            pr_opts.force_update,
+        )
+        .await?;
+        Some((pr_snap, base_snap))
+    } else {
+        None
+    };
+
+    let entries = if let Some((pr_snap, base_snap)) = snapshot_ids {
+        search_sections_pr(&conn, query, pr_snap, base_snap, limit)?
+    } else {
+        match search_sections_fts(&conn, query, spec, limit) {
+            Ok(entries) => entries,
+            Err(err) if is_fts_syntax_error(&err) => {
+                if let Some(sanitized) = sanitize_for_fts(query) {
+                    search_sections_fts(&conn, &sanitized, spec, limit)?
+                } else {
+                    vec![]
+                }
             }
+            Err(err) => return Err(err.into()),
         }
-        Err(err) => return Err(err.into()),
     };
 
     Ok(model::SearchResult {

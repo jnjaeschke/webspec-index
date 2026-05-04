@@ -114,6 +114,12 @@ enum Command {
 
         #[arg(long, short, default_value = "20", help = "Maximum number of results")]
         limit: u32,
+
+        #[arg(long, help = "Search within a WHATWG PR preview (requires --spec)")]
+        pr: Option<i64>,
+
+        #[arg(long, help = "Force re-fetch of PR preview data")]
+        force_update: bool,
     },
 
     /// Check if a section exists (exit code 0 = found, 1 = not found)
@@ -144,6 +150,12 @@ enum Command {
 
         #[arg(long, short, default_value = "50", help = "Maximum number of results")]
         limit: u32,
+
+        #[arg(long, help = "Search within a WHATWG PR preview (requires --spec)")]
+        pr: Option<i64>,
+
+        #[arg(long, help = "Force re-fetch of PR preview data")]
+        force_update: bool,
     },
 
     /// List all headings in a specification
@@ -410,9 +422,9 @@ fn print_llm_help() {
     print!(
         r#"webspec-index: Query WHATWG/W3C/TC39 web specifications
 query <SPEC#anchor|URL> [--pr N] [--diff] [--format json|markdown]
-search <Q> [-s SPEC] [-l N(20)] [--format json|markdown]
+search <Q> [-s SPEC] [-l N(20)] [--pr N (requires -s)] [--format json|markdown]
 exists <SPEC#anchor|URL> [--pr N] exit:0=found,1=not
-anchors <GLOB> [-s SPEC] [-l N(50)]
+anchors <GLOB> [-s SPEC] [-l N(50)] [--pr N (requires -s)]
 list <SPEC> [--pr N]
 refs <SPEC#anchor|TARGET> [-d incoming|outgoing|both(default)] [-l N(10)] [--pr N]
 update [-s SPEC] [-f force]
@@ -497,8 +509,20 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::Search { query, spec, limit } => {
-            let result = webspec_index::search_sections(&query, spec.as_deref(), limit)?;
+        Command::Search {
+            query,
+            spec,
+            limit,
+            pr,
+            force_update,
+        } => {
+            let pr_opts = pr.map(|n| model::PrOpts {
+                pr_number: n,
+                force_update,
+            });
+            let result =
+                webspec_index::search_sections(&query, spec.as_deref(), limit, pr_opts.as_ref())
+                    .await?;
             print_output(&cli.format, &result, format::search);
             Ok(ExitCode::SUCCESS)
         }
@@ -526,8 +550,16 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             pattern,
             spec,
             limit,
+            pr,
+            force_update,
         } => {
-            let result = webspec_index::find_anchors(&pattern, spec.as_deref(), limit)?;
+            let pr_opts = pr.map(|n| model::PrOpts {
+                pr_number: n,
+                force_update,
+            });
+            let result =
+                webspec_index::find_anchors(&pattern, spec.as_deref(), limit, pr_opts.as_ref())
+                    .await?;
             print_output(&cli.format, &result, format::anchors);
             Ok(ExitCode::SUCCESS)
         }
