@@ -1,6 +1,7 @@
 // Fetch orchestration: coordinate HTML fetching, parsing, and database writes
 pub mod github;
 pub mod snapshot;
+pub mod whatpr;
 
 use crate::db::{queries, write};
 use crate::parse;
@@ -90,7 +91,7 @@ async fn render_via_spec_generator(url: &str) -> Result<String> {
     Ok(html)
 }
 
-async fn fetch_raw_html(url: &str) -> Result<String> {
+pub(crate) async fn fetch_raw_html(url: &str) -> Result<String> {
     let client = reqwest::Client::new();
     let response = client
         .get(url)
