@@ -383,17 +383,20 @@ pub fn idl(result: &IdlResult) -> String {
     md
 }
 
-/// Format a PrDiffResult as markdown
+/// Format a PrDiffResult as markdown with unified diffs per section
 pub fn pr_diff(result: &PrDiffResult) -> String {
+    use similar::TextDiff;
+
     let mut out = String::new();
     out.push_str(&format!(
-        "# {} PR #{} diff\n\nHead: {} | Base: {}\n\n",
+        "# {} PR #{} diff\n\nHead: `{}` | Base: `{}`\n\n",
         result.spec, result.pr_number, result.head_sha, result.merge_base_sha
     ));
     out.push_str(&format!(
         "**Summary:** {} added, {} removed, {} modified\n\n",
         result.summary.added, result.summary.removed, result.summary.modified
     ));
+
     for change in &result.changes {
         let title = change.title.as_deref().unwrap_or("(untitled)");
         let icon = match change.change_type.as_str() {
@@ -402,15 +405,53 @@ pub fn pr_diff(result: &PrDiffResult) -> String {
             "modified" => "~",
             _ => "?",
         };
-        out.push_str(&format!("  {} [{}] #{} — {}\n", icon, change.change_type, change.anchor, title));
+        out.push_str(&format!(
+            "## {}{} `#{}` — {}\n\n",
+            icon, change.change_type, change.anchor, title
+        ));
+
+        match change.change_type.as_str() {
+            "added" => {
+                if let Some(content) = &change.new_content {
+                    out.push_str("```\n");
+                    out.push_str(content);
+                    if !content.ends_with('\n') {
+                        out.push('\n');
+                    }
+                    out.push_str("```\n\n");
+                }
+            }
+            "removed" => {
+                if let Some(content) = &change.old_content {
+                    out.push_str("```\n");
+                    out.push_str(content);
+                    if !content.ends_with('\n') {
+                        out.push('\n');
+                    }
+                    out.push_str("```\n\n");
+                }
+            }
+            "modified" => {
+                let old = change.old_content.as_deref().unwrap_or("");
+                let new = change.new_content.as_deref().unwrap_or("");
+                let diff = TextDiff::from_lines(old, new);
+                out.push_str("```diff\n");
+                for hunk in diff.unified_diff().context_radius(2).iter_hunks() {
+                    out.push_str(&format!("{hunk}"));
+                }
+                out.push_str("```\n\n");
+            }
+            _ => {}
+        }
     }
+
     out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{NavEntry, Navigation, RefEntry, RefsMatch};
+    use crate::model::{NavEntry, Navigation, PrDiffEntry, PrDiffResult, PrDiffSummary, RefEntry, RefsMatch};
 
     #[test]
     fn test_query_format_minimal() {
@@ -658,5 +699,39 @@ mod tests {
         let md = refs(&result);
         assert!(md.contains("# refs: `HTML#orphan`"));
         assert!(md.contains("No matches found"));
+    }
+
+    #[test]
+    fn test_pr_diff_markdown_shows_unified_diff() {
+        let result = PrDiffResult {
+            spec: "HTML".to_string(),
+            pr_number: 123,
+            head_sha: "pr:123:abc".to_string(),
+            merge_base_sha: "def456".to_string(),
+            summary: PrDiffSummary { added: 1, removed: 0, modified: 1 },
+            changes: vec![
+                PrDiffEntry {
+                    anchor: "sec-a".to_string(),
+                    title: Some("Section A".to_string()),
+                    change_type: "modified".to_string(),
+                    old_content: Some("Line one\nLine two\nLine three".to_string()),
+                    new_content: Some("Line one\nLine TWO modified\nLine three".to_string()),
+                },
+                PrDiffEntry {
+                    anchor: "sec-b".to_string(),
+                    title: Some("Section B".to_string()),
+                    change_type: "added".to_string(),
+                    old_content: None,
+                    new_content: Some("Brand new content".to_string()),
+                },
+            ],
+        };
+
+        let md = pr_diff(&result);
+        assert!(md.contains("## ~modified `#sec-a` — Section A"));
+        assert!(md.contains("-Line two"));
+        assert!(md.contains("+Line TWO modified"));
+        assert!(md.contains("## +added `#sec-b` — Section B"));
+        assert!(md.contains("Brand new content"));
     }
 }
