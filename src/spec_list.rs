@@ -210,6 +210,28 @@ fn collect_standalone(groups_dir: &Path) -> Result<Vec<SpecEntry>> {
     Ok(entries)
 }
 
+fn resolve_collisions(entries: &mut [SpecEntry]) {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for e in entries.iter() {
+        *counts.entry(e.name.clone()).or_insert(0) += 1;
+    }
+    for e in entries.iter_mut() {
+        if counts[&e.name] > 1 {
+            let org = e.github_repo.split('/').next().unwrap_or("").to_uppercase();
+            e.name = format!("{}-{}", e.name, org);
+        }
+    }
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    for e in entries.iter() {
+        *counts.entry(e.name.clone()).or_insert(0) += 1;
+    }
+    for e in entries.iter_mut() {
+        if counts[&e.name] > 1 {
+            e.name = e.github_repo.replace('/', "-").to_uppercase();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -417,29 +439,6 @@ mod tests {
                 s.name,
                 s.base_url
             );
-        }
-    }
-}
-
-fn resolve_collisions(entries: &mut [SpecEntry]) {
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    for e in entries.iter() {
-        *counts.entry(e.name.clone()).or_insert(0) += 1;
-    }
-    for e in entries.iter_mut() {
-        if counts[&e.name] > 1 {
-            let org = e.github_repo.split('/').next().unwrap_or("").to_uppercase();
-            e.name = format!("{}-{}", e.name, org);
-        }
-    }
-    // Second pass for remaining collisions
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    for e in entries.iter() {
-        *counts.entry(e.name.clone()).or_insert(0) += 1;
-    }
-    for e in entries.iter_mut() {
-        if counts[&e.name] > 1 {
-            e.name = e.github_repo.replace('/', "-").to_uppercase();
         }
     }
 }

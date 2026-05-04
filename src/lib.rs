@@ -310,13 +310,15 @@ pub async fn check_exists(
     })
 }
 
+type AnchorRow = (String, String, Option<String>, String);
+
 fn find_anchors_sql(
     conn: &Connection,
     sql_pattern: &str,
     spec: Option<&str>,
     snapshot_ids: Option<(i64, i64)>,
     limit: u32,
-) -> Result<Vec<(String, String, Option<String>, String)>> {
+) -> Result<Vec<AnchorRow>> {
     if let Some((pr_snap, base_snap)) = snapshot_ids {
         let mut stmt = conn.prepare(
             "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
@@ -448,12 +450,14 @@ pub async fn find_anchors(
     let entries: Vec<model::AnchorEntry> = results
         .into_iter()
         .filter(|(anchor, _, _, _)| seen.insert(anchor.clone()))
-        .map(|(anchor, spec_name, title, section_type)| model::AnchorEntry {
-            spec: spec_name,
-            anchor,
-            title,
-            section_type,
-        })
+        .map(
+            |(anchor, spec_name, title, section_type)| model::AnchorEntry {
+                spec: spec_name,
+                anchor,
+                title,
+                section_type,
+            },
+        )
         .collect();
 
     Ok(model::AnchorsResult {
