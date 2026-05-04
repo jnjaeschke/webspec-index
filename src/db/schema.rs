@@ -31,6 +31,7 @@ pub fn initialize_schema(conn: &Connection) -> Result<()> {
             is_latest   INTEGER NOT NULL DEFAULT 0,
             pr_number   INTEGER,
             merge_base_sha TEXT,
+            pr_pages    TEXT,
             UNIQUE(spec_id, sha)
         );
 
@@ -142,6 +143,7 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
     ensure_column(conn, "update_checks", "content_hash", "TEXT")?;
     ensure_column(conn, "snapshots", "pr_number", "INTEGER")?;
     ensure_column(conn, "snapshots", "merge_base_sha", "TEXT")?;
+    ensure_column(conn, "snapshots", "pr_pages", "TEXT")?;
     Ok(())
 }
 
@@ -259,5 +261,29 @@ mod tests {
             |row| row.get(0),
         ).unwrap();
         assert_eq!(pr, None);
+    }
+
+    #[test]
+    fn test_pr_pages_column_migration() {
+        let conn = Connection::open_in_memory().unwrap();
+        initialize_schema(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+
+        conn.execute(
+            "INSERT INTO specs (name, base_url, provider) VALUES ('TEST', 'https://test', 'test')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO snapshots (spec_id, sha, commit_date, indexed_at, pr_number, merge_base_sha, pr_pages)
+             VALUES (1, 'abc', '2026-01-01', '2026-01-01', 123, 'def', 'page1.html,page2.html')",
+            [],
+        ).unwrap();
+
+        let pages: Option<String> = conn.query_row(
+            "SELECT pr_pages FROM snapshots WHERE sha = 'abc'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(pages.as_deref(), Some("page1.html,page2.html"));
     }
 }

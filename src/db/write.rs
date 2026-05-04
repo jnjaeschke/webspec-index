@@ -174,7 +174,7 @@ pub fn insert_idl_defs_bulk(
 }
 
 /// Insert a PR snapshot, returning its ID.
-/// Sets pr_number and merge_base_sha in addition to the standard snapshot fields.
+/// Sets pr_number, merge_base_sha, and pr_pages in addition to the standard snapshot fields.
 pub fn insert_pr_snapshot(
     conn: &Connection,
     spec_id: i64,
@@ -182,12 +182,14 @@ pub fn insert_pr_snapshot(
     commit_date: &str,
     pr_number: i64,
     merge_base_sha: &str,
+    pr_pages: &[String],
 ) -> Result<i64> {
     let indexed_at = chrono::Utc::now().to_rfc3339();
+    let pages_str = pr_pages.join(",");
     conn.execute(
-        "INSERT OR REPLACE INTO snapshots (spec_id, sha, commit_date, indexed_at, pr_number, merge_base_sha)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        (spec_id, sha, commit_date, &indexed_at, pr_number, merge_base_sha),
+        "INSERT OR REPLACE INTO snapshots (spec_id, sha, commit_date, indexed_at, pr_number, merge_base_sha, pr_pages)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        (spec_id, sha, commit_date, &indexed_at, pr_number, merge_base_sha, &pages_str),
     )?;
     Ok(conn.last_insert_rowid())
 }
@@ -511,7 +513,7 @@ mod tests {
             insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
 
         let snapshot_id = insert_pr_snapshot(
-            &conn, spec_id, "hash:abc123", "2026-01-01T00:00:00Z", 12345, "def456full",
+            &conn, spec_id, "hash:abc123", "2026-01-01T00:00:00Z", 12345, "def456full", &[],
         ).unwrap();
         assert!(snapshot_id > 0);
 
@@ -539,7 +541,7 @@ mod tests {
         }]).unwrap();
 
         // Insert PR snapshot
-        let pr_id = insert_pr_snapshot(&conn, spec_id, "pr1", "2026-01-01T00:00:00Z", 123, "base1").unwrap();
+        let pr_id = insert_pr_snapshot(&conn, spec_id, "pr1", "2026-01-01T00:00:00Z", 123, "base1", &[]).unwrap();
         insert_sections_bulk(&conn, pr_id, &[ParsedSection {
             anchor: "new-section".into(), title: Some("New".into()), content_text: None,
             section_type: SectionType::Heading, parent_anchor: None,
@@ -573,7 +575,7 @@ mod tests {
         // Insert trunk (hash: prefix), commit snapshot (real SHA), and PR snapshot
         insert_snapshot(&conn, spec_id, "hash:abc123", "2026-01-01T00:00:00Z").unwrap();
         insert_snapshot(&conn, spec_id, "74cbe0af38fee8a0", "2026-01-01T00:00:00Z").unwrap();
-        insert_pr_snapshot(&conn, spec_id, "pr:123:def", "2026-01-01T00:00:00Z", 123, "74cbe0af38fee8a0").unwrap();
+        insert_pr_snapshot(&conn, spec_id, "pr:123:def", "2026-01-01T00:00:00Z", 123, "74cbe0af38fee8a0", &[]).unwrap();
 
         // delete_spec_data should only delete trunk (hash: prefix)
         delete_spec_data(&conn, spec_id).unwrap();

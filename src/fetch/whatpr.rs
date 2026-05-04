@@ -215,6 +215,16 @@ async fn fetch_merge_base(
     parse::parse_spec(&html, spec_name, base_url)
 }
 
+fn is_pr_snapshot_valid(conn: &Connection, snapshot_id: i64) -> bool {
+    conn.query_row(
+        "SELECT COUNT(*) FROM sections WHERE snapshot_id = ?1",
+        [snapshot_id],
+        |row| row.get::<_, i64>(0),
+    )
+    .map(|count| count > 0)
+    .unwrap_or(false)
+}
+
 /// Ensure a PR snapshot is indexed and fresh.
 ///
 /// Returns (pr_snapshot_id, merge_base_snapshot_id).
@@ -233,16 +243,18 @@ pub async fn ensure_pr_indexed(
     // Fast path: if not forcing, check 24h freshness before hitting the GitHub API.
     if !force {
         if let Some((pr_snap_id, stored_base_sha)) = queries::get_pr_snapshot(conn, spec_name, pr_number)? {
-            let indexed_at: String = conn.query_row(
-                "SELECT indexed_at FROM snapshots WHERE id = ?1",
-                [pr_snap_id],
-                |row| row.get(0),
-            )?;
-            if let Ok(indexed) = chrono::DateTime::parse_from_rfc3339(&indexed_at) {
-                let indexed_utc = indexed.with_timezone(&chrono::Utc);
-                if super::is_fresh(&indexed_utc, &chrono::Utc::now()) {
-                    if let Some(base_snap_id) = queries::get_commit_snapshot(conn, spec_id, &stored_base_sha)? {
-                        return Ok((pr_snap_id, base_snap_id));
+            if is_pr_snapshot_valid(conn, pr_snap_id) {
+                let indexed_at: String = conn.query_row(
+                    "SELECT indexed_at FROM snapshots WHERE id = ?1",
+                    [pr_snap_id],
+                    |row| row.get(0),
+                )?;
+                if let Ok(indexed) = chrono::DateTime::parse_from_rfc3339(&indexed_at) {
+                    let indexed_utc = indexed.with_timezone(&chrono::Utc);
+                    if super::is_fresh(&indexed_utc, &chrono::Utc::now()) {
+                        if let Some(base_snap_id) = queries::get_commit_snapshot(conn, spec_id, &stored_base_sha)? {
+                            return Ok((pr_snap_id, base_snap_id));
+                        }
                     }
                 }
             }
@@ -262,7 +274,7 @@ pub async fn ensure_pr_indexed(
             [pr_snap_id],
             |row| row.get(0),
         )?;
-        if pr_sha.ends_with(&preview.head_sha) {
+        if pr_sha.ends_with(&preview.head_sha) && is_pr_snapshot_valid(conn, pr_snap_id) {
             // Still fresh — find the merge base snapshot
             if let Some(base_snap_id) = queries::get_commit_snapshot(conn, spec_id, &stored_base_sha)? {
                 return Ok((pr_snap_id, base_snap_id));
@@ -292,8 +304,9 @@ pub async fn ensure_pr_indexed(
     let pr_parsed = fetch_pr_pages(&preview, spec_name, base_url).await?;
     let pr_sha = format!("pr:{}:{}", pr_number, preview.head_sha);
     let commit_date = chrono::Utc::now().to_rfc3339();
+    let page_paths: Vec<String> = preview.pages.iter().map(|p| p.page_path.clone()).collect();
     let pr_snap_id = write::insert_pr_snapshot(
-        conn, spec_id, &pr_sha, &commit_date, pr_number, &full_base_sha,
+        conn, spec_id, &pr_sha, &commit_date, pr_number, &full_base_sha, &page_paths,
     )?;
     write::insert_sections_bulk(conn, pr_snap_id, &pr_parsed.sections)?;
     write::insert_refs_bulk(conn, pr_snap_id, &pr_parsed.references)?;
@@ -352,6 +365,26 @@ mod tests {
             extract_merge_base_from_diff_url(url),
             Some("74cbe0a".to_string())
         );
+    }
+
+    #[test]
+    fn test_empty_pr_snapshot_not_treated_as_cached() {
+        use crate::db;
+        use crate::db::write;
+
+        let conn = db::open_test_db().unwrap();
+        let spec_id = write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+
+        write::insert_pr_snapshot(
+            &conn, spec_id, "pr:99:deadbeef", "2026-01-01T00:00:00Z", 99, "basesha", &[],
+        ).unwrap();
+        write::insert_snapshot(&conn, spec_id, "basesha", "2026-01-01T00:00:00Z").unwrap();
+
+        let pr_snap_id: i64 = conn.query_row(
+            "SELECT id FROM snapshots WHERE sha = 'pr:99:deadbeef'",
+            [], |row| row.get(0),
+        ).unwrap();
+        assert!(!is_pr_snapshot_valid(&conn, pr_snap_id));
     }
 
     #[test]

@@ -70,6 +70,18 @@ pub fn get_commit_snapshot(
     }
 }
 
+/// Get the list of page paths stored for a PR snapshot.
+pub fn get_pr_pages(conn: &Connection, snapshot_id: i64) -> Result<Vec<String>> {
+    let pages: Option<String> = conn.query_row(
+        "SELECT pr_pages FROM snapshots WHERE id = ?1",
+        [snapshot_id],
+        |row| row.get(0),
+    )?;
+    Ok(pages
+        .map(|s| s.split(',').filter(|p| !p.is_empty()).map(|p| p.to_string()).collect())
+        .unwrap_or_default())
+}
+
 /// Get the snapshot for a spec by name (each spec has at most one snapshot)
 pub fn get_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<i64>> {
     let result = conn.query_row(
@@ -383,6 +395,18 @@ pub fn list_headings(conn: &Connection, snapshot_id: i64) -> Result<Vec<ParsedSe
     Ok(sections)
 }
 
+fn normalize_content(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn content_eq(a: Option<&str>, b: Option<&str>) -> bool {
+    match (a, b) {
+        (None, None) => true,
+        (Some(a), Some(b)) => normalize_content(a) == normalize_content(b),
+        _ => false,
+    }
+}
+
 /// Compute a diff between a PR snapshot and its merge base snapshot.
 /// Returns entries for sections that were added or modified in the PR.
 pub fn compute_pr_diff(
@@ -404,7 +428,7 @@ pub fn compute_pr_diff(
     for (anchor, (title, new_content)) in &pr_sections {
         match get_section(conn, base_snapshot_id, anchor)? {
             Some(base_section) => {
-                if base_section.content_text.as_deref() != new_content.as_deref() {
+                if !content_eq(base_section.content_text.as_deref(), new_content.as_deref()) {
                     diffs.push(PrDiffEntry {
                         anchor: anchor.clone(),
                         title: title.clone(),
@@ -563,7 +587,7 @@ mod tests {
 
         // Insert PR snapshot
         let snap_id = write::insert_pr_snapshot(
-            &conn, spec_id, "pr-sha", "2026-01-01T00:00:00Z", 12345, "base-sha",
+            &conn, spec_id, "pr-sha", "2026-01-01T00:00:00Z", 12345, "base-sha", &[],
         ).unwrap();
 
         let result = get_pr_snapshot(&conn, "HTML", 12345).unwrap();
@@ -630,7 +654,7 @@ mod tests {
         ]).unwrap();
 
         let pr_id = write::insert_pr_snapshot(
-            &conn, spec_id, "pr-sha", "2026-01-01T00:00:00Z", 99, "base",
+            &conn, spec_id, "pr-sha", "2026-01-01T00:00:00Z", 99, "base", &[],
         ).unwrap();
         write::insert_sections_bulk(&conn, pr_id, &[
             ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
@@ -651,5 +675,39 @@ mod tests {
         let added: Vec<_> = diff.iter().filter(|d| d.change_type == "added").collect();
         assert_eq!(added.len(), 1);
         assert_eq!(added[0].anchor, "sec-d");
+    }
+
+    #[test]
+    fn test_compute_pr_diff_ignores_whitespace_only_changes() {
+        let conn = db::open_test_db().unwrap();
+        let spec_id =
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+
+        let base_id = write::insert_snapshot(&conn, spec_id, "hash:base2", "2026-01-01T00:00:00Z").unwrap();
+        write::insert_sections_bulk(&conn, base_id, &[
+            ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
+                content_text: Some("Hello  world\n\nfoo".into()), section_type: SectionType::Heading,
+                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
+            ParsedSection { anchor: "sec-b".into(), title: Some("B".into()),
+                content_text: Some("Real content B".into()), section_type: SectionType::Heading,
+                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
+        ]).unwrap();
+
+        let pr_id = write::insert_pr_snapshot(
+            &conn, spec_id, "pr-sha2", "2026-01-01T00:00:00Z", 98, "hash:base2", &[],
+        ).unwrap();
+        write::insert_sections_bulk(&conn, pr_id, &[
+            ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
+                content_text: Some("Hello world\n\nfoo".into()), section_type: SectionType::Heading,
+                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
+            ParsedSection { anchor: "sec-b".into(), title: Some("B".into()),
+                content_text: Some("Modified content B".into()), section_type: SectionType::Heading,
+                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
+        ]).unwrap();
+
+        let diff = compute_pr_diff(&conn, pr_id, base_id).unwrap();
+        assert_eq!(diff.len(), 1);
+        assert_eq!(diff[0].anchor, "sec-b");
+        assert_eq!(diff[0].change_type, "modified");
     }
 }
