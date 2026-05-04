@@ -4,6 +4,64 @@ use crate::ietf;
 
 const AUTO_SPEC_PREFIX: &str = "AUTOURL-";
 
+const WHATWG_SPECS: &[&str] = &[
+    "COMPAT",
+    "COMPRESSION",
+    "CONSOLE",
+    "DOM",
+    "ENCODING",
+    "FETCH",
+    "FS",
+    "FULLSCREEN",
+    "HTML",
+    "INFRA",
+    "MIMESNIFF",
+    "NOTIFICATIONS",
+    "QUIRKS",
+    "STORAGE",
+    "STREAMS",
+    "TESTUTILS",
+    "URL",
+    "URLPATTERN",
+    "WEBIDL",
+    "WEBSOCKETS",
+    "XHR",
+];
+
+/// Return (name, base_url, provider) tuples for all known non-W3C specs
+/// (WHATWG living standards, TC39, WebGPU) so they can be seeded into the DB.
+pub fn known_specs() -> Vec<(String, String, String)> {
+    let mut specs: Vec<(String, String, String)> = WHATWG_SPECS
+        .iter()
+        .map(|&name| {
+            let host = name.replace('-', "").to_ascii_lowercase();
+            (
+                name.to_string(),
+                format!("https://{host}.spec.whatwg.org"),
+                "whatwg".to_string(),
+            )
+        })
+        .collect();
+
+    specs.push((
+        "ECMA-262".to_string(),
+        "https://tc39.es/ecma262".to_string(),
+        "tc39".to_string(),
+    ));
+    specs.push((
+        "WEBGPU".to_string(),
+        "https://gpuweb.github.io/gpuweb".to_string(),
+        "gpuweb".to_string(),
+    ));
+    specs.push((
+        "WGSL".to_string(),
+        "https://gpuweb.github.io/gpuweb/wgsl".to_string(),
+        "gpuweb".to_string(),
+    ));
+
+    specs
+}
+
 /// URL resolver and lightweight name/base-url inference.
 pub struct SpecRegistry;
 
@@ -104,30 +162,6 @@ impl SpecRegistry {
             }
         }
 
-        // Only infer for the known set of WHATWG living standards.
-        const WHATWG_SPECS: &[&str] = &[
-            "COMPAT",
-            "COMPRESSION",
-            "CONSOLE",
-            "DOM",
-            "ENCODING",
-            "FETCH",
-            "FS",
-            "FULLSCREEN",
-            "HTML",
-            "INFRA",
-            "MIMESNIFF",
-            "NOTIFICATIONS",
-            "QUIRKS",
-            "STORAGE",
-            "STREAMS",
-            "TESTUTILS",
-            "URL",
-            "URLPATTERN",
-            "WEBIDL",
-            "WEBSOCKETS",
-            "XHR",
-        ];
         let host_part = token.replace('-', "").to_ascii_lowercase();
         if WHATWG_SPECS.contains(&token.as_str()) {
             return Some((

@@ -17,14 +17,21 @@ pub struct SpecEntry {
     pub github_repo: String,
 }
 
-/// Seed the DB from the bundled W3C spec list.
+/// Seed the DB from the bundled W3C spec list and known non-W3C specs.
 pub fn fetch_and_seed(conn: &Connection) -> Result<usize> {
     let entries: Vec<SpecEntry> = serde_json::from_str(BUNDLED_SPEC_LIST)
         .context("Failed to parse bundled w3c_specs.json")?;
-    let count = entries.len();
+    let mut count = entries.len();
     for e in &entries {
         crate::db::write::seed_spec(conn, &e.name, &e.base_url, &e.provider)?;
     }
+
+    let known = crate::spec_registry::known_specs();
+    count += known.len();
+    for (name, base_url, provider) in &known {
+        crate::db::write::seed_spec(conn, name, base_url, provider)?;
+    }
+
     Ok(count)
 }
 

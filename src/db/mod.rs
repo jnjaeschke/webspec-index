@@ -17,7 +17,10 @@ pub fn get_db_path() -> PathBuf {
     }
 }
 
-/// Open or create the database, applying schema if needed
+/// Open or create the database, applying schema if needed.
+///
+/// On first creation (or after `clear-db`), seeds the spec list so that
+/// `webspec-index specs` returns all known specs immediately.
 pub fn open_or_create_db() -> Result<Connection> {
     let db_path = get_db_path();
 
@@ -29,6 +32,11 @@ pub fn open_or_create_db() -> Result<Connection> {
     let conn = Connection::open(&db_path)?;
     schema::initialize_schema(&conn)?;
     schema::run_migrations(&conn)?;
+
+    // Seed known specs (W3C, WHATWG, TC39, WebGPU). This is an upsert,
+    // so it's safe to call on every open — new specs get added, existing
+    // ones are left untouched.
+    let _ = crate::spec_list::fetch_and_seed(&conn);
 
     Ok(conn)
 }
