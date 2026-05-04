@@ -218,15 +218,36 @@ async fn fetch_merge_base(
 /// Ensure a PR snapshot is indexed and fresh.
 ///
 /// Returns (pr_snapshot_id, merge_base_snapshot_id).
-/// If the PR is already indexed with the same head SHA, returns cached IDs.
+/// If the PR is already indexed with the same head SHA (and was indexed within
+/// the last 24h when `force` is false), returns cached IDs without hitting GitHub.
 pub async fn ensure_pr_indexed(
     conn: &Connection,
     spec_name: &str,
     base_url: &str,
     provider: &str,
     pr_number: i64,
+    force: bool,
 ) -> Result<(i64, i64)> {
     let spec_id = write::insert_or_get_spec(conn, spec_name, base_url, provider)?;
+
+    // Fast path: if not forcing, check 24h freshness before hitting the GitHub API.
+    if !force {
+        if let Some((pr_snap_id, stored_base_sha)) = queries::get_pr_snapshot(conn, spec_name, pr_number)? {
+            let indexed_at: String = conn.query_row(
+                "SELECT indexed_at FROM snapshots WHERE id = ?1",
+                [pr_snap_id],
+                |row| row.get(0),
+            )?;
+            if let Ok(indexed) = chrono::DateTime::parse_from_rfc3339(&indexed_at) {
+                let indexed_utc = indexed.with_timezone(&chrono::Utc);
+                if super::is_fresh(&indexed_utc, &chrono::Utc::now()) {
+                    if let Some(base_snap_id) = queries::get_commit_snapshot(conn, spec_id, &stored_base_sha)? {
+                        return Ok((pr_snap_id, base_snap_id));
+                    }
+                }
+            }
+        }
+    }
 
     // Determine the WHATWG repo name from spec name
     let repo = format!("whatwg/{}", spec_name.to_lowercase());

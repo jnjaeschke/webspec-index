@@ -83,6 +83,9 @@ enum Command {
 
         #[arg(long, help = "Show diff between PR and merge base (requires --pr)")]
         diff: bool,
+
+        #[arg(long, help = "Force re-fetch of PR preview data")]
+        force_update: bool,
     },
 
     /// Full-text search across specifications
@@ -113,6 +116,9 @@ enum Command {
 
         #[arg(long, help = "Query against a WHATWG PR preview")]
         pr: Option<i64>,
+
+        #[arg(long, help = "Force re-fetch of PR preview data")]
+        force_update: bool,
     },
 
     /// Find anchors matching a glob pattern
@@ -143,6 +149,9 @@ enum Command {
 
         #[arg(long, help = "Query against a WHATWG PR preview")]
         pr: Option<i64>,
+
+        #[arg(long, help = "Force re-fetch of PR preview data")]
+        force_update: bool,
     },
 
     /// Get cross-references for a section
@@ -172,6 +181,9 @@ enum Command {
 
         #[arg(long, help = "Query against a WHATWG PR preview")]
         pr: Option<i64>,
+
+        #[arg(long, help = "Force re-fetch of PR preview data")]
+        force_update: bool,
     },
 
     /// Build a cross-reference graph rooted at a section
@@ -245,6 +257,9 @@ enum Command {
 
         #[arg(long, help = "Query against a WHATWG PR preview")]
         pr: Option<i64>,
+
+        #[arg(long, help = "Force re-fetch of PR preview data")]
+        force_update: bool,
     },
 
     /// Update specifications to latest versions
@@ -326,6 +341,18 @@ enum Command {
     /// Start the Language Server Protocol server (stdio)
     Lsp,
 
+    /// Remove cached PR preview data
+    ClearPr {
+        #[arg(long, short, help = "Spec to clear PR data for")]
+        spec: Option<String>,
+
+        #[arg(long, help = "Specific PR number to clear")]
+        pr: Option<i64>,
+
+        #[arg(long, help = "Clear all cached PR data")]
+        all: bool,
+    },
+
     /// Update the local W3C spec list from csswg-drafts and w3c/groups
     ///
     /// Clones (or updates) csswg-drafts and w3c/groups, then regenerates
@@ -373,6 +400,7 @@ list <SPEC> [--pr N]
 refs <SPEC#anchor|TARGET> [-d incoming|outgoing|both(default)] [-l N(10)] [--pr N]
 update [-s SPEC] [-f force]
 clear-db [-y skip confirm]
+clear-pr [--all | -s SPEC [--pr N]] — list or remove cached PR data
 specs — list indexed/discovered spec names+URLs
 lsp — start LSP server on stdio
 graph <SPEC#anchor|URL> [-d incoming|outgoing|both(default outgoing)] [--max-depth N(2)] [--max-nodes N(150)] [--include PATTERN --exclude PATTERN --same-spec-only] [--graph-format json|markdown|mermaid|dot]
@@ -430,15 +458,15 @@ async fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
     match cli.command {
-        Command::Query { spec_anchor, pr, diff } => {
+        Command::Query { spec_anchor, pr, diff, force_update } => {
             if diff {
                 let pr_number = pr.context("--diff requires --pr")?;
                 let (spec_name, _, _) = webspec_index::parse_spec_anchor(&spec_anchor)?;
-                let result = webspec_index::pr_diff(&spec_name, pr_number).await?;
+                let result = webspec_index::pr_diff(&spec_name, pr_number, force_update).await?;
                 print_output(&cli.format, &result, format::pr_diff);
                 return Ok(ExitCode::SUCCESS);
             }
-            let result = webspec_index::query_section(&spec_anchor, pr).await?;
+            let result = webspec_index::query_section(&spec_anchor, pr, force_update).await?;
             print_output(&cli.format, &result, format::query);
             Ok(ExitCode::SUCCESS)
         }
@@ -449,8 +477,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::Exists { spec_anchor, pr } => {
-            let result = webspec_index::check_exists(&spec_anchor, pr).await?;
+        Command::Exists { spec_anchor, pr, force_update } => {
+            let result = webspec_index::check_exists(&spec_anchor, pr, force_update).await?;
             let found = result.exists;
             print_output(&cli.format, &result, format::exists);
             Ok(if found {
@@ -471,8 +499,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::List { spec, pr } => {
-            let result = webspec_index::list_headings(&spec, pr).await?;
+        Command::List { spec, pr, force_update } => {
+            let result = webspec_index::list_headings(&spec, pr, force_update).await?;
             match cli.format {
                 OutputFormat::Json => {
                     println!("{}", serde_json::to_string_pretty(&result)?);
@@ -489,8 +517,9 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             direction,
             limit,
             pr,
+            force_update,
         } => {
-            let result = webspec_index::find_references(&target, &direction, limit, pr).await?;
+            let result = webspec_index::find_references(&target, &direction, limit, pr, force_update).await?;
             print_output(&cli.format, &result, format::refs);
             Ok(ExitCode::SUCCESS)
         }
@@ -532,8 +561,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::Idl { query, spec, limit, pr } => {
-            let result = webspec_index::query_idl(&query, spec.as_deref(), limit, pr).await?;
+        Command::Idl { query, spec, limit, pr, force_update } => {
+            let result = webspec_index::query_idl(&query, spec.as_deref(), limit, pr, force_update).await?;
             print_output(&cli.format, &result, format::idl);
             Ok(ExitCode::SUCCESS)
         }
@@ -594,6 +623,12 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
 
         Command::Lsp => {
             webspec_index::lsp::serve_stdio().await;
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Command::ClearPr { spec, pr, all } => {
+            let result = webspec_index::clear_pr_data(spec.as_deref(), pr, all)?;
+            println!("{}", serde_json::to_string_pretty(&result)?);
             Ok(ExitCode::SUCCESS)
         }
 
@@ -658,7 +693,7 @@ impl webspec_index::analyze::file::SpecResolver for DbResolver {
         }
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current()
-                .block_on(webspec_index::query_section(&key, None))
+                .block_on(webspec_index::query_section(&key, None, false))
                 .ok()
         });
         let content = result.and_then(|r| r.content).filter(|c| !c.is_empty());

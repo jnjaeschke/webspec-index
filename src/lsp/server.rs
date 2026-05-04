@@ -73,7 +73,7 @@ impl State {
         }
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current()
-                .block_on(crate::query_section(&key, None))
+                .block_on(crate::query_section(&key, None, false))
                 .ok()
         })?;
         self.query_cache.insert(key, result.clone());

@@ -218,6 +218,66 @@ pub fn delete_pr_data(conn: &Connection, spec_id: i64, pr_number: i64) -> Result
     Ok(())
 }
 
+/// Delete all PR data for a spec (all PR snapshots + orphaned commit snapshots).
+/// Returns the number of PR snapshots deleted.
+pub fn delete_all_pr_data_for_spec(conn: &Connection, spec_id: i64) -> Result<usize> {
+    let tx = conn.unchecked_transaction()?;
+    let pr_count: i64 = tx.query_row(
+        "SELECT COUNT(*) FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL",
+        [spec_id],
+        |row| row.get(0),
+    )?;
+    tx.execute(
+        "DELETE FROM refs WHERE snapshot_id IN \
+         (SELECT id FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL)",
+        [spec_id],
+    )?;
+    tx.execute(
+        "DELETE FROM idl_defs WHERE snapshot_id IN \
+         (SELECT id FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL)",
+        [spec_id],
+    )?;
+    tx.execute(
+        "DELETE FROM sections WHERE snapshot_id IN \
+         (SELECT id FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL)",
+        [spec_id],
+    )?;
+    tx.execute(
+        "DELETE FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL",
+        [spec_id],
+    )?;
+    // Delete orphaned commit snapshots (merge bases no longer referenced)
+    tx.execute(
+        "DELETE FROM refs WHERE snapshot_id IN \
+         (SELECT s.id FROM snapshots s WHERE s.spec_id = ?1 AND s.pr_number IS NULL \
+          AND s.sha NOT LIKE 'hash:%' \
+          AND s.sha NOT IN (SELECT merge_base_sha FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL))",
+        [spec_id],
+    )?;
+    tx.execute(
+        "DELETE FROM idl_defs WHERE snapshot_id IN \
+         (SELECT s.id FROM snapshots s WHERE s.spec_id = ?1 AND s.pr_number IS NULL \
+          AND s.sha NOT LIKE 'hash:%' \
+          AND s.sha NOT IN (SELECT merge_base_sha FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL))",
+        [spec_id],
+    )?;
+    tx.execute(
+        "DELETE FROM sections WHERE snapshot_id IN \
+         (SELECT s.id FROM snapshots s WHERE s.spec_id = ?1 AND s.pr_number IS NULL \
+          AND s.sha NOT LIKE 'hash:%' \
+          AND s.sha NOT IN (SELECT merge_base_sha FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL))",
+        [spec_id],
+    )?;
+    tx.execute(
+        "DELETE FROM snapshots WHERE spec_id = ?1 AND pr_number IS NULL \
+         AND sha NOT LIKE 'hash:%' \
+         AND sha NOT IN (SELECT merge_base_sha FROM snapshots WHERE spec_id = ?1 AND pr_number IS NOT NULL)",
+        [spec_id],
+    )?;
+    tx.commit()?;
+    Ok(pr_count as usize)
+}
+
 /// Delete trunk indexed data for a spec (snapshot, sections, refs).
 /// Only deletes snapshots with `sha LIKE 'hash:%'` and `pr_number IS NULL`,
 /// preserving PR snapshots and commit snapshots (merge bases).

@@ -12,6 +12,23 @@ pub struct UpdateCheckState {
     pub content_hash: Option<String>,
 }
 
+/// List all cached PR snapshots with their section counts.
+/// Returns (spec_name, pr_number, sha, indexed_at, section_count).
+pub fn list_pr_snapshots(conn: &Connection) -> Result<Vec<(String, i64, String, String, i64)>> {
+    let mut stmt = conn.prepare(
+        "SELECT sp.name, s.pr_number, s.sha, s.indexed_at,
+                (SELECT COUNT(*) FROM sections sec WHERE sec.snapshot_id = s.id)
+         FROM snapshots s
+         JOIN specs sp ON s.spec_id = sp.id
+         WHERE s.pr_number IS NOT NULL
+         ORDER BY sp.name, s.pr_number",
+    )?;
+    let rows = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
 /// Get a PR snapshot for a spec by name and PR number.
 /// Returns (snapshot_id, merge_base_sha) if found.
 pub fn get_pr_snapshot(
