@@ -75,7 +75,7 @@ pub fn get_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<i64>> {
     let result = conn.query_row(
         "SELECT s.id FROM snapshots s
          JOIN specs sp ON s.spec_id = sp.id
-         WHERE sp.name = ?1",
+         WHERE sp.name = ?1 AND s.pr_number IS NULL AND s.sha LIKE 'hash:%'",
         [spec_name],
         |row| row.get(0),
     );
@@ -263,7 +263,7 @@ pub fn get_incoming_refs(
         "SELECT sp.name, r.from_anchor FROM refs r
          JOIN snapshots sn ON r.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE r.to_spec = ?1 AND r.to_anchor = ?2",
+         WHERE r.to_spec = ?1 AND r.to_anchor = ?2 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'",
     )?;
 
     let refs = stmt
@@ -438,7 +438,7 @@ mod tests {
     fn setup_test_data(conn: &Connection) -> Result<i64> {
         let spec_id =
             write::insert_or_get_spec(conn, "HTML", "https://html.spec.whatwg.org", "whatwg")?;
-        let snapshot_id = write::insert_snapshot(conn, spec_id, "abc123", "2026-01-01T00:00:00Z")?;
+        let snapshot_id = write::insert_snapshot(conn, spec_id, "hash:abc123", "2026-01-01T00:00:00Z")?;
 
         let sections = vec![
             ParsedSection {

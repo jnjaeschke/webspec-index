@@ -104,9 +104,6 @@ enum Command {
 
         #[arg(long, short, default_value = "20", help = "Maximum number of results")]
         limit: u32,
-
-        #[arg(long, help = "Query against a WHATWG PR preview")]
-        pr: Option<i64>,
     },
 
     /// Check if a section exists (exit code 0 = found, 1 = not found)
@@ -137,9 +134,6 @@ enum Command {
 
         #[arg(long, short, default_value = "50", help = "Maximum number of results")]
         limit: u32,
-
-        #[arg(long, help = "Query against a WHATWG PR preview")]
-        pr: Option<i64>,
     },
 
     /// List all headings in a specification
@@ -471,7 +465,7 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::Search { query, spec, limit, pr: _ } => {
+        Command::Search { query, spec, limit } => {
             let result = webspec_index::search_sections(&query, spec.as_deref(), limit)?;
             print_output(&cli.format, &result, format::search);
             Ok(ExitCode::SUCCESS)
@@ -492,7 +486,6 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             pattern,
             spec,
             limit,
-            pr: _,
         } => {
             let result = webspec_index::find_anchors(&pattern, spec.as_deref(), limit)?;
             print_output(&cli.format, &result, format::anchors);

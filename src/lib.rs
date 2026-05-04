@@ -303,12 +303,12 @@ pub fn find_anchors(pattern: &str, spec: Option<&str>, limit: u32) -> Result<mod
         "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE s.anchor LIKE ?1 AND sp.name = ?2          LIMIT ?3"
+         WHERE s.anchor LIKE ?1 AND sp.name = ?2 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'          LIMIT ?3"
     } else {
         "SELECT s.anchor, sp.name, s.title, s.section_type FROM sections s
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE s.anchor LIKE ?1          LIMIT ?2"
+         WHERE s.anchor LIKE ?1 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'          LIMIT ?2"
     };
 
     let mut stmt = conn.prepare(sql)?;
@@ -384,14 +384,14 @@ fn search_sections_fts(
          JOIN sections s ON sections_fts.rowid = s.id
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE sections_fts MATCH ?1 AND sp.name = ?2          LIMIT ?3"
+         WHERE sections_fts MATCH ?1 AND sp.name = ?2 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'          LIMIT ?3"
     } else {
         "SELECT s.anchor, sp.name, s.title, s.section_type, snippet(sections_fts, 2, '<mark>', '</mark>', '...', 64)
          FROM sections_fts
          JOIN sections s ON sections_fts.rowid = s.id
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE sections_fts MATCH ?1          LIMIT ?2"
+         WHERE sections_fts MATCH ?1 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'          LIMIT ?2"
     };
 
     let mut stmt = conn.prepare(sql)?;
@@ -577,7 +577,7 @@ fn section_meta(
         "SELECT s.title, s.section_type FROM sections s
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE sp.name = ?1 AND s.anchor = ?2
+         WHERE sp.name = ?1 AND s.anchor = ?2 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'
          LIMIT 1",
     )?;
 
@@ -859,7 +859,7 @@ fn resolve_find_references_candidates(
          FROM sections s
          JOIN snapshots sn ON s.snapshot_id = sn.id
          JOIN specs sp ON sn.spec_id = sp.id
-         WHERE LOWER(s.anchor) LIKE ?1 OR LOWER(COALESCE(s.title, '')) LIKE ?2
+         WHERE (LOWER(s.anchor) LIKE ?1 OR LOWER(COALESCE(s.title, '')) LIKE ?2) AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'
          LIMIT 1000",
     )?;
 
@@ -1088,7 +1088,7 @@ fn query_idl_from_conn(
              JOIN snapshots sn ON d.snapshot_id = sn.id
              JOIN specs sp ON sn.spec_id = sp.id
              LEFT JOIN sections s ON s.snapshot_id = d.snapshot_id AND s.anchor = d.anchor
-             WHERE sp.name = ?1 AND d.anchor = ?2
+             WHERE sp.name = ?1 AND d.anchor = ?2 AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'
              ORDER BY d.kind
              LIMIT ?3",
         )?;
@@ -1134,6 +1134,7 @@ fn query_idl_from_conn(
              WHERE sp.name = ?3
                AND (LOWER(d.canonical_name) = ?1 OR LOWER(d.name) = ?1 OR LOWER(d.anchor) = ?1
                     OR LOWER(d.canonical_name) LIKE ?2 OR LOWER(d.name) LIKE ?2)
+               AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'
              ORDER BY score DESC, sp.name, d.canonical_name
              LIMIT ?4";
 
@@ -1152,6 +1153,7 @@ fn query_idl_from_conn(
              LEFT JOIN sections s ON s.snapshot_id = d.snapshot_id AND s.anchor = d.anchor
              WHERE (LOWER(d.canonical_name) = ?1 OR LOWER(d.name) = ?1 OR LOWER(d.anchor) = ?1
                     OR LOWER(d.canonical_name) LIKE ?2 OR LOWER(d.name) LIKE ?2)
+               AND sn.pr_number IS NULL AND sn.sha LIKE 'hash:%'
              ORDER BY score DESC, sp.name, d.canonical_name
              LIMIT ?3";
 
@@ -1478,12 +1480,12 @@ mod tests {
                 .unwrap();
 
         let html_snapshot =
-            write::insert_snapshot(&conn, html_spec_id, "sha-html", "2026-01-01T00:00:00Z")
+            write::insert_snapshot(&conn, html_spec_id, "hash:sha-html", "2026-01-01T00:00:00Z")
                 .unwrap();
         let dom_snapshot =
-            write::insert_snapshot(&conn, dom_spec_id, "sha-dom", "2026-01-01T00:00:00Z").unwrap();
+            write::insert_snapshot(&conn, dom_spec_id, "hash:sha-dom", "2026-01-01T00:00:00Z").unwrap();
         let url_snapshot =
-            write::insert_snapshot(&conn, url_spec_id, "sha-url", "2026-01-01T00:00:00Z").unwrap();
+            write::insert_snapshot(&conn, url_spec_id, "hash:sha-url", "2026-01-01T00:00:00Z").unwrap();
 
         let html_sections = vec![
             ParsedSection {
