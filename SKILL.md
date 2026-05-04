@@ -90,6 +90,31 @@ webspec-index refs 'Window.navigation' --limit 5
 
 Shows which sections reference this one (incoming), which sections this one references (outgoing), or both (default). Target can be exact (`SPEC#anchor` or full URL) or shorthand (`Interface.member`) resolved heuristically against currently indexed sections. Use `--limit` to cap results when using shorthand queries.
 
+### WHATWG PR previews
+
+```bash
+webspec-index query 'HTML#navigate' --pr 12345
+webspec-index query 'HTML#navigate' --pr 12345 --diff --format markdown
+webspec-index query 'HTML#navigate' --pr 12345 --force-update
+webspec-index exists 'HTML#navigate' --pr 12345
+webspec-index list HTML --pr 12345
+webspec-index refs 'HTML#navigate' --pr 12345
+```
+
+Query spec sections as modified by an open WHATWG PR. Previews are lazily fetched from whatpr.org on first use and cached for 24h.
+
+- `--pr N`: query the spec as it would look after PR N is merged. Sections not modified by the PR fall back to the merge base.
+- `--diff`: show a section-level diff between the PR and its merge base. Lists added/modified sections with unified diffs.
+- `--force-update`: re-fetch the PR preview even if recently cached (use after the PR is updated).
+
+Manage cached PR data with `clear-pr`:
+
+```bash
+webspec-index clear-pr                         # list cached PRs
+webspec-index clear-pr --spec HTML --pr 12345  # remove one PR
+webspec-index clear-pr --all                   # remove all
+```
+
 ### Update specs
 
 ```bash
@@ -187,4 +212,19 @@ webspec-index idl 'Window.navigation' --format markdown
 
 # Find where the property is used in indexed specs
 webspec-index refs 'Window.navigation' --direction incoming
+```
+
+### Implementing a feature from a spec PR
+
+When the bug references a spec PR that hasn't landed yet:
+
+```bash
+# See what the PR changes at a section level
+webspec-index query 'HTML#navigate' --pr 12345 --diff --format markdown
+
+# Read the algorithm as modified by the PR
+webspec-index query 'HTML#navigate' --pr 12345 --format markdown
+
+# Check what new cross-references the PR introduces
+webspec-index refs 'HTML#navigate' --pr 12345 --direction outgoing
 ```

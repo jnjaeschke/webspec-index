@@ -7,6 +7,7 @@ Query WHATWG, W3C, and TC39 web specifications from the command line.
 - **Full-text search** across HTML, DOM, URL, CSS, ECMAScript, and 70+ other specifications
 - **Cross-reference tracking** — see incoming/outgoing references between spec sections
 - **Graph traversal** — build cross-reference graphs with JSON, Mermaid, or Graphviz DOT output
+- **WHATWG PR previews** — query spec sections as modified by an open PR, with section-level diffs
 - **Auto URL indexing for whitelisted domains** — query non-hardcoded specs by URL
 - **Fast SQLite indexing** with FTS5 for instant queries
 - **Algorithm and IDL extraction** with rendered markdown content
@@ -65,6 +66,32 @@ webspec-index idl "Window.open()" --spec HTML
 webspec-index update
 ```
 
+### WHATWG PR Previews
+
+Query spec sections as they would look after a WHATWG PR is merged. Previews are lazily fetched from [whatpr.org](https://whatpr.org) and cached locally.
+
+```bash
+# Query a section from a PR preview (falls back to merge base for unchanged sections)
+webspec-index query "HTML#navigate" --pr 12345
+webspec-index query "HTML#navigate" --pr 12345 --format markdown
+
+# Diff: see what sections the PR adds or modifies vs the merge base
+webspec-index query "HTML#navigate" --pr 12345 --diff --format markdown
+
+# Force re-fetch (e.g. after the PR is updated)
+webspec-index query "HTML#navigate" --pr 12345 --force-update
+
+# Other commands also support --pr
+webspec-index exists "HTML#navigate" --pr 12345
+webspec-index list HTML --pr 12345
+webspec-index refs "HTML#navigate" --pr 12345
+
+# Manage cached PR data (each PR caches rendered pages + merge base)
+webspec-index clear-pr                          # list cached PRs
+webspec-index clear-pr --spec HTML --pr 12345   # remove one
+webspec-index clear-pr --all                    # remove all
+```
+
 All commands support `--format json` (default) or `--format markdown`.
 
 Spec data is fetched and cached locally on first query — no setup needed.
@@ -90,6 +117,7 @@ See [editors/vscode/](editors/vscode/) and [editors/zed/](editors/zed/) for deta
 2. **Parses** sections, algorithms, IDL definitions, and cross-references
 3. **Indexes** in SQLite with FTS5 for fast full-text search
 4. **Refreshes snapshots** on a 24h cadence with content-hash change detection
+5. **PR previews** fetch rendered pages from whatpr.org and the merge base from commit-snapshots, storing both as separate snapshots for querying and diffing
 
 ## Development
 

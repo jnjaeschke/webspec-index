@@ -20,6 +20,11 @@ use webspec_index::{format, model};
         webspec-index query RFC9110#section-5\n  \
         webspec-index query draft-touch-sne#section-1\n  \
         webspec-index query draft-touch-sne-02#section-1   (pinned version)\n\n\
+        WHATWG PR previews — query spec sections as modified by an open PR:\n  \
+        webspec-index query HTML#navigate --pr 12345\n  \
+        webspec-index query HTML#navigate --pr 12345 --diff\n  \
+        webspec-index clear-pr                              (list cached PRs)\n  \
+        webspec-index clear-pr --spec HTML --pr 12345       (remove cached PR)\n\n\
         Examples:\n  \
         webspec-index query HTML#navigate\n  \
         webspec-index search \"tree order\" --spec DOM\n  \
@@ -73,7 +78,12 @@ enum Command {
         (parent/prev/next/children), and cross-references.\n\n\
         The argument can be SPEC#anchor or a full spec URL:\n  \
         webspec-index query HTML#navigate\n  \
-        webspec-index query \"https://html.spec.whatwg.org/#navigate\"")]
+        webspec-index query \"https://html.spec.whatwg.org/#navigate\"\n\n\
+        Use --pr to query against a WHATWG PR preview (lazily fetched from whatpr.org).\n\
+        Sections not modified by the PR fall back to the merge base.\n\
+        Use --diff to see a section-level diff between the PR and its merge base:\n  \
+        webspec-index query HTML#navigate --pr 12345\n  \
+        webspec-index query HTML#navigate --pr 12345 --diff --format markdown")]
     Query {
         /// Section identifier: SPEC#anchor or full URL
         spec_anchor: String,
@@ -336,6 +346,19 @@ enum Command {
     Lsp,
 
     /// Remove cached PR preview data
+    #[command(long_about = "Remove cached PR preview data.\n\n\
+        Without arguments, lists all cached PR snapshots.\n\
+        With --spec and --pr, removes data for a specific PR.\n\
+        With --spec alone, removes all PR data for that spec.\n\
+        With --all, removes all cached PR data across all specs.\n\n\
+        Each cached PR stores the rendered preview pages and a full merge base\n\
+        snapshot, which can be large (7MB+ for the HTML spec). Use this command\n\
+        to reclaim disk space.\n\n\
+        Examples:\n  \
+        webspec-index clear-pr\n  \
+        webspec-index clear-pr --spec HTML --pr 12345\n  \
+        webspec-index clear-pr --spec HTML\n  \
+        webspec-index clear-pr --all")]
     ClearPr {
         #[arg(long, short, help = "Spec to clear PR data for")]
         spec: Option<String>,
