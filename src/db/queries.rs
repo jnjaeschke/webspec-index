@@ -1,8 +1,9 @@
 // Query operations on the database
-use crate::model::{ParsedSection, SectionType};
+use crate::model::{ParsedSection, PrDiffEntry, SectionType};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::Connection;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct UpdateCheckState {
@@ -365,6 +366,53 @@ pub fn list_headings(conn: &Connection, snapshot_id: i64) -> Result<Vec<ParsedSe
     Ok(sections)
 }
 
+/// Compute a diff between a PR snapshot and its merge base snapshot.
+/// Returns entries for sections that were added or modified in the PR.
+pub fn compute_pr_diff(
+    conn: &Connection,
+    pr_snapshot_id: i64,
+    base_snapshot_id: i64,
+) -> Result<Vec<PrDiffEntry>> {
+    let mut pr_stmt = conn.prepare(
+        "SELECT anchor, title, content_text FROM sections WHERE snapshot_id = ?1",
+    )?;
+    let pr_sections: HashMap<String, (Option<String>, Option<String>)> = pr_stmt
+        .query_map([pr_snapshot_id], |row| {
+            Ok((row.get::<_, String>(0)?, (row.get(1)?, row.get(2)?)))
+        })?
+        .collect::<Result<HashMap<_, _>, _>>()?;
+
+    let mut diffs = Vec::new();
+
+    for (anchor, (title, new_content)) in &pr_sections {
+        match get_section(conn, base_snapshot_id, anchor)? {
+            Some(base_section) => {
+                if base_section.content_text.as_deref() != new_content.as_deref() {
+                    diffs.push(PrDiffEntry {
+                        anchor: anchor.clone(),
+                        title: title.clone(),
+                        change_type: "modified".to_string(),
+                        old_content: base_section.content_text,
+                        new_content: new_content.clone(),
+                    });
+                }
+            }
+            None => {
+                diffs.push(PrDiffEntry {
+                    anchor: anchor.clone(),
+                    title: title.clone(),
+                    change_type: "added".to_string(),
+                    old_content: None,
+                    new_content: new_content.clone(),
+                });
+            }
+        }
+    }
+
+    diffs.sort_by(|a, b| a.anchor.cmp(&b.anchor));
+    Ok(diffs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -546,5 +594,45 @@ mod tests {
             "2026-01-01T00:00:00+00:00"
         );
         assert_eq!(state.content_hash.as_deref(), Some("abc123"));
+    }
+
+    #[test]
+    fn test_compute_pr_diff() {
+        let conn = db::open_test_db().unwrap();
+        let spec_id =
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+
+        let base_id = write::insert_snapshot(&conn, spec_id, "base", "2026-01-01T00:00:00Z").unwrap();
+        write::insert_sections_bulk(&conn, base_id, &[
+            ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
+                content_text: Some("Original A".into()), section_type: SectionType::Heading,
+                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
+            ParsedSection { anchor: "sec-b".into(), title: Some("B".into()),
+                content_text: Some("Original B".into()), section_type: SectionType::Heading,
+                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
+        ]).unwrap();
+
+        let pr_id = write::insert_pr_snapshot(
+            &conn, spec_id, "pr-sha", "2026-01-01T00:00:00Z", 99, "base",
+        ).unwrap();
+        write::insert_sections_bulk(&conn, pr_id, &[
+            ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
+                content_text: Some("Modified A".into()), section_type: SectionType::Heading,
+                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
+            ParsedSection { anchor: "sec-d".into(), title: Some("D".into()),
+                content_text: Some("New D".into()), section_type: SectionType::Heading,
+                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
+        ]).unwrap();
+
+        let diff = compute_pr_diff(&conn, pr_id, base_id).unwrap();
+        assert_eq!(diff.len(), 2);
+
+        let modified: Vec<_> = diff.iter().filter(|d| d.change_type == "modified").collect();
+        assert_eq!(modified.len(), 1);
+        assert_eq!(modified[0].anchor, "sec-a");
+
+        let added: Vec<_> = diff.iter().filter(|d| d.change_type == "added").collect();
+        assert_eq!(added.len(), 1);
+        assert_eq!(added[0].anchor, "sec-d");
     }
 }

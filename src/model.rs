@@ -250,6 +250,36 @@ pub struct IdlResult {
     pub matches: Vec<IdlEntry>,
 }
 
+/// JSON output for pr-diff command
+#[derive(Debug, Serialize)]
+pub struct PrDiffResult {
+    pub spec: String,
+    pub pr_number: i64,
+    pub head_sha: String,
+    pub merge_base_sha: String,
+    pub summary: PrDiffSummary,
+    pub changes: Vec<PrDiffEntry>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PrDiffSummary {
+    pub added: usize,
+    pub removed: usize,
+    pub modified: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PrDiffEntry {
+    pub anchor: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub change_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub old_content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub new_content: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct IdlEntry {
     pub spec: String,

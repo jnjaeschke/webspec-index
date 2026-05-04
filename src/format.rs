@@ -1,8 +1,8 @@
 //! Markdown output formatters for CLI commands
 
 use crate::model::{
-    AnchorsResult, ExistsResult, GraphResult, IdlResult, ListEntry, QueryResult, RefsResult,
-    SearchResult,
+    AnchorsResult, ExistsResult, GraphResult, IdlResult, ListEntry, PrDiffResult, QueryResult,
+    RefsResult, SearchResult,
 };
 
 #[cfg(test)]
@@ -381,6 +381,30 @@ pub fn idl(result: &IdlResult) -> String {
     }
 
     md
+}
+
+/// Format a PrDiffResult as markdown
+pub fn pr_diff(result: &PrDiffResult) -> String {
+    let mut out = String::new();
+    out.push_str(&format!(
+        "# {} PR #{} diff\n\nHead: {} | Base: {}\n\n",
+        result.spec, result.pr_number, result.head_sha, result.merge_base_sha
+    ));
+    out.push_str(&format!(
+        "**Summary:** {} added, {} removed, {} modified\n\n",
+        result.summary.added, result.summary.removed, result.summary.modified
+    ));
+    for change in &result.changes {
+        let title = change.title.as_deref().unwrap_or("(untitled)");
+        let icon = match change.change_type.as_str() {
+            "added" => "+",
+            "removed" => "-",
+            "modified" => "~",
+            _ => "?",
+        };
+        out.push_str(&format!("  {} [{}] #{} — {}\n", icon, change.change_type, change.anchor, title));
+    }
+    out
 }
 
 #[cfg(test)]
