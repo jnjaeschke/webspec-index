@@ -29,6 +29,8 @@ pub fn initialize_schema(conn: &Connection) -> Result<()> {
             commit_date TEXT NOT NULL,
             indexed_at  TEXT NOT NULL,
             is_latest   INTEGER NOT NULL DEFAULT 0,
+            pr_number   INTEGER,
+            merge_base_sha TEXT,
             UNIQUE(spec_id, sha)
         );
 
@@ -138,6 +140,8 @@ pub fn run_migrations(conn: &Connection) -> Result<()> {
 
     ensure_column(conn, "update_checks", "last_indexed", "TEXT")?;
     ensure_column(conn, "update_checks", "content_hash", "TEXT")?;
+    ensure_column(conn, "snapshots", "pr_number", "INTEGER")?;
+    ensure_column(conn, "snapshots", "merge_base_sha", "TEXT")?;
     Ok(())
 }
 
@@ -216,5 +220,44 @@ mod tests {
         run_migrations(&conn).unwrap();
         // Should not fail on second call
         run_migrations(&conn).unwrap();
+    }
+
+    #[test]
+    fn test_pr_columns_migration() {
+        let conn = Connection::open_in_memory().unwrap();
+        initialize_schema(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+
+        // Verify pr_number column exists and is nullable
+        conn.execute(
+            "INSERT INTO specs (name, base_url, provider) VALUES ('TEST', 'https://test', 'test')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO snapshots (spec_id, sha, commit_date, indexed_at, pr_number, merge_base_sha)
+             VALUES (1, 'abc', '2026-01-01', '2026-01-01', 12345, 'def456')",
+            [],
+        ).unwrap();
+
+        let (pr, base): (Option<i64>, Option<String>) = conn.query_row(
+            "SELECT pr_number, merge_base_sha FROM snapshots WHERE sha = 'abc'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).unwrap();
+        assert_eq!(pr, Some(12345));
+        assert_eq!(base.as_deref(), Some("def456"));
+
+        // Verify trunk snapshots have NULL pr_number
+        conn.execute(
+            "INSERT INTO snapshots (spec_id, sha, commit_date, indexed_at)
+             VALUES (1, 'xyz', '2026-01-01', '2026-01-01')",
+            [],
+        ).unwrap();
+        let pr: Option<i64> = conn.query_row(
+            "SELECT pr_number FROM snapshots WHERE sha = 'xyz'",
+            [],
+            |row| row.get(0),
+        ).unwrap();
+        assert_eq!(pr, None);
     }
 }
