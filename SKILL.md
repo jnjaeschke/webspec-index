@@ -99,6 +99,8 @@ webspec-index query 'HTML#navigate' --pr 12345 --force-update
 webspec-index exists 'HTML#navigate' --pr 12345
 webspec-index list HTML --pr 12345
 webspec-index refs 'HTML#navigate' --pr 12345
+webspec-index search 'OpaqueRange' --spec HTML --pr 12345
+webspec-index anchors '*opaquerange*' --spec HTML --pr 12345
 ```
 
 Query spec sections as modified by an open WHATWG PR. Previews are lazily fetched from whatpr.org on first use and cached for 24h.
