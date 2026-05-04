@@ -12,9 +12,10 @@ pub struct UpdateCheckState {
     pub content_hash: Option<String>,
 }
 
+pub type PrSnapshotRow = (String, i64, String, String, i64);
+
 /// List all cached PR snapshots with their section counts.
-/// Returns (spec_name, pr_number, sha, indexed_at, section_count).
-pub fn list_pr_snapshots(conn: &Connection) -> Result<Vec<(String, i64, String, String, i64)>> {
+pub fn list_pr_snapshots(conn: &Connection) -> Result<Vec<PrSnapshotRow>> {
     let mut stmt = conn.prepare(
         "SELECT sp.name, s.pr_number, s.sha, s.indexed_at,
                 (SELECT COUNT(*) FROM sections sec WHERE sec.snapshot_id = s.id)
@@ -24,7 +25,15 @@ pub fn list_pr_snapshots(conn: &Connection) -> Result<Vec<(String, i64, String, 
          ORDER BY sp.name, s.pr_number",
     )?;
     let rows = stmt
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)))?
+        .query_map([], |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+            ))
+        })?
         .collect::<Result<Vec<_>, _>>()?;
     Ok(rows)
 }
@@ -52,11 +61,7 @@ pub fn get_pr_snapshot(
 
 /// Get a commit snapshot by spec_id and exact SHA.
 /// Used to find cached merge base snapshots.
-pub fn get_commit_snapshot(
-    conn: &Connection,
-    spec_id: i64,
-    sha: &str,
-) -> Result<Option<i64>> {
+pub fn get_commit_snapshot(conn: &Connection, spec_id: i64, sha: &str) -> Result<Option<i64>> {
     let result = conn.query_row(
         "SELECT id FROM snapshots
          WHERE spec_id = ?1 AND sha = ?2 AND pr_number IS NULL",
@@ -78,7 +83,12 @@ pub fn get_pr_pages(conn: &Connection, snapshot_id: i64) -> Result<Vec<String>> 
         |row| row.get(0),
     )?;
     Ok(pages
-        .map(|s| s.split(',').filter(|p| !p.is_empty()).map(|p| p.to_string()).collect())
+        .map(|s| {
+            s.split(',')
+                .filter(|p| !p.is_empty())
+                .map(|p| p.to_string())
+                .collect()
+        })
         .unwrap_or_default())
 }
 
@@ -454,9 +464,8 @@ pub fn compute_pr_diff(
     pr_snapshot_id: i64,
     base_snapshot_id: i64,
 ) -> Result<Vec<PrDiffEntry>> {
-    let mut pr_stmt = conn.prepare(
-        "SELECT anchor, title, content_text FROM sections WHERE snapshot_id = ?1",
-    )?;
+    let mut pr_stmt =
+        conn.prepare("SELECT anchor, title, content_text FROM sections WHERE snapshot_id = ?1")?;
     let pr_sections: HashMap<String, (Option<String>, Option<String>)> = pr_stmt
         .query_map([pr_snapshot_id], |row| {
             Ok((row.get::<_, String>(0)?, (row.get(1)?, row.get(2)?)))
@@ -502,7 +511,8 @@ mod tests {
     fn setup_test_data(conn: &Connection) -> Result<i64> {
         let spec_id =
             write::insert_or_get_spec(conn, "HTML", "https://html.spec.whatwg.org", "whatwg")?;
-        let snapshot_id = write::insert_snapshot(conn, spec_id, "hash:abc123", "2026-01-01T00:00:00Z")?;
+        let snapshot_id =
+            write::insert_snapshot(conn, spec_id, "hash:abc123", "2026-01-01T00:00:00Z")?;
 
         let sections = vec![
             ParsedSection {
@@ -619,7 +629,8 @@ mod tests {
     fn test_get_pr_snapshot() {
         let conn = db::open_test_db().unwrap();
         let spec_id =
-            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
+                .unwrap();
 
         // No PR snapshot yet
         let result = get_pr_snapshot(&conn, "HTML", 12345).unwrap();
@@ -627,8 +638,15 @@ mod tests {
 
         // Insert PR snapshot
         let snap_id = write::insert_pr_snapshot(
-            &conn, spec_id, "pr-sha", "2026-01-01T00:00:00Z", 12345, "base-sha", &[],
-        ).unwrap();
+            &conn,
+            spec_id,
+            "pr-sha",
+            "2026-01-01T00:00:00Z",
+            12345,
+            "base-sha",
+            &[],
+        )
+        .unwrap();
 
         let result = get_pr_snapshot(&conn, "HTML", 12345).unwrap();
         assert_eq!(result, Some((snap_id, "base-sha".to_string())));
@@ -638,12 +656,12 @@ mod tests {
     fn test_get_commit_snapshot() {
         let conn = db::open_test_db().unwrap();
         let spec_id =
-            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
+                .unwrap();
 
         // Insert a commit snapshot (regular snapshot with a real SHA)
-        let snap_id = write::insert_snapshot(
-            &conn, spec_id, "abc123full", "2026-01-01T00:00:00Z",
-        ).unwrap();
+        let snap_id =
+            write::insert_snapshot(&conn, spec_id, "abc123full", "2026-01-01T00:00:00Z").unwrap();
 
         let result = get_commit_snapshot(&conn, spec_id, "abc123full").unwrap();
         assert_eq!(result, Some(snap_id));
@@ -681,34 +699,84 @@ mod tests {
     fn test_compute_pr_diff() {
         let conn = db::open_test_db().unwrap();
         let spec_id =
-            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
+                .unwrap();
 
-        let base_id = write::insert_snapshot(&conn, spec_id, "base", "2026-01-01T00:00:00Z").unwrap();
-        write::insert_sections_bulk(&conn, base_id, &[
-            ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
-                content_text: Some("Original A".into()), section_type: SectionType::Heading,
-                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
-            ParsedSection { anchor: "sec-b".into(), title: Some("B".into()),
-                content_text: Some("Original B".into()), section_type: SectionType::Heading,
-                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
-        ]).unwrap();
+        let base_id =
+            write::insert_snapshot(&conn, spec_id, "base", "2026-01-01T00:00:00Z").unwrap();
+        write::insert_sections_bulk(
+            &conn,
+            base_id,
+            &[
+                ParsedSection {
+                    anchor: "sec-a".into(),
+                    title: Some("A".into()),
+                    content_text: Some("Original A".into()),
+                    section_type: SectionType::Heading,
+                    parent_anchor: None,
+                    prev_anchor: None,
+                    next_anchor: None,
+                    depth: Some(2),
+                },
+                ParsedSection {
+                    anchor: "sec-b".into(),
+                    title: Some("B".into()),
+                    content_text: Some("Original B".into()),
+                    section_type: SectionType::Heading,
+                    parent_anchor: None,
+                    prev_anchor: None,
+                    next_anchor: None,
+                    depth: Some(2),
+                },
+            ],
+        )
+        .unwrap();
 
         let pr_id = write::insert_pr_snapshot(
-            &conn, spec_id, "pr-sha", "2026-01-01T00:00:00Z", 99, "base", &[],
-        ).unwrap();
-        write::insert_sections_bulk(&conn, pr_id, &[
-            ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
-                content_text: Some("Modified A".into()), section_type: SectionType::Heading,
-                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
-            ParsedSection { anchor: "sec-d".into(), title: Some("D".into()),
-                content_text: Some("New D".into()), section_type: SectionType::Heading,
-                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
-        ]).unwrap();
+            &conn,
+            spec_id,
+            "pr-sha",
+            "2026-01-01T00:00:00Z",
+            99,
+            "base",
+            &[],
+        )
+        .unwrap();
+        write::insert_sections_bulk(
+            &conn,
+            pr_id,
+            &[
+                ParsedSection {
+                    anchor: "sec-a".into(),
+                    title: Some("A".into()),
+                    content_text: Some("Modified A".into()),
+                    section_type: SectionType::Heading,
+                    parent_anchor: None,
+                    prev_anchor: None,
+                    next_anchor: None,
+                    depth: Some(2),
+                },
+                ParsedSection {
+                    anchor: "sec-d".into(),
+                    title: Some("D".into()),
+                    content_text: Some("New D".into()),
+                    section_type: SectionType::Heading,
+                    parent_anchor: None,
+                    prev_anchor: None,
+                    next_anchor: None,
+                    depth: Some(2),
+                },
+            ],
+        )
+        .unwrap();
 
         let diff = compute_pr_diff(&conn, pr_id, base_id).unwrap();
         assert_eq!(diff.len(), 2);
 
-        let modified: Vec<_> = diff.iter().filter(|d| d.change_type == "modified").collect();
+        let modified: Vec<_> = diff
+            .iter()
+            .filter(|d| d.change_type == "modified")
+            .collect();
         assert_eq!(modified.len(), 1);
         assert_eq!(modified[0].anchor, "sec-a");
 
@@ -721,29 +789,76 @@ mod tests {
     fn test_compute_pr_diff_ignores_whitespace_only_changes() {
         let conn = db::open_test_db().unwrap();
         let spec_id =
-            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg")
+                .unwrap();
 
-        let base_id = write::insert_snapshot(&conn, spec_id, "hash:base2", "2026-01-01T00:00:00Z").unwrap();
-        write::insert_sections_bulk(&conn, base_id, &[
-            ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
-                content_text: Some("Hello  world\n\nfoo".into()), section_type: SectionType::Heading,
-                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
-            ParsedSection { anchor: "sec-b".into(), title: Some("B".into()),
-                content_text: Some("Real content B".into()), section_type: SectionType::Heading,
-                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
-        ]).unwrap();
+        let base_id =
+            write::insert_snapshot(&conn, spec_id, "hash:base2", "2026-01-01T00:00:00Z").unwrap();
+        write::insert_sections_bulk(
+            &conn,
+            base_id,
+            &[
+                ParsedSection {
+                    anchor: "sec-a".into(),
+                    title: Some("A".into()),
+                    content_text: Some("Hello  world\n\nfoo".into()),
+                    section_type: SectionType::Heading,
+                    parent_anchor: None,
+                    prev_anchor: None,
+                    next_anchor: None,
+                    depth: Some(2),
+                },
+                ParsedSection {
+                    anchor: "sec-b".into(),
+                    title: Some("B".into()),
+                    content_text: Some("Real content B".into()),
+                    section_type: SectionType::Heading,
+                    parent_anchor: None,
+                    prev_anchor: None,
+                    next_anchor: None,
+                    depth: Some(2),
+                },
+            ],
+        )
+        .unwrap();
 
         let pr_id = write::insert_pr_snapshot(
-            &conn, spec_id, "pr-sha2", "2026-01-01T00:00:00Z", 98, "hash:base2", &[],
-        ).unwrap();
-        write::insert_sections_bulk(&conn, pr_id, &[
-            ParsedSection { anchor: "sec-a".into(), title: Some("A".into()),
-                content_text: Some("Hello world\n\nfoo".into()), section_type: SectionType::Heading,
-                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
-            ParsedSection { anchor: "sec-b".into(), title: Some("B".into()),
-                content_text: Some("Modified content B".into()), section_type: SectionType::Heading,
-                parent_anchor: None, prev_anchor: None, next_anchor: None, depth: Some(2) },
-        ]).unwrap();
+            &conn,
+            spec_id,
+            "pr-sha2",
+            "2026-01-01T00:00:00Z",
+            98,
+            "hash:base2",
+            &[],
+        )
+        .unwrap();
+        write::insert_sections_bulk(
+            &conn,
+            pr_id,
+            &[
+                ParsedSection {
+                    anchor: "sec-a".into(),
+                    title: Some("A".into()),
+                    content_text: Some("Hello world\n\nfoo".into()),
+                    section_type: SectionType::Heading,
+                    parent_anchor: None,
+                    prev_anchor: None,
+                    next_anchor: None,
+                    depth: Some(2),
+                },
+                ParsedSection {
+                    anchor: "sec-b".into(),
+                    title: Some("B".into()),
+                    content_text: Some("Modified content B".into()),
+                    section_type: SectionType::Heading,
+                    parent_anchor: None,
+                    prev_anchor: None,
+                    next_anchor: None,
+                    depth: Some(2),
+                },
+            ],
+        )
+        .unwrap();
 
         let diff = compute_pr_diff(&conn, pr_id, base_id).unwrap();
         assert_eq!(diff.len(), 1);
