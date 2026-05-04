@@ -1,5 +1,12 @@
 use serde::{Deserialize, Serialize};
 
+/// Options for PR-aware queries.
+#[derive(Debug, Clone)]
+pub struct PrOpts {
+    pub pr_number: i64,
+    pub force_update: bool,
+}
+
 /// Type of a section
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]

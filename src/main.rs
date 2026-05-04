@@ -453,14 +453,15 @@ async fn main() -> ExitCode {
 async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
     match cli.command {
         Command::Query { spec_anchor, pr, diff, force_update } => {
+            let pr_opts = pr.map(|n| model::PrOpts { pr_number: n, force_update });
             if diff {
-                let pr_number = pr.context("--diff requires --pr")?;
+                let opts = pr_opts.as_ref().context("--diff requires --pr")?;
                 let (spec_name, _, _) = webspec_index::parse_spec_anchor(&spec_anchor)?;
-                let result = webspec_index::pr_diff(&spec_name, pr_number, force_update).await?;
+                let result = webspec_index::pr_diff(&spec_name, opts).await?;
                 print_output(&cli.format, &result, format::pr_diff);
                 return Ok(ExitCode::SUCCESS);
             }
-            let result = webspec_index::query_section(&spec_anchor, pr, force_update).await?;
+            let result = webspec_index::query_section(&spec_anchor, pr_opts.as_ref()).await?;
             print_output(&cli.format, &result, format::query);
             Ok(ExitCode::SUCCESS)
         }
@@ -472,7 +473,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
         }
 
         Command::Exists { spec_anchor, pr, force_update } => {
-            let result = webspec_index::check_exists(&spec_anchor, pr, force_update).await?;
+            let pr_opts = pr.map(|n| model::PrOpts { pr_number: n, force_update });
+            let result = webspec_index::check_exists(&spec_anchor, pr_opts.as_ref()).await?;
             let found = result.exists;
             print_output(&cli.format, &result, format::exists);
             Ok(if found {
@@ -493,7 +495,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
         }
 
         Command::List { spec, pr, force_update } => {
-            let result = webspec_index::list_headings(&spec, pr, force_update).await?;
+            let pr_opts = pr.map(|n| model::PrOpts { pr_number: n, force_update });
+            let result = webspec_index::list_headings(&spec, pr_opts.as_ref()).await?;
             match cli.format {
                 OutputFormat::Json => {
                     println!("{}", serde_json::to_string_pretty(&result)?);
@@ -512,7 +515,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             pr,
             force_update,
         } => {
-            let result = webspec_index::find_references(&target, &direction, limit, pr, force_update).await?;
+            let pr_opts = pr.map(|n| model::PrOpts { pr_number: n, force_update });
+            let result = webspec_index::find_references(&target, &direction, limit, pr_opts.as_ref()).await?;
             print_output(&cli.format, &result, format::refs);
             Ok(ExitCode::SUCCESS)
         }
@@ -555,7 +559,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
         }
 
         Command::Idl { query, spec, limit, pr, force_update } => {
-            let result = webspec_index::query_idl(&query, spec.as_deref(), limit, pr, force_update).await?;
+            let pr_opts = pr.map(|n| model::PrOpts { pr_number: n, force_update });
+            let result = webspec_index::query_idl(&query, spec.as_deref(), limit, pr_opts.as_ref()).await?;
             print_output(&cli.format, &result, format::idl);
             Ok(ExitCode::SUCCESS)
         }
@@ -686,7 +691,7 @@ impl webspec_index::analyze::file::SpecResolver for DbResolver {
         }
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current()
-                .block_on(webspec_index::query_section(&key, None, false))
+                .block_on(webspec_index::query_section(&key, None))
                 .ok()
         });
         let content = result.and_then(|r| r.content).filter(|c| !c.is_empty());
