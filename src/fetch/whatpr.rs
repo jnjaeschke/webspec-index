@@ -135,11 +135,16 @@ fn extract_merge_base_from_diff_url(url: &str) -> Option<String> {
 
 /// Merge multiple ParsedSpec results (from multi-page fetches) into one.
 pub fn merge_parsed_specs(specs: Vec<ParsedSpec>) -> ParsedSpec {
+    let mut seen_anchors = std::collections::HashSet::new();
     let mut sections = Vec::new();
     let mut references = Vec::new();
     let mut idl_definitions = Vec::new();
     for spec in specs {
-        sections.extend(spec.sections);
+        for section in spec.sections {
+            if seen_anchors.insert(section.anchor.clone()) {
+                sections.push(section);
+            }
+        }
         references.extend(spec.references);
         idl_definitions.extend(spec.idl_definitions);
     }

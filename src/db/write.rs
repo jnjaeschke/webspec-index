@@ -90,7 +90,7 @@ pub fn insert_sections_bulk(
 
     {
         let mut stmt = tx.prepare(
-            "INSERT INTO sections
+            "INSERT OR IGNORE INTO sections
              (snapshot_id, anchor, title, content_text, section_type, parent_anchor, prev_anchor, next_anchor, depth)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )?;
