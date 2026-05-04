@@ -1,5 +1,6 @@
 use std::process::ExitCode;
 
+use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use moz_cli_version_check::VersionChecker;
 
@@ -76,6 +77,12 @@ enum Command {
     Query {
         /// Section identifier: SPEC#anchor or full URL
         spec_anchor: String,
+
+        #[arg(long, help = "Query against a WHATWG PR preview")]
+        pr: Option<i64>,
+
+        #[arg(long, help = "Show diff between PR and merge base (requires --pr)")]
+        diff: bool,
     },
 
     /// Full-text search across specifications
@@ -94,12 +101,18 @@ enum Command {
 
         #[arg(long, short, default_value = "20", help = "Maximum number of results")]
         limit: u32,
+
+        #[arg(long, help = "Query against a WHATWG PR preview")]
+        pr: Option<i64>,
     },
 
     /// Check if a section exists (exit code 0 = found, 1 = not found)
     Exists {
         /// Section identifier: SPEC#anchor or full URL
         spec_anchor: String,
+
+        #[arg(long, help = "Query against a WHATWG PR preview")]
+        pr: Option<i64>,
     },
 
     /// Find anchors matching a glob pattern
@@ -118,12 +131,18 @@ enum Command {
 
         #[arg(long, short, default_value = "50", help = "Maximum number of results")]
         limit: u32,
+
+        #[arg(long, help = "Query against a WHATWG PR preview")]
+        pr: Option<i64>,
     },
 
     /// List all headings in a specification
     List {
         /// Spec name (e.g. HTML, DOM, CSS-GRID)
         spec: String,
+
+        #[arg(long, help = "Query against a WHATWG PR preview")]
+        pr: Option<i64>,
     },
 
     /// Get cross-references for a section
@@ -150,6 +169,9 @@ enum Command {
 
         #[arg(long, short, default_value = "10", help = "Maximum number of matches")]
         limit: u32,
+
+        #[arg(long, help = "Query against a WHATWG PR preview")]
+        pr: Option<i64>,
     },
 
     /// Build a cross-reference graph rooted at a section
@@ -220,6 +242,9 @@ enum Command {
 
         #[arg(long, short, default_value = "20", help = "Maximum number of matches")]
         limit: u32,
+
+        #[arg(long, help = "Query against a WHATWG PR preview")]
+        pr: Option<i64>,
     },
 
     /// Update specifications to latest versions
@@ -340,23 +365,25 @@ fn is_llm_environment() -> bool {
 fn print_llm_help() {
     print!(
         r#"webspec-index: Query WHATWG/W3C/TC39 web specifications
-query <SPEC#anchor|URL> [--format json|markdown]
+query <SPEC#anchor|URL> [--pr N] [--diff] [--format json|markdown]
 search <Q> [-s SPEC] [-l N(20)] [--format json|markdown]
-exists <SPEC#anchor|URL> exit:0=found,1=not
+exists <SPEC#anchor|URL> [--pr N] exit:0=found,1=not
 anchors <GLOB> [-s SPEC] [-l N(50)]
-list <SPEC>
-refs <SPEC#anchor|TARGET> [-d incoming|outgoing|both(default)] [-l N(10)]
+list <SPEC> [--pr N]
+refs <SPEC#anchor|TARGET> [-d incoming|outgoing|both(default)] [-l N(10)] [--pr N]
 update [-s SPEC] [-f force]
 clear-db [-y skip confirm]
 specs — list indexed/discovered spec names+URLs
 lsp — start LSP server on stdio
 graph <SPEC#anchor|URL> [-d incoming|outgoing|both(default outgoing)] [--max-depth N(2)] [--max-nodes N(150)] [--include PATTERN --exclude PATTERN --same-spec-only] [--graph-format json|markdown|mermaid|dot]
-idl <Q|SPEC#anchor|URL> [-s SPEC] [-l N(20)] [--format json|markdown]
+idl <Q|SPEC#anchor|URL> [-s SPEC] [-l N(20)] [--pr N] [--format json|markdown]
 SPEC#anchor examples: HTML#navigate, DOM#concept-tree, CSS-GRID#grid-container
 Full URL also works: https://html.spec.whatwg.org/#navigate
+--pr N: query against WHATWG PR preview; --diff: show diff vs merge base (requires --pr)
 Ex: query HTML#navigate|search "tree order" -s DOM|anchors "*-tree" -s DOM
 Ex: refs HTML#navigate -d incoming|refs Window.navigation|graph HTML#navigate --graph-format mermaid
 Ex: idl Window.navigation|idl Window.open()|idl HTML#dom-window-navigation
+Ex: query HTML#navigate --pr 1234|query HTML#navigate --pr 1234 --diff
 "#
     );
 }
@@ -403,20 +430,27 @@ async fn main() -> ExitCode {
 
 async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
     match cli.command {
-        Command::Query { spec_anchor } => {
-            let result = webspec_index::query_section(&spec_anchor).await?;
+        Command::Query { spec_anchor, pr, diff } => {
+            if diff {
+                let pr_number = pr.context("--diff requires --pr")?;
+                let (spec_name, _, _) = webspec_index::parse_spec_anchor(&spec_anchor)?;
+                let result = webspec_index::pr_diff(&spec_name, pr_number).await?;
+                print_output(&cli.format, &result, format::pr_diff);
+                return Ok(ExitCode::SUCCESS);
+            }
+            let result = webspec_index::query_section(&spec_anchor, pr).await?;
             print_output(&cli.format, &result, format::query);
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::Search { query, spec, limit } => {
+        Command::Search { query, spec, limit, pr: _ } => {
             let result = webspec_index::search_sections(&query, spec.as_deref(), limit)?;
             print_output(&cli.format, &result, format::search);
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::Exists { spec_anchor } => {
-            let result = webspec_index::check_exists(&spec_anchor).await?;
+        Command::Exists { spec_anchor, pr } => {
+            let result = webspec_index::check_exists(&spec_anchor, pr).await?;
             let found = result.exists;
             print_output(&cli.format, &result, format::exists);
             Ok(if found {
@@ -430,14 +464,15 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             pattern,
             spec,
             limit,
+            pr: _,
         } => {
             let result = webspec_index::find_anchors(&pattern, spec.as_deref(), limit)?;
             print_output(&cli.format, &result, format::anchors);
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::List { spec } => {
-            let result = webspec_index::list_headings(&spec).await?;
+        Command::List { spec, pr } => {
+            let result = webspec_index::list_headings(&spec, pr).await?;
             match cli.format {
                 OutputFormat::Json => {
                     println!("{}", serde_json::to_string_pretty(&result)?);
@@ -453,8 +488,9 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             target,
             direction,
             limit,
+            pr,
         } => {
-            let result = webspec_index::find_references(&target, &direction, limit).await?;
+            let result = webspec_index::find_references(&target, &direction, limit, pr).await?;
             print_output(&cli.format, &result, format::refs);
             Ok(ExitCode::SUCCESS)
         }
@@ -496,8 +532,8 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
             Ok(ExitCode::SUCCESS)
         }
 
-        Command::Idl { query, spec, limit } => {
-            let result = webspec_index::query_idl(&query, spec.as_deref(), limit).await?;
+        Command::Idl { query, spec, limit, pr } => {
+            let result = webspec_index::query_idl(&query, spec.as_deref(), limit, pr).await?;
             print_output(&cli.format, &result, format::idl);
             Ok(ExitCode::SUCCESS)
         }
@@ -622,7 +658,7 @@ impl webspec_index::analyze::file::SpecResolver for DbResolver {
         }
         let result = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current()
-                .block_on(webspec_index::query_section(&key))
+                .block_on(webspec_index::query_section(&key, None))
                 .ok()
         });
         let content = result.and_then(|r| r.content).filter(|c| !c.is_empty());
