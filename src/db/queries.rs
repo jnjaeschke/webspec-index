@@ -11,6 +11,47 @@ pub struct UpdateCheckState {
     pub content_hash: Option<String>,
 }
 
+/// Get a PR snapshot for a spec by name and PR number.
+/// Returns (snapshot_id, merge_base_sha) if found.
+pub fn get_pr_snapshot(
+    conn: &Connection,
+    spec_name: &str,
+    pr_number: i64,
+) -> Result<Option<(i64, String)>> {
+    let result = conn.query_row(
+        "SELECT s.id, s.merge_base_sha FROM snapshots s
+         JOIN specs sp ON s.spec_id = sp.id
+         WHERE sp.name = ?1 AND s.pr_number = ?2",
+        (spec_name, pr_number),
+        |row| Ok((row.get(0)?, row.get::<_, String>(1)?)),
+    );
+    match result {
+        Ok(r) => Ok(Some(r)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
+/// Get a commit snapshot by spec_id and exact SHA.
+/// Used to find cached merge base snapshots.
+pub fn get_commit_snapshot(
+    conn: &Connection,
+    spec_id: i64,
+    sha: &str,
+) -> Result<Option<i64>> {
+    let result = conn.query_row(
+        "SELECT id FROM snapshots
+         WHERE spec_id = ?1 AND sha = ?2 AND pr_number IS NULL",
+        (spec_id, sha),
+        |row| row.get(0),
+    );
+    match result {
+        Ok(id) => Ok(Some(id)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
 /// Get the snapshot for a spec by name (each spec has at most one snapshot)
 pub fn get_snapshot(conn: &Connection, spec_name: &str) -> Result<Option<i64>> {
     let result = conn.query_row(
@@ -443,6 +484,43 @@ mod tests {
         assert_eq!(headings.len(), 2);
         assert_eq!(headings[0].anchor, "intro");
         assert_eq!(headings[1].anchor, "details");
+    }
+
+    #[test]
+    fn test_get_pr_snapshot() {
+        let conn = db::open_test_db().unwrap();
+        let spec_id =
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+
+        // No PR snapshot yet
+        let result = get_pr_snapshot(&conn, "HTML", 12345).unwrap();
+        assert!(result.is_none());
+
+        // Insert PR snapshot
+        let snap_id = write::insert_pr_snapshot(
+            &conn, spec_id, "pr-sha", "2026-01-01T00:00:00Z", 12345, "base-sha",
+        ).unwrap();
+
+        let result = get_pr_snapshot(&conn, "HTML", 12345).unwrap();
+        assert_eq!(result, Some((snap_id, "base-sha".to_string())));
+    }
+
+    #[test]
+    fn test_get_commit_snapshot() {
+        let conn = db::open_test_db().unwrap();
+        let spec_id =
+            write::insert_or_get_spec(&conn, "HTML", "https://html.spec.whatwg.org", "whatwg").unwrap();
+
+        // Insert a commit snapshot (regular snapshot with a real SHA)
+        let snap_id = write::insert_snapshot(
+            &conn, spec_id, "abc123full", "2026-01-01T00:00:00Z",
+        ).unwrap();
+
+        let result = get_commit_snapshot(&conn, spec_id, "abc123full").unwrap();
+        assert_eq!(result, Some(snap_id));
+
+        let result = get_commit_snapshot(&conn, spec_id, "nonexistent").unwrap();
+        assert!(result.is_none());
     }
 
     #[test]
