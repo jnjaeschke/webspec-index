@@ -3030,6 +3030,12 @@
     "github_repo": "w3c/webextensions"
   },
   {
+    "name": "WEBHID",
+    "base_url": "https://wicg.github.io/webhid",
+    "provider": "w3c",
+    "github_repo": "WICG/webhid"
+  },
+  {
     "name": "WEBID",
     "base_url": "https://w3c.github.io/WebID",
     "provider": "w3c",
