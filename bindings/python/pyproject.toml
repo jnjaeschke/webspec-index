@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "webspec-index"
-version = "0.8.0"
+version = "0.9.0"
 description = "Python bindings for webspec-index: query WHATWG/W3C/TC39/IETF web specifications"
 readme = "README.md"
 requires-python = ">=3.9"
