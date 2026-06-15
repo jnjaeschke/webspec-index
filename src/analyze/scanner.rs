@@ -262,20 +262,11 @@ pub fn build_scopes(
             for url in urls {
                 let url_indent = url.indent;
 
-                // If the top of stack has the same indent, replace it (same block,
-                // different algorithm). Otherwise stack (nested scope).
-                if let Some(top) = stack.last() {
-                    if url_indent <= top.indent {
-                        // Pop scopes at same or higher indent before pushing.
-                        while let Some(top) = stack.last() {
-                            if top.indent >= url_indent {
-                                let popped = stack.pop().unwrap();
-                                finished.push((popped.url, popped.steps));
-                            } else {
-                                break;
-                            }
-                        }
-                    }
+                // Pop scopes at the same or higher indent before pushing: a
+                // same-indent URL replaces the sibling algorithm, a deeper one
+                // nests. (Higher indent than the top simply nests, popping none.)
+                while let Some(popped) = stack.pop_if(|top| top.indent >= url_indent) {
+                    finished.push((popped.url, popped.steps));
                 }
 
                 stack.push(Scope {
