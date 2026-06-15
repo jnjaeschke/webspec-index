@@ -2816,6 +2816,7 @@ dependencies = [
  "chrono",
  "clap",
  "dashmap 6.1.0",
+ "dirs",
  "htmd",
  "libc",
  "markup5ever_rcdom",

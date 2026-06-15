@@ -12,8 +12,10 @@ pub fn get_db_path() -> PathBuf {
     if let Ok(test_db) = std::env::var("SPEC_INDEX_TEST_DB") {
         PathBuf::from(test_db)
     } else {
-        let home = std::env::var("HOME").expect("HOME environment variable not set");
-        PathBuf::from(home).join(".webspec-index").join("index.db")
+        // Cross-platform: HOME on Unix, USERPROFILE/known-folder on Windows.
+        let home = dirs::home_dir()
+            .expect("could not determine home directory (set SPEC_INDEX_TEST_DB to override)");
+        home.join(".webspec-index").join("index.db")
     }
 }
 
