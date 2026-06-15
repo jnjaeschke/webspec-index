@@ -1,0 +1,30 @@
+[build-system]
+requires = ["maturin==1.14.0"]
+build-backend = "maturin"
+
+[project]
+name = "webspec-index"
+version = "0.8.0"
+description = "Python bindings for webspec-index: query WHATWG/W3C/TC39/IETF web specifications"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Jan-Niklas Jaeschke" }]
+keywords = ["webspec", "whatwg", "w3c", "tc39", "specifications"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Software Development :: Libraries",
+]
+
+[project.urls]
+Repository = "https://github.com/jnjaeschke/webspec-index"
+
+[project.optional-dependencies]
+test = ["pytest==8.3.4"]
+
+[tool.maturin]
+python-source = "python"
+module-name = "webspec_index._webspec_index"
+features = ["pyo3/extension-module"]

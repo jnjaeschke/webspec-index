@@ -5,7 +5,7 @@ edition = "2021"
 description = "Query WHATWG/W3C/TC39 web specifications from the command line"
 license = "MIT"
 repository = "https://github.com/jnjaeschke/webspec-index"
-exclude = ["editors/", ".github/", "SKILL.md", "csswg-drafts/", "groups/"]
+exclude = ["editors/", "bindings/", ".github/", "SKILL.md", "csswg-drafts/", "groups/"]
 
 [lib]
 name = "webspec_index"
