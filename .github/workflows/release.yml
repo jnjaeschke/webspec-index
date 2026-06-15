@@ -296,6 +296,7 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
+  # Publish to PyPI using Trusted Publishers (OIDC) — no stored token.
   publish-pypi:
     name: Publish to PyPI
     needs: [build-wheels, build-sdist]
@@ -304,6 +305,9 @@ jobs:
     environment:
       name: pypi
       url: https://pypi.org/project/webspec-index/
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Download wheels and sdist
@@ -313,13 +317,13 @@ jobs:
           merge-multiple: true
           path: dist
 
+      - name: List distributions
+        run: ls -lh dist/
+
+      - uses: astral-sh/setup-uv@v5
+
       - name: Publish to PyPI
-        uses: PyO3/maturin-action@v1
-        with:
-          command: upload
-          args: --non-interactive --skip-existing dist/*
-        env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: uv publish dist/*
 
   publish-vscode:
     name: Publish to VS Code Marketplace
