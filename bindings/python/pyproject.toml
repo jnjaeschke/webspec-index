@@ -28,3 +28,9 @@ test = ["pytest==8.3.4"]
 python-source = "python"
 module-name = "webspec_index._webspec_index"
 features = ["pyo3/extension-module"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "network: test fetches spec data over the network (deselect with '-m \"not network\"')",
+]

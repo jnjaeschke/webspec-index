@@ -404,7 +404,10 @@ py_data!(GraphNode);
 #[pyclass(frozen, get_all, skip_from_py_object)]
 #[derive(Clone, Serialize)]
 pub struct GraphEdge {
-    pub from: String,
+    // `from` is a Python keyword, so the attribute is exposed as `from_`;
+    // the JSON key stays `from` to match the CLI output.
+    #[serde(rename = "from")]
+    pub from_: String,
     pub to: String,
     pub kind: String,
 }
@@ -450,7 +453,7 @@ impl From<&model::GraphResult> for GraphResult {
                 .edges
                 .iter()
                 .map(|e| GraphEdge {
-                    from: e.from.clone(),
+                    from_: e.from.clone(),
                     to: e.to.clone(),
                     kind: e.kind.clone(),
                 })
