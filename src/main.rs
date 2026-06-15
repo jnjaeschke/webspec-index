@@ -745,92 +745,6 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
     }
 }
 
-/// DB-backed spec resolver for the analyze command.
-///
-/// Uses `DashMap` for thread-safe caching (safe for future parallelization).
-struct DbResolver {
-    cache: dashmap::DashMap<String, Option<String>>,
-}
-
-impl DbResolver {
-    fn new() -> Self {
-        DbResolver {
-            cache: dashmap::DashMap::new(),
-        }
-    }
-
-    /// Return all successfully resolved sections as a map of
-    /// "SPEC_<spec>_<anchor>" -> content (the same symbol names used
-    /// in searchfox analysis records).
-    fn resolved_sections(&self) -> std::collections::HashMap<String, String> {
-        self.cache
-            .iter()
-            .filter_map(|entry| {
-                let content = entry.value().as_ref()?;
-                let (spec, anchor) = entry.key().split_once('#')?;
-                let sym = format!("SPEC_{spec}_{anchor}");
-                Some((sym, content.clone()))
-            })
-            .collect()
-    }
-}
-
-impl webspec_index::analyze::file::SpecResolver for DbResolver {
-    fn resolve(&self, spec: &str, anchor: &str) -> Option<String> {
-        let key = format!("{spec}#{anchor}");
-        if let Some(cached) = self.cache.get(&key) {
-            return cached.clone();
-        }
-        let result = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current()
-                .block_on(webspec_index::query_section(&key, None))
-                .ok()
-        });
-        let content = result.and_then(|r| r.content).filter(|c| !c.is_empty());
-        self.cache.insert(key, content.clone());
-        content
-    }
-}
-
-/// Source file extensions to scan when analyzing directories.
-const SOURCE_EXTENSIONS: &[&str] = &[
-    "cpp", "cc", "cxx", "c", "h", "hpp", "hxx", "rs", "js", "mjs", "jsm", "py", "java",
-];
-
-fn is_source_file(path: &std::path::Path) -> bool {
-    path.extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|ext| SOURCE_EXTENSIONS.contains(&ext))
-}
-
-/// Collect source files to analyze.
-fn collect_files(
-    path: &std::path::Path,
-    recursive: bool,
-) -> anyhow::Result<Vec<std::path::PathBuf>> {
-    if path.is_file() {
-        return Ok(vec![path.to_path_buf()]);
-    }
-    if !path.is_dir() {
-        anyhow::bail!("{} is not a file or directory", path.display());
-    }
-    let mut files = Vec::new();
-    let mut dirs = vec![path.to_path_buf()];
-    while let Some(dir) = dirs.pop() {
-        for entry in std::fs::read_dir(&dir)? {
-            let entry = entry?;
-            let ft = entry.file_type()?;
-            if ft.is_file() && is_source_file(&entry.path()) {
-                files.push(entry.path());
-            } else if ft.is_dir() && recursive {
-                dirs.push(entry.path());
-            }
-        }
-    }
-    files.sort();
-    Ok(files)
-}
-
 /// Run the analyze subcommand.
 async fn run_analyze(
     path: &std::path::Path,
@@ -840,47 +754,30 @@ async fn run_analyze(
     output_dir: Option<&std::path::Path>,
     strip_prefix: Option<&std::path::Path>,
 ) -> anyhow::Result<()> {
-    use webspec_index::analyze::file::{analyze_file, FileAnalysisView};
-    use webspec_index::analyze::scanner::SpecUrl;
+    use webspec_index::analyze::file::FileAnalysisView;
     use webspec_index::analyze::searchfox::to_searchfox_records;
 
     if output_dir.is_some() && !matches!(format, AnalyzeFormat::Searchfox) {
         anyhow::bail!("--output-dir requires --output-format=searchfox");
     }
 
-    let files = collect_files(path, recursive)?;
-    if files.is_empty() {
+    let run =
+        webspec_index::analyze::orchestrate::analyze_paths(path, recursive, threshold).await?;
+
+    if run.total_files_scanned == 0 {
         eprintln!("No source files found in {}", path.display());
         return Ok(());
     }
 
-    // Build spec URL list from the database.
-    let spec_urls: Vec<SpecUrl> = webspec_index::spec_urls()
-        .into_iter()
-        .map(|e| SpecUrl {
-            spec: e.spec,
-            base_url: e.base_url,
-        })
-        .collect();
+    for (file_path, err) in &run.read_errors {
+        eprintln!("warning: {}: {err}", file_path.display());
+    }
 
-    let resolver = DbResolver::new();
     let mut files_with_refs = 0;
 
-    for file_path in &files {
-        let text = match std::fs::read_to_string(file_path) {
-            Ok(t) => t,
-            Err(e) => {
-                eprintln!("warning: {}: {e}", file_path.display());
-                continue;
-            }
-        };
-
-        let result = analyze_file(&text, &spec_urls, &resolver, threshold);
-        if result.scopes.is_empty() {
-            continue;
-        }
-
-        let view = FileAnalysisView::from(&result);
+    for analyzed in &run.files {
+        let file_path = &analyzed.path;
+        let view = FileAnalysisView::from(&analyzed.analysis);
 
         match format {
             AnalyzeFormat::Json => {
@@ -920,10 +817,10 @@ async fn run_analyze(
     }
 
     if let Some(out_dir) = output_dir {
-        let sections = resolver.resolved_sections();
+        let sections = &run.resolved_sections;
         if !sections.is_empty() {
             let sections_path = out_dir.join("spec-sections.json");
-            let json = serde_json::to_string(&sections)?;
+            let json = serde_json::to_string(sections)?;
             std::fs::write(&sections_path, json)?;
             eprintln!(
                 "spec-analyze: wrote {} spec sections to {}",

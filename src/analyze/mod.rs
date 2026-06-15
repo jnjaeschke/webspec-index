@@ -9,6 +9,7 @@
 pub mod coverage;
 pub mod file;
 pub mod matcher;
+pub mod orchestrate;
 pub mod scanner;
 pub mod searchfox;
 pub mod steps;
