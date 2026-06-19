@@ -10,6 +10,7 @@ pub mod format;
 pub mod ietf;
 pub mod lsp;
 pub mod model;
+pub mod native_messaging;
 pub mod parse;
 pub mod spec_list;
 pub mod spec_registry;
