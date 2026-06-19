@@ -216,6 +216,28 @@ fn extract_definition_content(
             let tag_name = parent_elem.value().name();
             // Block-level elements that can contain definitions
             if matches!(tag_name, "p" | "div" | "dd" | "dt" | "li" | "section") {
+                // For <dt> (definition list terms, e.g. enum values), the description
+                // lives in the following <dd> sibling, not in the <dt> itself.
+                if tag_name == "dt" {
+                    let mut sibling = node.next_sibling();
+                    while let Some(sib_node) = sibling {
+                        if let Some(sib_elem) = scraper::ElementRef::wrap(sib_node) {
+                            match sib_elem.value().name() {
+                                "dd" => {
+                                    return Some(markdown::element_to_markdown(
+                                        &sib_elem, converter,
+                                    ));
+                                }
+                                // Stop at another <dt> or any heading/block — no <dd> exists
+                                "dt" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "div" => break,
+                                _ => {}
+                            }
+                        }
+                        sibling = sib_node.next_sibling();
+                    }
+                    // No <dd> found — fall through to use the <dt> text
+                    return Some(markdown::element_to_markdown(&parent_elem, converter));
+                }
                 return Some(markdown::element_to_markdown(&parent_elem, converter));
             }
         }
