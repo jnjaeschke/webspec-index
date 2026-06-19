@@ -46,14 +46,18 @@ fn sync_from_html(
     previous_snapshot_id: Option<i64>,
     state: Option<queries::UpdateCheckState>,
     now: &DateTime<Utc>,
+    force: bool,
 ) -> Result<(i64, bool)> {
     let content_hash = hash_html(&html);
 
-    if let Some(snapshot_id) = previous_snapshot_id {
-        if state.as_ref().and_then(|s| s.content_hash.as_deref()) == Some(content_hash.as_str()) {
-            let existing_indexed = state.as_ref().and_then(|s| s.last_indexed.as_ref());
-            store_update_check(conn, spec_id, now, existing_indexed, Some(&content_hash))?;
-            return Ok((snapshot_id, false));
+    if !force {
+        if let Some(snapshot_id) = previous_snapshot_id {
+            if state.as_ref().and_then(|s| s.content_hash.as_deref()) == Some(content_hash.as_str())
+            {
+                let existing_indexed = state.as_ref().and_then(|s| s.last_indexed.as_ref());
+                store_update_check(conn, spec_id, now, existing_indexed, Some(&content_hash))?;
+                return Ok((snapshot_id, false));
+            }
         }
     }
 
@@ -160,6 +164,7 @@ async fn sync_known_spec(
         previous_snapshot_id,
         state,
         &now,
+        force,
     )
 }
 
@@ -193,6 +198,7 @@ async fn sync_dynamic_spec(
         previous_snapshot_id,
         state,
         &now,
+        force,
     )
 }
 
