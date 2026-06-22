@@ -118,6 +118,14 @@ pub fn build_converter(base_url: &str) -> HtmlToMarkdown {
                 Some(to_blockquote(&content, "**Note:** ").into())
             },
         )
+        // <del>: suppress deleted text (spec editorial deletions, PR preview removals)
+        // <ins>: pass through inserted text as normal content
+        .add_handler(vec!["del"], |_handlers: &dyn Handlers, _element: Element| {
+            None
+        })
+        .add_handler(vec!["ins"], |handlers: &dyn Handlers, element: Element| {
+            Some(handlers.walk_children(element.node))
+        })
         // <span>: strip section number spans (secno/secnum) and note labels, keep everything else
         .add_handler(vec!["span"], |handlers: &dyn Handlers, element: Element| {
             for attr in element.attrs.iter() {
@@ -524,6 +532,24 @@ mod tests {
         );
         assert!(md.contains("| Field | Value |"));
         assert!(md.contains("| term | definition with variable |"));
+    }
+
+    #[test]
+    fn test_del_suppressed() {
+        let md = html_to_markdown(
+            "<p>Keep this. <del>Remove this.</del> Keep this too.</p>",
+            "https://example.com",
+        );
+        assert_eq!(md, "Keep this. Keep this too.");
+    }
+
+    #[test]
+    fn test_ins_shown() {
+        let md = html_to_markdown(
+            "<p>Before. <ins>Added text.</ins> After.</p>",
+            "https://example.com",
+        );
+        assert_eq!(md, "Before. Added text. After.");
     }
 
     #[test]
