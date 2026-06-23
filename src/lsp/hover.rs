@@ -41,6 +41,7 @@ mod tests {
             spec: "HTML".to_string(),
             sha: "abc".to_string(),
             anchor: "navigate".to_string(),
+            url: "https://html.spec.whatwg.org/#navigate".to_string(),
             title: title.map(|s| s.to_string()),
             section_type: section_type.to_string(),
             content: content.map(|s| s.to_string()),
