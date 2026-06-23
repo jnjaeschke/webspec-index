@@ -153,6 +153,15 @@ impl SpecRegistry {
             ));
         }
 
+        // TC39 proposals all live at https://tc39.es/proposal-*
+        if let Some(suffix) = token.strip_prefix("PROPOSAL-") {
+            let slug = suffix.to_ascii_lowercase();
+            return Some((
+                format!("https://tc39.es/proposal-{slug}"),
+                "tc39".to_string(),
+            ));
+        }
+
         // IETF RFCs can be resolved statically (immutable documents).
         // Drafts require async Datatracker lookup, handled elsewhere.
         if ietf::is_ietf_name(spec_name) {
@@ -483,6 +492,31 @@ mod tests {
         let (base, provider) = registry.infer_base_url_from_spec_name("RFC9110").unwrap();
         assert_eq!(base, "https://www.rfc-editor.org/rfc/rfc9110.html");
         assert_eq!(provider, "ietf");
+    }
+
+    #[test]
+    fn infer_tc39_proposal_from_short_name() {
+        let registry = SpecRegistry::new();
+
+        let (base, provider) = registry
+            .infer_base_url_from_spec_name("PROPOSAL-DEFER-IMPORT-EVAL")
+            .unwrap();
+        assert_eq!(base, "https://tc39.es/proposal-defer-import-eval");
+        assert_eq!(provider, "tc39");
+
+        // lowercase input should also work (normalize_spec_token uppercases it)
+        let (base, provider) = registry
+            .infer_base_url_from_spec_name("proposal-defer-import-eval")
+            .unwrap();
+        assert_eq!(base, "https://tc39.es/proposal-defer-import-eval");
+        assert_eq!(provider, "tc39");
+
+        // source-phase-imports proposal
+        let (base, provider) = registry
+            .infer_base_url_from_spec_name("PROPOSAL-SOURCE-PHASE-IMPORTS")
+            .unwrap();
+        assert_eq!(base, "https://tc39.es/proposal-source-phase-imports");
+        assert_eq!(provider, "tc39");
     }
 
     #[test]
