@@ -120,9 +120,10 @@ pub fn build_converter(base_url: &str) -> HtmlToMarkdown {
         )
         // <del>: suppress deleted text (spec editorial deletions, PR preview removals)
         // <ins>: pass through inserted text as normal content
-        .add_handler(vec!["del"], |_handlers: &dyn Handlers, _element: Element| {
-            None
-        })
+        .add_handler(
+            vec!["del"],
+            |_handlers: &dyn Handlers, _element: Element| None,
+        )
         .add_handler(vec!["ins"], |handlers: &dyn Handlers, element: Element| {
             Some(handlers.walk_children(element.node))
         })

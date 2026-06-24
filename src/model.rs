@@ -91,6 +91,7 @@ pub struct QueryResult {
     pub spec: String,
     pub sha: String,
     pub anchor: String,
+    pub url: String,
     pub title: Option<String>,
     #[serde(rename = "type")]
     pub section_type: String,

@@ -237,10 +237,16 @@ pub async fn query_section(
         })
         .collect();
 
+    let base_url = db::queries::get_spec_meta(&conn, &spec_name)?
+        .map(|(_, base_url, _)| base_url)
+        .unwrap_or_default();
+    let url = format!("{base_url}/#{}", section.anchor);
+
     Ok(model::QueryResult {
         spec: spec_name.clone(),
         sha: snapshot_sha,
         anchor: section.anchor,
+        url,
         title: section.title,
         section_type: section.section_type.as_str().to_string(),
         content: section.content_text,

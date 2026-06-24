@@ -216,6 +216,23 @@ webspec-index idl 'Window.navigation' --format markdown
 webspec-index refs 'Window.navigation' --direction incoming
 ```
 
+### Finding where Gecko implements a spec section
+
+When the user asks where a spec algorithm is implemented in Gecko or SpiderMonkey, query
+the spec section first, then pass the `url` field from the response to `searchfox-cli`:
+
+```bash
+# Step 1 — read the spec section (response includes a "url" field)
+webspec-index query 'HTML#navigate' --format json
+
+# Step 2 — find Gecko source files that reference that URL
+searchfox-cli --spec-refs 'https://html.spec.whatwg.org/#navigate'
+```
+
+Always do this when the user asks questions like "where is X implemented", "which file handles Y",
+or "show me the Gecko code for Z". The `url` field in the `query` response is the value to pass
+to `--spec-refs` — no manual URL construction needed.
+
 ### Implementing a feature from a spec PR
 
 When the bug references a spec PR that hasn't landed yet:
