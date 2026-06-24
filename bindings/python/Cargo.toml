@@ -1,6 +1,6 @@
 [package]
 name = "webspec-index-python"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2021"
 license = "MIT"
 description = "Python bindings for webspec-index"
