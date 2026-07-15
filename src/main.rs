@@ -357,6 +357,9 @@ enum Command {
     /// Start the Language Server Protocol server (stdio)
     Lsp,
 
+    /// Start the native messaging host for the Firefox extension (stdio)
+    NativeMessaging,
+
     /// Remove cached PR preview data
     #[command(long_about = "Remove cached PR preview data.\n\n\
         Without arguments, lists all cached PR snapshots.\n\
@@ -432,6 +435,7 @@ clear-db [-y skip confirm]
 clear-pr [--all | -s SPEC [--pr N]] — list or remove cached PR data
 specs — list indexed/discovered spec names+URLs
 lsp — start LSP server on stdio
+native-messaging — start native messaging host for the Firefox extension on stdio
 graph <SPEC#anchor|URL> [-d incoming|outgoing|both(default outgoing)] [--max-depth N(2)] [--max-nodes N(150)] [--include PATTERN --exclude PATTERN --same-spec-only] [--graph-format json|markdown|mermaid|dot]
 idl <Q|SPEC#anchor|URL> [-s SPEC] [-l N(20)] [--pr N] [--format json|markdown]
 SPEC#anchor examples: HTML#navigate, DOM#concept-tree, CSS-GRID#grid-container
@@ -713,6 +717,11 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
 
         Command::Lsp => {
             webspec_index::lsp::serve_stdio().await;
+            Ok(ExitCode::SUCCESS)
+        }
+
+        Command::NativeMessaging => {
+            webspec_index::native_messaging::serve().await;
             Ok(ExitCode::SUCCESS)
         }
 
