@@ -30,7 +30,11 @@ pub fn canonical_itu_name(name: &str) -> String {
     let Some(first) = chars.next() else {
         return String::new();
     };
-    format!("{}{}", first.to_ascii_uppercase(), &name[first.len_utf8()..])
+    format!(
+        "{}{}",
+        first.to_ascii_uppercase(),
+        &name[first.len_utf8()..]
+    )
 }
 
 use anyhow::Result;

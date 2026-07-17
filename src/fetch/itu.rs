@@ -211,7 +211,9 @@ mod tests {
         .unwrap();
         assert!(updated);
 
-        let section = queries::get_section(&conn, snapshot_id, "1").unwrap().unwrap();
+        let section = queries::get_section(&conn, snapshot_id, "1")
+            .unwrap()
+            .unwrap();
         assert_eq!(section.title, Some("Scope".to_string()));
     }
 

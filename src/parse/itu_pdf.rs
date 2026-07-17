@@ -155,7 +155,12 @@ mod tests {
 
         let mut bookmark_ids: Vec<u32> = Vec::with_capacity(bookmarks.len());
         for (title, page_idx, parent_idx) in bookmarks {
-            let bm = Bookmark::new((*title).to_string(), [0.0, 0.0, 0.0], 0, page_ids[*page_idx]);
+            let bm = Bookmark::new(
+                (*title).to_string(),
+                [0.0, 0.0, 0.0],
+                0,
+                page_ids[*page_idx],
+            );
             let parent = parent_idx.map(|i| bookmark_ids[i]);
             bookmark_ids.push(doc.add_bookmark(bm, parent));
         }
@@ -221,14 +226,18 @@ mod tests {
         let (anchor, title) =
             split_anchor_title("D.3.28 Mastering display colour volume SEI message semantics");
         assert_eq!(anchor, "D.3.28");
-        assert_eq!(title, "Mastering display colour volume SEI message semantics");
+        assert_eq!(
+            title,
+            "Mastering display colour volume SEI message semantics"
+        );
     }
 
     #[test]
     fn test_split_anchor_title_annex_double_space() {
         // Real ITU-T H.265 outline title for the Annex D node: no
         // special-casing needed, the leading token is still correct.
-        let (anchor, title) = split_anchor_title("D  Annex D  Supplemental enhancement information");
+        let (anchor, title) =
+            split_anchor_title("D  Annex D  Supplemental enhancement information");
         assert_eq!(anchor, "D");
         assert_eq!(title, "Annex D  Supplemental enhancement information");
     }
