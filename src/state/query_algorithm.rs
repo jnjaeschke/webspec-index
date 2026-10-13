@@ -11,7 +11,9 @@ use crate::parse::steps::AnchorTarget;
 use crate::state::bind::{bind, ArgValue, Binding, BindingIssue, BoundVia, Confidence};
 use crate::state::ir::CallForm;
 use crate::state::model::{Passing, ReviewItem, Signature, StateIssueCode, TemplatePiece};
-use crate::state::query::{anchor_url, StateError, StateQueryOptions, StateStatus, StatusCounts};
+use crate::state::query::{
+    anchor_url, StateError, StateErrorCode, StateQueryOptions, StateStatus, StatusCounts,
+};
 use crate::state::render;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,6 +76,20 @@ pub(crate) fn algorithm_view(
     options: &StateQueryOptions,
 ) -> Result<Option<StateAlgorithmResult>, StateError> {
     let spec_ids = ids_of(snapshots, spec);
+    let snapshot = snapshots.iter().find(|s| s.spec == spec);
+    if let Some(snapshot) = snapshot {
+        let version = db::state_version_of(conn, snapshot.id)?;
+        if version.as_deref().and_then(|v| v.split('+').next()) != Some(crate::state::STATE_VERSION)
+        {
+            if db::section_type(conn, &spec_ids, anchor)?.as_deref() == Some("algorithm") {
+                return Err(StateError::new(
+                    StateErrorCode::SpecNotIndexed,
+                    format!("the state model of {spec} was built by an older version; run `webspec-index update`"),
+                ));
+            }
+            return Ok(None);
+        }
+    }
     let summary = db::algorithm_summary(conn, &spec_ids, spec, anchor)?;
     let signature = db::signature_for(conn, &spec_ids, spec, anchor)?;
     if summary.is_none() && signature.is_none() {
@@ -191,44 +207,43 @@ fn caller_list(
     name: &str,
     limit: u32,
 ) -> Result<CallerList, StateError> {
-    let stored = db::calls_by_target(conn, snapshot_ids, spec, anchor)?;
-    let total = stored.len() as u32;
-    let mut groups: Vec<(String, Vec<&StoredCall>)> = Vec::new();
-    for call in &stored {
-        let caller = format!("{}#{}", call.spec, call.subject);
-        match groups.last_mut() {
-            Some((last, calls)) if *last == caller => calls.push(call),
-            _ => groups.push((caller, vec![call])),
-        }
-    }
-    let more = groups.len().saturating_sub(limit as usize) as u32;
-    groups.truncate(limit as usize);
-    let groups = groups
-        .into_iter()
-        .map(|(caller, mut calls)| {
-            calls.sort_by_cached_key(|c| {
-                (
-                    step_key(c.step_path.as_deref()),
-                    c.offset + c.call.span.start,
-                )
-            });
-            let calls = calls
-                .into_iter()
-                .map(|call| {
-                    let binding = match signature {
-                        Some(sig) => bind(&call.call, &call.source, sig),
-                        None => unsigned_binding(call),
-                    };
-                    call_view(call, &binding, signature, name)
-                })
-                .collect();
-            CallerGroup { caller, calls }
-        })
+    let page = db::caller_groups(conn, snapshot_ids, spec, anchor, limit)?;
+    let shown: Vec<(i64, String)> = page
+        .groups
+        .iter()
+        .map(|(snapshot, _, subject)| (*snapshot, subject.clone()))
         .collect();
+    let stored = db::calls_of_callers(conn, spec, anchor, &shown)?;
+    let shown_groups = page.groups.len() as u32;
+    let mut groups = Vec::with_capacity(page.groups.len());
+    for (snapshot_id, caller_spec, subject) in page.groups {
+        let caller = format!("{caller_spec}#{subject}");
+        let mut calls: Vec<_> = stored
+            .iter()
+            .filter(|call| call.snapshot_id == snapshot_id && call.subject == subject)
+            .collect();
+        calls.sort_by_cached_key(|c| {
+            (
+                step_key(c.step_path.as_deref()),
+                c.offset + c.call.span.start,
+            )
+        });
+        let calls = calls
+            .into_iter()
+            .map(|call| {
+                let binding = match signature {
+                    Some(sig) => bind(&call.call, &call.source, sig),
+                    None => unsigned_binding(call),
+                };
+                call_view(call, &binding, signature, name)
+            })
+            .collect();
+        groups.push(CallerGroup { caller, calls });
+    }
     Ok(CallerList {
-        total,
+        total: page.total_calls,
         groups,
-        more,
+        more: page.total_groups.saturating_sub(shown_groups),
     })
 }
 
@@ -495,6 +510,28 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["HTML#go", "HTML#location-object-navigate"]
         );
+        let snapshots: Vec<i64> = crate::db::state::state_snapshots(&conn)
+            .unwrap()
+            .iter()
+            .map(|s| s.id)
+            .collect();
+        let page =
+            crate::db::state::caller_groups(&conn, &snapshots, "HTML", "navigate", 2).unwrap();
+        assert_eq!(
+            (page.total_calls, page.total_groups, page.groups.len()),
+            (3, 3, 2)
+        );
+        let shown: Vec<(i64, String)> = page
+            .groups
+            .iter()
+            .map(|(snapshot, _, subject)| (*snapshot, subject.clone()))
+            .collect();
+        assert_eq!(
+            crate::db::state::calls_of_callers(&conn, "HTML", "navigate", &shown)
+                .unwrap()
+                .len(),
+            2
+        );
         let go = &callers.groups[0].calls[0];
         assert_eq!(
             (go.step_path.as_deref(), go.callee.as_str(), go.confidence),
@@ -514,6 +551,56 @@ mod tests {
         assert!(view(&conn, "HTML#navigate", false, false, false, None)
             .callers
             .is_none());
+    }
+
+    #[test]
+    fn stale_snapshot_is_spec_not_indexed_for_algorithms_only() {
+        use crate::state::query::StateErrorCode;
+
+        let conn = db_with(&[("HTML", NAV_HTML)]);
+        conn.execute_batch(
+            "DELETE FROM state_algorithms; DELETE FROM state_signatures; DELETE FROM state_calls;",
+        )
+        .unwrap();
+        let current = crate::state::STATE_VERSION;
+        for (stored, stale) in [
+            (None, true),
+            (Some("0+sha256:ab".to_string()), true),
+            (Some(format!("{current}0")), true),
+            (Some(format!("{current}+sha256:ab")), false),
+        ] {
+            conn.execute(
+                "UPDATE state_coverage SET representation_version = ?1",
+                [&stored],
+            )
+            .unwrap();
+            let answer = query(&conn, "HTML#navigate", &StateQueryOptions::default());
+            if stale {
+                let err = answer.unwrap_err();
+                assert_eq!(err.code, StateErrorCode::SpecNotIndexed, "{stored:?}");
+                assert!(
+                    err.message.contains("webspec-index update"),
+                    "{}",
+                    err.message
+                );
+            } else {
+                assert!(
+                    !matches!(answer, Err(ref e) if e.message.contains("older version")),
+                    "{stored:?}: current version with a digest is not stale"
+                );
+            }
+            assert!(
+                matches!(
+                    query(
+                        &conn,
+                        "HTML#ongoing-navigation",
+                        &StateQueryOptions::default()
+                    ),
+                    Ok(StateResponse::Field(_))
+                ),
+                "{stored:?}: sites fallback survives"
+            );
+        }
     }
 
     #[test]

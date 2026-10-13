@@ -1119,6 +1119,17 @@ pub fn section_title(conn: &Connection, snapshots: &[i64], anchor: &str) -> Resu
         .optional()?)
 }
 
+/// The section type for `anchor` in one of the given snapshots.
+pub fn section_type(conn: &Connection, snapshots: &[i64], anchor: &str) -> Result<Option<String>> {
+    let sql = format!(
+        "SELECT section_type FROM sections WHERE anchor = ?1 AND snapshot_id IN ({}) LIMIT 1",
+        id_list(snapshots)
+    );
+    Ok(conn
+        .query_row(&sql, [anchor], |row| row.get(0))
+        .optional()?)
+}
+
 /// A `state_calls` row: its [`crate::state::bind::CallRecord`] flattened, with
 /// the name of the spec whose snapshot stored it.
 #[derive(Debug, Clone)]
@@ -1198,6 +1209,78 @@ pub fn calls_by_target(
     );
     let mut stmt = conn.prepare(&sql)?;
     stored_calls(&mut stmt, [spec, anchor])
+}
+
+/// A page of caller algorithms for a target, counted without decoding calls.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallerPage {
+    pub total_calls: u32,
+    pub total_groups: u32,
+    pub groups: Vec<(i64, String, String)>,
+}
+
+/// Caller groups ordered by spec and subject, with counts computed in SQL.
+pub fn caller_groups(
+    conn: &Connection,
+    snapshots: &[i64],
+    spec: &str,
+    anchor: &str,
+    limit: u32,
+) -> Result<CallerPage> {
+    let ids = id_list(snapshots);
+    let total_calls: i64 = conn.query_row(
+        &format!(
+            "SELECT COUNT(*) FROM state_calls c WHERE c.target_spec = ?1 AND c.target_anchor = ?2 AND c.snapshot_id IN ({ids})"
+        ),
+        [spec, anchor],
+        |row| row.get(0),
+    )?;
+    let total_groups: i64 = conn.query_row(
+        &format!(
+            "SELECT COUNT(*) FROM (SELECT DISTINCT c.snapshot_id, c.subject_anchor FROM state_calls c WHERE c.target_spec = ?1 AND c.target_anchor = ?2 AND c.snapshot_id IN ({ids}))"
+        ),
+        [spec, anchor],
+        |row| row.get(0),
+    )?;
+    let sql = format!(
+        "SELECT c.snapshot_id, sp.name, c.subject_anchor FROM state_calls c \
+         JOIN snapshots s ON s.id = c.snapshot_id JOIN specs sp ON sp.id = s.spec_id \
+         WHERE c.target_spec = ?1 AND c.target_anchor = ?2 AND c.snapshot_id IN ({ids}) \
+         GROUP BY c.snapshot_id, sp.name, c.subject_anchor ORDER BY sp.name, c.subject_anchor LIMIT ?3"
+    );
+    let mut stmt = conn.prepare(&sql)?;
+    let groups = stmt
+        .query_map(params![spec, anchor, limit], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Ok(CallerPage {
+        total_calls: total_calls as u32,
+        total_groups: total_groups as u32,
+        groups,
+    })
+}
+
+/// Decode calls only for the caller groups already selected for display.
+pub fn calls_of_callers(
+    conn: &Connection,
+    spec: &str,
+    anchor: &str,
+    groups: &[(i64, String)],
+) -> Result<Vec<StoredCall>> {
+    let mut stmt = conn.prepare(&format!(
+        "{CALL_SELECT} WHERE c.snapshot_id = ?1 AND c.subject_anchor = ?2 \
+         AND c.target_spec = ?3 AND c.target_anchor = ?4 \
+         ORDER BY c.step_path, c.rowid"
+    ))?;
+    let mut out = Vec::new();
+    for (snapshot_id, subject) in groups {
+        out.extend(stored_calls(
+            &mut stmt,
+            params![snapshot_id, subject, spec, anchor],
+        )?);
+    }
+    Ok(out)
 }
 
 /// Every call of `snapshot`, in document order.
