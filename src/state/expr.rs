@@ -399,8 +399,8 @@ impl Parser<'_> {
     /// `LIST`: `« »` or `« A, B »` spanning `start..end`; the element ranges.
     fn list(&self, start: usize, end: usize) -> Option<Vec<(usize, usize)>> {
         let inner_start = self.keyword(start, &["\u{AB}"])?;
-        let inner_end = end.checked_sub('\u{BB}'.len_utf8())?;
-        if inner_end < inner_start || !self.lit(inner_end, "\u{BB}") {
+        let inner_end = self.enc.text[..end].strip_suffix('\u{BB}')?.len();
+        if inner_end < inner_start {
             return None;
         }
         let mut items = Vec::new();
@@ -510,6 +510,8 @@ mod tests {
             expr("« <var>a</var>, « <var>b</var>, <var>c</var> » »"),
             Expr::List(vec![var("a"), Expr::List(vec![var("b"), var("c")])])
         );
+        // An unclosed `«` ending in a placeholder is no list (URLPATTERN, WEBDRIVER).
+        assert!(!matches!(expr("« <var>a</var>"), Expr::List(_)));
         assert_eq!(
             expr("\"<code>replace</code>\""),
             Expr::EnumValue {
