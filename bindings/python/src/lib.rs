@@ -109,6 +109,7 @@ fn state_error(error: webspec_index::state::query::StateError) -> PyErr {
 }
 
 /// Query state (possible writes) for a selector: ``TYPE``, ``TYPE.field``, or ``SPEC#anchor``.
+#[allow(clippy::too_many_arguments)]
 #[pyfunction]
 #[pyo3(signature = (selector, include_inits=true, unclassified=false, limit=None, calls=false, callers=false, opaque=false))]
 fn state<'py>(
@@ -417,9 +418,17 @@ fn query_view<'py>(
         .map(FeedingSelector::parse)
         .transpose()
         .map_err(|e| WebspecError::new_err(e.to_string()))?;
-    let view = ViewRequest { involving: names(involving)?, feeding, steps: names(steps)?, depth };
+    let view = ViewRequest {
+        involving: names(involving)?,
+        feeding,
+        steps: names(steps)?,
+        depth,
+    };
     match run(webspec_index::state::slice::service::query_view(
-        spec_anchor, &view, links, no_notes,
+        spec_anchor,
+        &view,
+        links,
+        no_notes,
     ))? {
         Ok(value) => effect_result(py, &value),
         Err(error) => Err(WebspecError::new_err(error.to_string())),

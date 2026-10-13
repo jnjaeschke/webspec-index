@@ -36,6 +36,8 @@ pub(crate) struct ResolvedPr {
 
 /// Resolve a PR to concrete fetch URLs. Implemented per provider so the shared
 /// orchestration in `ensure_pr_indexed` stays provider-agnostic.
+// async_trait adds `#[must_use]` to methods that already return a `Future`.
+#[allow(clippy::double_must_use)]
 #[async_trait]
 pub(crate) trait PrResolver {
     async fn resolve(&self, spec_name: &str, base_url: &str, pr_number: i64) -> Result<ResolvedPr>;
