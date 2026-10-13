@@ -716,10 +716,7 @@ mod tests {
         let yaml = include_str!("../../tests/fixtures/state/catalog/spec-examples.yaml");
         let c = load_state_files(&[("state/examples.yaml", yaml)]).unwrap();
         let types = &c.types;
-        assert_eq!(
-            types[0].public_id,
-            "webspec-semantics/html-media-element-alias"
-        );
+        assert_eq!(types[0].public_id, "webspec-index/html-media-element-alias");
         assert_eq!(types[0].alias_of, TypeKey::parse("idl:HTMLMediaElement"));
         assert_eq!(types[1].kind, Some(TypeKind::Concept));
         assert_eq!(

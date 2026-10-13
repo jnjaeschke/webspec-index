@@ -2549,7 +2549,7 @@ mod tests {
         assert_eq!(ruled.writes[0].step_path.as_deref(), Some("3"));
         assert_eq!(
             ruled.writes[0].basis,
-            "rule:webspec-semantics/add-to-field-collection"
+            "rule:webspec-index/add-to-field-collection"
         );
         assert_eq!(ruled.unclassified.count, 0);
         let StateResponse::Field(other) =

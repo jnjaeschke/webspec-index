@@ -1,5 +1,5 @@
 schema: 1
-package: webspec-semantics
+package: webspec-index
 fields:
   - id: html-option-selectedness
     field: HTML#concept-option-selectedness

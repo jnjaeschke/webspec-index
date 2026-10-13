@@ -1,5 +1,5 @@
 schema: 1
-package: webspec-semantics
+package: webspec-index
 types:
   - id: html-media-element-alias
     type: HTML#media-element

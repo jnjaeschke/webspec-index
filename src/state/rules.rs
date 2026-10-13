@@ -363,7 +363,7 @@ mod tests {
             class("open-dialogs-list"),
             Some((
                 OccurrenceClass::Write,
-                "rule:webspec-semantics/add-to-field-collection".into()
+                "rule:webspec-index/add-to-field-collection".into()
             ))
         );
         assert_eq!(
@@ -393,7 +393,7 @@ mod tests {
         assert!(state.statements.iter().any(|s| matches!(
             &s.kind,
             StatementKind::Mutate { basis: OpBasis::Rule { rule_id }, .. }
-                if rule_id == "webspec-semantics/add-to-field-collection"
+                if rule_id == "webspec-index/add-to-field-collection"
         )));
     }
 

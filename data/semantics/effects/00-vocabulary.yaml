@@ -1,5 +1,5 @@
 schema: 1
-package: webspec-semantics
+package: webspec-index
 
 effects:
   event.fire:

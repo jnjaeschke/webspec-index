@@ -38,7 +38,7 @@ pub fn extract_html(html: &str, spec: &str) -> StateSpec {
 
 /// The spec §8.3 `add-to-field-collection` verb rule as a state catalog file.
 pub const ADD_RULE_YAML: &str = r#"schema: 1
-package: webspec-semantics
+package: webspec-index
 rules:
   - id: add-to-field-collection
     match:
