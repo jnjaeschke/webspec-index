@@ -1,6 +1,6 @@
 ---
 name: webspec-index
-description: Query WHATWG, W3C, IETF and TC39 web specifications from the command line. Use to read a spec section or algorithm, find which algorithms invoke a concept, trace a call chain, look up IDL, validate an anchor, or read a spec as changed by an open WHATWG PR.
+description: Query WHATWG, W3C, IETF and TC39 web specifications from the command line. Use to read a spec section or algorithm, find which algorithms invoke a concept and with what arguments, trace a call chain, list who writes a spec field, see what an algorithm may cause (events, tasks), look up IDL, validate an anchor, or read a spec as changed by an open WHATWG PR.
 ---
 
 # webspec-index
@@ -199,7 +199,7 @@ webspec-index state 'Document.*sandbox*' --format markdown
 webspec-index state 'HTML#*sandbox*' --format markdown
 webspec-index state 'HTML#sandboxing-flag-set' --format markdown
 webspec-index state --coverage HTML --format markdown
-webspec-index state 'SPEC#anchor' | --coverage SPEC [--no-inits] [--unclassified] [-l N] [--rules PATH] [--format json|markdown]
+webspec-index state 'SPEC#anchor' | --coverage SPEC [--no-inits] [--unclassified] [--calls] [--callers] [--opaque] [-l N] [--rules PATH] [--format json|markdown]
 ```
 
 Answers: who writes a spec field, under what grammar shape, and with what initial value.
@@ -214,6 +214,36 @@ Selector forms:
 - `"TYPE.FIELD"` (e.g. `"Element.node document"`) → field view with inheritance path
 - `"TYPE.GLOB"` (e.g. `"Document.*sandbox*"`) → field list matching name or anchor
 - `--coverage SPEC` → coverage counters (owner resolution %, set structure %, unclassified %)
+- `SPEC#anchor` of an algorithm → algorithm view (below)
+
+### Algorithms: signature, calls and callers
+
+```bash
+webspec-index state 'HTML#navigate' --format markdown
+webspec-index state 'HTML#location-object-navigate' --calls --format markdown
+webspec-index state 'DOM#concept-node-insert' --callers -l 20 --format markdown
+webspec-index state 'HTML#navigate' --opaque --format markdown
+```
+
+The algorithm view shows the call template (`navigate {navigable} to {url} using {sourceDocument},
+with named arguments`), a parameter table (type, positional or named, default), and statement counts.
+
+- `--calls`: every call the algorithm makes, with each argument bound to the callee's parameter
+  (`url ← *url* · exceptionsEnabled ← true · 9 named arguments defaulted`).
+- `--callers`: every call into the algorithm from all indexed specs, grouped by caller and bound the
+  same way. `-l N` caps the caller groups (default 20); the total is always reported.
+- `--opaque`: statements the parser could not structure.
+
+Each call carries a confidence: `exact` (every argument aligned), `partial` (some argument is opaque
+or missing; the issue list says which), or `unbound` (no signature, e.g. a callee spec that is not
+indexed). Arguments are never guessed: an `exact` binding is reliable, and a `partial` one shows its
+uncertain values verbatim. For "who invokes X and with what arguments", prefer `--callers` over
+`refs --direction incoming --kind step`.
+
+The view under-reports rather than misreports. Calls inside `If` conditions, and calls embedded in
+running prose rather than leading a step, are often missing. So `Coverage: may · partial` means more
+calls may exist: confirm with `refs --kind step` or by reading the steps before concluding a call is
+absent.
 
 ### Views of long algorithms
 
@@ -235,12 +265,38 @@ webspec-index query 'HTML#navigate' --feeding 24.9.1:historyEntry --format markd
   from". `<VAR>` is optional; without it, every variable that feeds the step is traced.
 - Combine flags: `--involving url --depth 2` limits the forward slice to top-level steps plus one
   level of sub-steps (paths with at most 2 components).
+- `--no-notes` drops notes and examples. Links render as short `SPEC#anchor` by default
+  (`--links full` for URLs, `--links none` for plain text).
 
 **Markers signal omissions, not algorithm boundaries.** A line like
 `- [steps 3–7 omitted: no use of *url*]` means those steps exist and were cut for relevance. The
 algorithm continues past a marker; it does not end there. The summary block appears right after the
 `## Content — …` heading (before the steps) and lists slice variables, stores, unfollowed statements,
 loop bindings, rebound names, and (for backward slices) inputs and later definitions.
+
+### Possible effects of an algorithm
+
+```bash
+webspec-index effects 'HTML#dom-location-assign' --compact --format markdown
+webspec-index effects 'HTML#navigate' --summary-only --format markdown
+webspec-index effects 'HTML#navigate' --kind event.fire --format markdown
+webspec-index effects 'HTML#navigate' --step 8 --format markdown
+```
+
+Lists what an algorithm may cause, transitively across specs: events fired, tasks and microtasks
+queued (with task source), steps run in parallel, promises resolved. Each group names the sites that
+do it. Plain `effects` adds witness traces (the call path to each site, with its conditions);
+`--compact` and `--summary-only` omit them. `--kind` or `--category events` focuses the request.
+Semantics are **may**: a listed effect is reachable along some path, not guaranteed. "Partial
+analysis" means more effects may exist. `query` output also embeds a short effects preview.
+
+### Control flow of an algorithm
+
+```bash
+webspec-index flow 'HTML#location-object-navigate' --flow-format mermaid
+```
+
+Renders the algorithm's steps as a flowchart (branches, returns, calls to other algorithms).
 
 ## Usage patterns for Gecko development
 

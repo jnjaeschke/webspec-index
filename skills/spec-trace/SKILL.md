@@ -67,6 +67,9 @@ route whether it is taken, from what each hop already carries:
   whose field is only set in an initialization never fires after construction.
 - **Arguments.** Does the step pass, or omit, an optional argument the callee branches on? An
   omitted argument frequently disables the branch the whole question turns on.
+  `webspec-index state '<SPEC#caller>' --calls --format markdown` binds each call's arguments to the
+  callee's parameters and counts the defaulted ones; an `exact` binding answers this directly, a
+  `partial` one still needs the step text.
 - **Ordering.** Compare step numbers within a section. A call at step 20 runs before one at step 24,
   so state it depends on may not be set up yet, or may already be torn down.
 - **Identity.** Does the hop act on the object the question is about? An algorithm that aborts *the
