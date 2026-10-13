@@ -92,6 +92,7 @@ fn read_holder(conn: &Connection) -> anyhow::Result<Option<(u32, Option<DateTime
 }
 
 /// Whether a process with `pid` exists (possibly owned by another user).
+#[cfg(unix)]
 pub fn pid_is_alive(pid: u32) -> bool {
     let Ok(pid) = libc::pid_t::try_from(pid) else {
         return false;
@@ -102,6 +103,13 @@ pub fn pid_is_alive(pid: u32) -> bool {
     // SAFETY: signal 0 performs only the existence and permission checks.
     let signalled = unsafe { libc::kill(pid, 0) } == 0;
     signalled || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
+/// Without a cheap liveness probe, a holder counts as alive until its lock goes
+/// stale.
+#[cfg(not(unix))]
+pub fn pid_is_alive(_pid: u32) -> bool {
+    true
 }
 
 #[cfg(test)]
@@ -125,6 +133,7 @@ mod tests {
         assert!(holder(&conn).unwrap().is_none());
     }
 
+    #[cfg(unix)]
     #[test]
     fn dead_pid_lock_is_reclaimed() {
         let conn = crate::db::open_test_db().unwrap();
