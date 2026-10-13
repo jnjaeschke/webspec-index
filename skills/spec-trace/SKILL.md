@@ -45,8 +45,9 @@ reads exactly like a genuine NOT REACHED, so raise it once before believing an e
 
 Read the header before the routes:
 
-- `Found N trace(s)` with `truncated: false` means the enumeration is exhaustive at that depth. This
-  is what lets a NOT REACHED verdict claim more than "I did not find one".
+- `Found N trace(s).` with no `Search was truncated` after it (JSON: `"truncated": false`) means the
+  enumeration is exhaustive at that depth. This is what lets a NOT REACHED verdict claim more than
+  "I did not find one".
 - `Search was truncated` means it is not. Raise `-l` or narrow the endpoints; if it still truncates,
   the verdict is INCONCLUSIVE.
 - `indexing N spec(s) the route touches` on stderr means specs a route crosses were fetched on
@@ -176,6 +177,12 @@ cross-references, or any non-effects output.
 `[links](...)`; stripping that to recover the spec's prose is not paraphrasing, changing a word is.
 A truncated fragment presented as a quotation is an invented quote, and an invented quote loses the
 argument the trace was written to win.
+
+**Effects and `state` output are leads, not evidence.** This includes the "Possible effects" block
+in `query` output. REACHED needs a route from `trace` or a quoted step. NOT REACHED needs an
+untruncated `trace` plus the step where the chain stops; an effect or caller that is not listed
+proves nothing, because both analyses miss some. If an effect points at the target but `trace`
+finds no route to it, the verdict is INCONCLUSIVE until the gap is explained.
 
 **Validate every anchor** with `webspec-index exists '<SPEC#anchor>'` before it ships, the
 rejected-route table included. Exit code 0 means it resolves.
