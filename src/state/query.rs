@@ -107,6 +107,65 @@ pub struct StateCoverageResult {
     pub counters: CoverageCounters,
 }
 
+/// What the state views know about a section, with the command that shows it.
+/// `query` prints it so that a reader finds the state views from its output.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(untagged)]
+pub enum StateHint {
+    Field {
+        writes: u32,
+        inits: u32,
+        command: String,
+    },
+    Algorithm {
+        callers: u32,
+        calls: u32,
+        command: String,
+    },
+}
+
+/// The [`StateHint`] for `spec#anchor`, or `None` when the spec has no state
+/// model or the counts are all zero.
+pub fn state_hint(
+    conn: &Connection,
+    spec: &str,
+    anchor: &str,
+    is_algorithm: bool,
+) -> anyhow::Result<Option<StateHint>> {
+    let snapshots = db::state_snapshots(conn)?;
+    let own: Vec<i64> = snapshots
+        .iter()
+        .filter(|s| s.spec == spec)
+        .map(|s| s.id)
+        .collect();
+    if own.is_empty() {
+        return Ok(None);
+    }
+    let ids: Vec<i64> = snapshots.iter().map(|s| s.id).collect();
+    let selector = format!("{spec}#{anchor}");
+    let hint = if is_algorithm {
+        let (callers, calls) = db::algorithm_call_counts(conn, &ids, &own, spec, anchor)?;
+        let flag = if callers > 0 { "--callers" } else { "--calls" };
+        StateHint::Algorithm {
+            callers,
+            calls,
+            command: format!("webspec-index state {selector} {flag}"),
+        }
+    } else {
+        let (writes, inits) = db::field_write_counts(conn, &ids, spec, anchor)?;
+        StateHint::Field {
+            writes,
+            inits,
+            command: format!("webspec-index state {selector}"),
+        }
+    };
+    let empty = match hint {
+        StateHint::Field { writes, inits, .. } => writes == 0 && inits == 0,
+        StateHint::Algorithm { callers, calls, .. } => callers == 0 && calls == 0,
+    };
+    Ok((!empty).then_some(hint))
+}
+
 /// Load the coverage counters for the current snapshot of `spec` (§10.5).
 /// Returns `StateErrorCode::SpecNotIndexed` when `spec` has no indexed snapshot
 /// with a state model.
@@ -1998,6 +2057,34 @@ impl<'a> Scope<'a> {
 mod tests {
     use super::*;
     use crate::state::testing::{db_with, query_fixture_db as both, QUERY_HTML as HTML};
+
+    #[test]
+    fn state_hints_count_writers_callers_and_calls() {
+        let conn = db_with(&[("HTML", crate::state::testing::NAV_HTML)]);
+        let hint = |anchor, algorithm| state_hint(&conn, "HTML", anchor, algorithm).unwrap();
+        assert!(matches!(
+            hint("navigate", true),
+            Some(StateHint::Algorithm { callers: 1, ref command, .. })
+                if command == "webspec-index state HTML#navigate --callers"
+        ));
+        assert!(matches!(
+            hint("location-object-navigate", true),
+            Some(StateHint::Algorithm { callers: 1, calls: 1, ref command })
+                if command == "webspec-index state HTML#location-object-navigate --callers"
+        ));
+        assert!(matches!(
+            hint("dom-location-assign", true),
+            Some(StateHint::Algorithm { callers: 0, calls, ref command })
+                if calls > 0 && command == "webspec-index state HTML#dom-location-assign --calls"
+        ));
+        assert!(matches!(
+            hint("ongoing-navigation", false),
+            Some(StateHint::Field { writes, ref command, .. })
+                if writes > 0 && command == "webspec-index state HTML#ongoing-navigation"
+        ));
+        assert_eq!(hint("no-such-anchor", false), None);
+        assert_eq!(state_hint(&conn, "DOM", "navigate", true).unwrap(), None);
+    }
 
     fn db(specs: &[(&str, &str, &str)]) -> rusqlite::Connection {
         db_with(

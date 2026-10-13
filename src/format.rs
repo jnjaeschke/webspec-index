@@ -30,6 +30,49 @@ pub fn refs_command(spec_id: &str, direction: &str, total: usize, pr: Option<i64
     cmd
 }
 
+/// One line pointing a `query` reader at the state views.
+pub fn state_hint(hint: &crate::state::query::StateHint) -> String {
+    use crate::state::query::StateHint;
+    let n = |count: u32, one: &str, many: &str| {
+        format!("{count} {}", if count == 1 { one } else { many })
+    };
+    match hint {
+        StateHint::Field {
+            writes,
+            inits,
+            command,
+        } => match (*writes, *inits) {
+            (writes, 0) => format!("Written in {}: `{command}`", n(writes, "step", "steps")),
+            (0, inits) => format!(
+                "Initialized in {}: `{command}`",
+                n(inits, "place", "places")
+            ),
+            (writes, inits) => format!(
+                "Written in {}, initialized in {}: `{command}`",
+                n(writes, "step", "steps"),
+                n(inits, "place", "places")
+            ),
+        },
+        StateHint::Algorithm {
+            callers,
+            calls,
+            command,
+        } => match (*callers, *calls) {
+            (0, calls) => format!("Makes {}: `{command}`", n(calls, "call", "calls")),
+            (callers, 0) => format!(
+                "Called from {}: `{command}`",
+                n(callers, "algorithm", "algorithms")
+            ),
+            (callers, calls) => format!(
+                "Called from {}: `{command}` · makes {}: `{}`",
+                n(callers, "algorithm", "algorithms"),
+                n(calls, "call", "calls"),
+                command.replace(" --callers", " --calls")
+            ),
+        },
+    }
+}
+
 /// Format a QueryResult as markdown.
 ///
 /// Refs sections list every ref below `REFS_LIST_THRESHOLD`; at or above it they
@@ -816,6 +859,45 @@ pub fn pr_diff(result: &PrDiffResult) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn state_hint_lines() {
+        use crate::state::query::StateHint;
+        let field = |writes, inits| StateHint::Field {
+            writes,
+            inits,
+            command: "webspec-index state HTML#x".into(),
+        };
+        let algorithm = |callers, calls, flag: &str| StateHint::Algorithm {
+            callers,
+            calls,
+            command: format!("webspec-index state HTML#x {flag}"),
+        };
+        assert_eq!(
+            state_hint(&field(4, 1)),
+            "Written in 4 steps, initialized in 1 place: `webspec-index state HTML#x`"
+        );
+        assert_eq!(
+            state_hint(&field(1, 0)),
+            "Written in 1 step: `webspec-index state HTML#x`"
+        );
+        assert_eq!(
+            state_hint(&field(0, 2)),
+            "Initialized in 2 places: `webspec-index state HTML#x`"
+        );
+        assert_eq!(
+            state_hint(&algorithm(13, 8, "--callers")),
+            "Called from 13 algorithms: `webspec-index state HTML#x --callers` · makes 8 calls: `webspec-index state HTML#x --calls`"
+        );
+        assert_eq!(
+            state_hint(&algorithm(1, 0, "--callers")),
+            "Called from 1 algorithm: `webspec-index state HTML#x --callers`"
+        );
+        assert_eq!(
+            state_hint(&algorithm(0, 1, "--calls")),
+            "Makes 1 call: `webspec-index state HTML#x --calls`"
+        );
+    }
     use crate::model::{
         FlowEdge, FlowEdgeKind, FlowNode, FlowNodeKind, NavEntry, Navigation, PrDiffEntry,
         PrDiffResult, PrDiffSummary, RefEntry, RefsMatch,

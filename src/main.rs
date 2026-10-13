@@ -1072,9 +1072,27 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                 }
             }
             let spec_id = format!("{}#{}", result.query.spec, result.query.anchor);
+            let state_hint = match pr {
+                Some(_) => None,
+                None => {
+                    let conn = rusqlite::Connection::open(webspec_index::db::get_db_path())?;
+                    webspec_index::state::query::state_hint(
+                        &conn,
+                        &result.query.spec,
+                        &result.query.anchor,
+                        result.query.section_type == "algorithm",
+                    )?
+                }
+            };
             match cli.format {
                 OutputFormat::Json => {
                     let mut v = serde_json::to_value(&result).context("serialization failed")?;
+                    if let (Some(hint), Some(object)) = (&state_hint, v.as_object_mut()) {
+                        object.insert(
+                            "state".into(),
+                            serde_json::to_value(hint).context("serialization failed")?,
+                        );
+                    }
                     if let (Some(slice), Some(object)) = (&slice, v.as_object_mut()) {
                         object.insert(
                             "slice".into(),
@@ -1113,6 +1131,9 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
                         None => format::query_with_effects(&result, catalog.as_ref(), pr),
                     };
                     print!("{markdown}");
+                    if let Some(hint) = &state_hint {
+                        println!("\n{}", format::state_hint(hint));
+                    }
                 }
             }
             Ok(ExitCode::SUCCESS)

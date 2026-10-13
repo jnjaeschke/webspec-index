@@ -710,6 +710,41 @@ fn id_list(ids: &[i64]) -> String {
     ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",")
 }
 
+/// The write and initialization sites of a field, as the field view counts them.
+pub fn field_write_counts(
+    conn: &Connection,
+    snapshots: &[i64],
+    spec: &str,
+    anchor: &str,
+) -> Result<(u32, u32)> {
+    let sql = format!(
+        "SELECT COUNT(CASE WHEN class = 'write' THEN 1 END), COUNT(CASE WHEN class = 'init' THEN 1 END) \
+         FROM state_sites WHERE target_spec = ?1 AND target_anchor = ?2 AND snapshot_id IN ({})",
+        id_list(snapshots)
+    );
+    Ok(conn.query_row(&sql, [spec, anchor], |row| Ok((row.get(0)?, row.get(1)?)))?)
+}
+
+/// The algorithms calling `spec#anchor` from `snapshots`, and the calls it makes
+/// in `own_snapshots` (the snapshots of `spec`).
+pub fn algorithm_call_counts(
+    conn: &Connection,
+    snapshots: &[i64],
+    own_snapshots: &[i64],
+    spec: &str,
+    anchor: &str,
+) -> Result<(u32, u32)> {
+    let sql = format!(
+        "SELECT \
+         (SELECT COUNT(*) FROM (SELECT DISTINCT snapshot_id, subject_anchor FROM state_calls \
+          WHERE target_spec = ?1 AND target_anchor = ?2 AND snapshot_id IN ({}))), \
+         (SELECT COUNT(*) FROM state_calls WHERE subject_anchor = ?2 AND snapshot_id IN ({}))",
+        id_list(snapshots),
+        id_list(own_snapshots)
+    );
+    Ok(conn.query_row(&sql, [spec, anchor], |row| Ok((row.get(0)?, row.get(1)?)))?)
+}
+
 fn placeholders(start: usize, count: usize) -> String {
     (start..start + count)
         .map(|i| format!("?{i}"))
