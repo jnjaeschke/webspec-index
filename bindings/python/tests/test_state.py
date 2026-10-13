@@ -20,3 +20,10 @@ def test_state_signature_defaults():
     sig = inspect.signature(wsi.state)
     assert sig.parameters["include_inits"].default is True
     assert sig.parameters["limit"].default is None
+
+
+def test_state_algorithm_view_keywords():
+    import inspect
+    sig = inspect.signature(wsi.state)
+    for name in ("calls", "callers", "opaque"):
+        assert sig.parameters[name].default is False

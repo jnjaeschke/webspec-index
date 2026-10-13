@@ -155,6 +155,12 @@ pub enum Request {
         unclassified: bool,
         #[serde(default)]
         limit: Option<u32>,
+        #[serde(default)]
+        calls: bool,
+        #[serde(default)]
+        callers: bool,
+        #[serde(default)]
+        opaque: bool,
     },
     StateCoverage {
         spec: String,
@@ -697,14 +703,17 @@ pub fn handle(conn: &Connection, request: Request) -> Result<Response, ApiError>
             include_inits,
             unclassified,
             limit,
+            calls,
+            callers,
+            opaque,
         } => {
             let options = state::query::StateQueryOptions {
                 include_inits,
                 unclassified,
                 limit,
-                calls: false,
-                callers: false,
-                opaque: false,
+                calls,
+                callers,
+                opaque,
             };
             let response =
                 state::query::query(conn, &selector, &options).map_err(ApiError::from)?;
@@ -1220,6 +1229,28 @@ mod tests {
         assert_eq!(
             call(&conn, r#"{"type":"state","selector":"HTML#nope"}"#)["code"],
             "not_found"
+        );
+    }
+
+    #[test]
+    fn state_algorithm_requests() {
+        let conn = crate::state::testing::db_with(&[("HTML", crate::state::testing::NAV_HTML)]);
+        let v = call(
+            &conn,
+            r#"{"type":"state","selector":"HTML#location-object-navigate","calls":true}"#,
+        );
+        assert_eq!(v["type"], "state_algorithm", "{v}");
+        assert_eq!(v["result"]["calls"][0]["confidence"], "exact");
+        assert_eq!(v["result"]["calls"][0]["callee"], "HTML#navigate");
+        let v = call(
+            &conn,
+            r#"{"type":"state","selector":"HTML#navigate","callers":true,"limit":1}"#,
+        );
+        assert_eq!(v["result"]["callers"]["total"], 1);
+        assert!(
+            call(&conn, r#"{"type":"state","selector":"HTML#navigate"}"#)["result"]
+                .get("calls")
+                .is_none_or(|c| c.is_null())
         );
     }
 }

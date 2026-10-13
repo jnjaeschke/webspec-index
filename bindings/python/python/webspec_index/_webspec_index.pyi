@@ -275,10 +275,14 @@ def state(
     include_inits: bool = True,
     unclassified: bool = False,
     limit: Optional[int] = None,
+    calls: bool = False,
+    callers: bool = False,
+    opaque: bool = False,
 ) -> Any:
     """Query possible writes (state) for a selector.
 
     *selector* is one of ``TYPE``, ``TYPE.field``, or ``SPEC#anchor``.
+    *calls*, *callers*, and *opaque* request algorithm call, caller, and opaque-statement details.
     Returns a dict matching the ``StateResponse`` JSON schema.
     Raises ``WebspecError`` when the spec has no state model or the selector
     is not found; for ambiguous selectors the candidates are appended one per

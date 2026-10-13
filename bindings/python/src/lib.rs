@@ -110,21 +110,24 @@ fn state_error(error: webspec_index::state::query::StateError) -> PyErr {
 
 /// Query state (possible writes) for a selector: ``TYPE``, ``TYPE.field``, or ``SPEC#anchor``.
 #[pyfunction]
-#[pyo3(signature = (selector, include_inits=true, unclassified=false, limit=None))]
+#[pyo3(signature = (selector, include_inits=true, unclassified=false, limit=None, calls=false, callers=false, opaque=false))]
 fn state<'py>(
     py: Python<'py>,
     selector: &str,
     include_inits: bool,
     unclassified: bool,
     limit: Option<u32>,
+    calls: bool,
+    callers: bool,
+    opaque: bool,
 ) -> PyResult<Bound<'py, PyAny>> {
     let options = webspec_index::state::query::StateQueryOptions {
         include_inits,
         unclassified,
         limit,
-        calls: false,
-        callers: false,
-        opaque: false,
+        calls,
+        callers,
+        opaque,
     };
     match run(webspec_index::state::service::state(
         selector,
