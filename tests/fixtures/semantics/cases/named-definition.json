@@ -1,0 +1,60 @@
+{
+  "id": "named-definition",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/named-definition.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "definition_step_has_no_normal_effects": true,
+    "design_relationship_notes": [
+      {
+        "relation": "invoke",
+        "from_site": "R-step-2",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "R/A"
+        }
+      }
+    ],
+    "defined_body_note": [
+      {
+        "id": "A",
+        "effects": [
+          {
+            "kind": "event.fire",
+            "params": {
+              "name": "a"
+            },
+            "execution": [
+              "inline"
+            ]
+          }
+        ]
+      }
+    ],
+    "owner_tests": [
+      "src/effects/engine.rs::definition_step_is_empty_but_defined_body_and_invocation_are_inspectable"
+    ]
+  }
+}

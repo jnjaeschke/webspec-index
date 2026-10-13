@@ -47,7 +47,7 @@ webspec-index effects "HTML#navigate" --effect-id ef_7185cecba7f35a16 --max-dept
 
 ## Rules
 
-Runtime YAML is maintained in a separate `webspec-semantics` package. The generated copy in `data/semantics` is embedded in the binary. Additional directories are merged with it using repeated `--rules PATH`; conflicting IDs and incompatible effect definitions are errors.
+The bundled rules live in `data/semantics/` and are embedded in the binary. Additional directories are merged with it using repeated `--rules PATH`; conflicting IDs and incompatible effect definitions are errors.
 
 State YAML lives under `state/` in the same package. A package is partitioned by its first path component: files under `state/` are loaded by the state layer, every other file by the effects loader. `--rules PATH` applies to both layers; a query-time `--rules` package passed to `state` may contain only `rules` (no `types` or `fields`). See [docs/state.md](state.md) for the state rule schema.
 
@@ -71,17 +71,7 @@ rules:
 
 An anchor-only rule also declares the endpoint's intrinsic effect. A text rule is matched against an individual executable segment. Variables remain distinct from literals; unresolved arguments remain null. Supported captures, continuation declarations, reviewed summaries and environment mappings are defined by the [catalog schema](../schemas/effects/catalog.schema.json). The [contract reference](../schemas/effects/README.md) describes validation and the shared wire format. Rules cannot execute code.
 
-To validate and import a maintained catalog from the engine checkout:
-
-```sh
-cargo run --example validate_semantics -- ../webspec-semantics
-python3 scripts/import-semantics.py ../webspec-semantics \
-  --destination data/semantics \
-  --source-repository webspec-semantics \
-  --source-revision '<reviewed commit or content digest>'
-```
-
-The importer writes runtime YAML, an embedded file manifest, and provenance. Source fixtures stay in the maintained package. Rebuild to change the bundled catalog; use `--rules` for additional packages without rebuilding. Adding endpoints uses configuration; adding an unsupported control-flow form requires parser/engine work.
+A new file under `data/semantics/` must also be listed in `FILES` in `src/semantics/bundled.rs`; a unit test fails until it is. `tests/semantics_cases.rs` runs the acceptance cases in `tests/fixtures/semantics/cases/` against the bundled catalog: each case parses spec excerpts from `tests/fixtures/semantics/sources/` (provenance in its `manifest.json`), analyzes one subject, and compares effects, witnesses and issues. Rebuild to change the bundled catalog; use `--rules` for additional packages without rebuilding. Adding endpoints uses configuration; adding an unsupported control-flow form requires parser/engine work.
 
 ## Mention classification
 
@@ -115,4 +105,4 @@ Scheduling labels retain HTML terminology: “queue a task,” “queue a microt
 
 The built-in scheduling rules cover direct, global, element, and media-element tasks; microtasks; parallel-queue enqueueing; both session-history traversal append operations; and MessagePort's direct task insertion. Task effects preserve an explicit source in the nullable `source` parameter, for example `{"queue":"task","source":"navigation and traversal task source"}`, rendered as “may queue a task on the navigation and traversal task source.” The catalog recognizes all 17 named HTML task sources in the reviewed snapshot. A dynamically supplied source remains null. Task sources are associated with task queues; they are not separate queue types.
 
-`HTML#in-parallel` has its own effect, and reviewed promise scheduling includes `WEBIDL#wait-for-all` plus a web mapping for `HostEnqueuePromiseJob`. Higher-level wrappers are followed through their primitive calls. Data queues and custom-element reaction queues are not unconditional async endpoints: reaction processing can be synchronous, so analysis follows the actual microtask branch. The maintained package's `SCHEDULING.md` records the complete HTML inventory and fixture coverage. Generated commands quote section selectors, including ordinary `"HTML#navigate"` selectors.
+`HTML#in-parallel` has its own effect, and reviewed promise scheduling includes `WEBIDL#wait-for-all` plus a web mapping for `HostEnqueuePromiseJob`. Higher-level wrappers are followed through their primitive calls. Data queues and custom-element reaction queues are not unconditional async endpoints: reaction processing can be synchronous, so analysis follows the actual microtask branch. The complete HTML inventory is `data/semantics/effects/20-scheduling.yaml`; the `scheduling-*` acceptance cases cover each primitive and named task source. Generated commands quote section selectors, including ordinary `"HTML#navigate"` selectors.

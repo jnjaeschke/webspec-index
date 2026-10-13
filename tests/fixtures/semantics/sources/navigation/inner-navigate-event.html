@@ -1,0 +1,128 @@
+<!-- Exact HTML subtree fetched from the canonical source; page retrieval is recorded in manifest.json. -->
+<div data-algorithm="">
+<p>The <dfn id="inner-navigate-event-firing-algorithm">inner <code>navigate</code> event firing algorithm</dfn>
+  consists of the following steps, given a <code id="navigate-event-firing:navigation-4"><a href="#navigation">Navigation</a></code> <var>navigation</var>, a
+  <code id="navigate-event-firing:navigationtype-2"><a href="#navigationtype">NavigationType</a></code> <var>navigationType</var>, a <code id="navigate-event-firing:navigateevent-4"><a href="#navigateevent">NavigateEvent</a></code>
+<var>event</var>, a <code id="navigate-event-firing:navigationdestination-4"><a href="#navigationdestination">NavigationDestination</a></code> <var>destination</var>, a <a href="browsing-the-web.html#user-navigation-involvement" id="navigate-event-firing:user-navigation-involvement-4">user
+  navigation involvement</a> <var>userInvolvement</var>, an <code id="navigate-event-firing:element-3"><a data-x-internal="element" href="https://dom.spec.whatwg.org/#interface-element">Element</a></code>-or-null
+  <var>sourceElement</var>, an <a href="form-control-infrastructure.html#entry-list" id="navigate-event-firing:entry-list-2">entry list</a>-or-null <var>formDataEntryList</var>, a
+  string-or-null <var>downloadRequestFilename</var>, and an optional <a href="#navigation-api-method-tracker" id="navigate-event-firing:navigation-api-method-tracker-2">navigation API method
+  tracker</a>-or-null <var>apiMethodTracker</var> (default null):</p>
+<ol><li>
+<p>If <var>navigation</var> <a href="#has-entries-and-events-disabled" id="navigate-event-firing:has-entries-and-events-disabled-3">has entries and events disabled</a>:</p>
+<ol><li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="navigate-event-firing:assert">Assert</a>: <var>navigation</var>'s <a href="#ongoing-api-method-tracker" id="navigate-event-firing:ongoing-api-method-tracker">ongoing API method tracker</a> is
+     null.<li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="navigate-event-firing:assert-2">Assert</a>: <var>navigation</var>'s <a href="#upcoming-traverse-api-method-trackers" id="navigate-event-firing:upcoming-traverse-api-method-trackers">upcoming traverse API method
+     trackers</a> <a data-x-internal="list-is-empty" href="https://infra.spec.whatwg.org/#list-is-empty" id="navigate-event-firing:list-is-empty">is empty</a>.<li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="navigate-event-firing:assert-3">Assert</a>: <var>apiMethodTracker</var> is null.<li><p>Return true.</p></li></p></li></p></li></p></li></ol>
+<p class="note">These assertions holds because <code id="navigate-event-firing:dom-navigation-traverseto"><a href="#dom-navigation-traverseto">traverseTo()</a></code>, <code id="navigate-event-firing:dom-navigation-back"><a href="#dom-navigation-back">back()</a></code>, and <code id="navigate-event-firing:dom-navigation-forward"><a href="#dom-navigation-forward">forward()</a></code> will immediately fail when entries and events
+    are disabled (since there are no entries to traverse to).</p>
+<li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="navigate-event-firing:assert-4">Assert</a>: <var>navigation</var>'s <a href="#ongoing-api-method-tracker" id="navigate-event-firing:ongoing-api-method-tracker-2">ongoing API method tracker</a> is
+   null.<li>
+<p>If <var>destination</var>'s <a href="#concept-navigationdestination-entry" id="navigate-event-firing:concept-navigationdestination-entry-5">entry</a>
+    is non-null:</p>
+<ol><li>
+<p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="navigate-event-firing:assert-5">Assert</a>: <var>apiMethodTracker</var> is null.</p>
+<p class="note"><var>apiMethodTracker</var> is passed as an argument only for <code id="navigate-event-firing:dom-navigation-navigate-2"><a href="#dom-navigation-navigate">navigate()</a></code> and <code id="navigate-event-firing:dom-navigation-reload-2"><a href="#dom-navigation-reload">reload()</a></code> calls.
+     <li><p>Let <var>destinationKey</var> be <var>destination</var>'s <a href="#concept-navigationdestination-entry" id="navigate-event-firing:concept-navigationdestination-entry-6">entry</a>'s <a href="#concept-navigationhistoryentry-key" id="navigate-event-firing:concept-navigationhistoryentry-key">key</a>.<li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="navigate-event-firing:assert-6">Assert</a>: <var>destinationKey</var> is not the empty string.<li>
+<p>If <var>navigation</var>'s <a href="#upcoming-traverse-api-method-trackers" id="navigate-event-firing:upcoming-traverse-api-method-trackers-2">upcoming traverse API method
+      trackers</a>[<var>destinationKey</var>] <a data-x-internal="map-exists" href="https://infra.spec.whatwg.org/#map-exists" id="navigate-event-firing:map-exists">exists</a>:</p>
+<ol><li><p>Set <var>apiMethodTracker</var> to <var>navigation</var>'s <a href="#upcoming-traverse-api-method-trackers" id="navigate-event-firing:upcoming-traverse-api-method-trackers-3">upcoming traverse API
+       method trackers</a>[<var>destinationKey</var>].<li><p><a data-x-internal="map-remove" href="https://infra.spec.whatwg.org/#map-remove" id="navigate-event-firing:map-remove">Remove</a> <var>navigation</var>'s <a href="#upcoming-traverse-api-method-trackers" id="navigate-event-firing:upcoming-traverse-api-method-trackers-4">upcoming
+       traverse API method trackers</a>[<var>destinationKey</var>].</p></li></p></li></ol>
+</li></p></li></p></li></p></li></ol>
+<li>
+<p>If <var>apiMethodTracker</var> is not null:</p>
+<ol><li><p>Set <var>navigation</var>'s <a href="#ongoing-api-method-tracker" id="navigate-event-firing:ongoing-api-method-tracker-3">ongoing API method tracker</a> to
+     <var>apiMethodTracker</var>.<li><p>Set <var>apiMethodTracker</var>'s <a href="#navigation-api-method-tracker-pending" id="navigate-event-firing:navigation-api-method-tracker-pending-2">pending</a> to false.</p></li></p></li></ol>
+<li><p>Let <var>navigable</var> be <var>navigation</var>'s <a href="webappapis.html#concept-relevant-global" id="navigate-event-firing:concept-relevant-global-3">relevant global object</a>'s
+   <a href="#window-navigable" id="navigate-event-firing:window-navigable">navigable</a>.<li><p>Let <var>document</var> be <var>navigation</var>'s <a href="webappapis.html#concept-relevant-global" id="navigate-event-firing:concept-relevant-global-4">relevant global object</a>'s
+   <a href="#concept-document-window" id="navigate-event-firing:concept-document-window-3">associated <code>Document</code></a>.<li><p>If <var>document</var> <a href="#can-have-its-url-rewritten" id="navigate-event-firing:can-have-its-url-rewritten">can have its URL rewritten</a> to <var>destination</var>'s
+   <a href="#concept-navigationdestination-url" id="navigate-event-firing:concept-navigationdestination-url-4">URL</a>, and either <var>destination</var>'s
+   <a href="#concept-navigationdestination-samedocument" id="navigate-event-firing:concept-navigationdestination-samedocument-4">is same document</a> is true or
+   <var>navigationType</var> is not "<code id="navigate-event-firing:dom-navigationtype-traverse-2"><a href="#dom-navigationtype-traverse">traverse</a></code>",
+   then initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-canintercept"><a href="#dom-navigateevent-canintercept">canIntercept</a></code> to true. Otherwise, initialize it to
+   false.<li id="navigate-event-traverse-can-be-canceled">
+<p>Let <var>traverseCanBeCanceled</var> be true if all of the following are true:</p>
+<ul><li><p><var>navigable</var> is a <a href="document-sequences.html#top-level-traversable" id="navigate-event-firing:top-level-traversable">top-level traversable</a>;<li><p><var>destination</var>'s <a href="#concept-navigationdestination-samedocument" id="navigate-event-firing:concept-navigationdestination-samedocument-5">is
+     same document</a> is true; and<li><p>either <var>userInvolvement</var> is not "<code id="navigate-event-firing:uni-browser-ui"><a href="browsing-the-web.html#uni-browser-ui">browser
+     UI</a></code>", or <var>navigation</var>'s <a href="webappapis.html#concept-relevant-global" id="navigate-event-firing:concept-relevant-global-5">relevant global object</a> has
+     <a href="interaction.html#history-action-activation" id="navigate-event-firing:history-action-activation">history-action activation</a>.</p></li></p></li></p></li></ul>
+<p>Otherwise, let it be false.</p>
+<li>
+<p>If either:</p>
+<ul><li><p><var>navigationType</var> is not "<code id="navigate-event-firing:dom-navigationtype-traverse-3"><a href="#dom-navigationtype-traverse">traverse</a></code>"; or<li><p><var>traverseCanBeCanceled</var> is true,</p></li></p></li></ul>
+<p>then initialize <var>event</var>'s <code id="navigate-event-firing:dom-event-cancelable"><a data-x-internal="dom-event-cancelable" href="https://dom.spec.whatwg.org/#dom-event-cancelable">cancelable</a></code> to
+    true. Otherwise, initialize it to false.</p>
+<li><p>Initialize <var>event</var>'s <code id="navigate-event-firing:dom-event-type"><a data-x-internal="dom-event-type" href="https://dom.spec.whatwg.org/#dom-event-type">type</a></code> to "<code id="navigate-event-firing:event-navigate-3"><a href="indices.html#event-navigate">navigate</a></code>".<li><p>Initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-navigationtype"><a href="#dom-navigateevent-navigationtype">navigationType</a></code> to
+   <var>navigationType</var>.<li><p>Initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-destination"><a href="#dom-navigateevent-destination">destination</a></code> to <var>destination</var>.<li><p>Initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-downloadrequest"><a href="#dom-navigateevent-downloadrequest">downloadRequest</a></code> to
+   <var>downloadRequestFilename</var>.<li>
+<p>If <var>apiMethodTracker</var> is not null, then initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-info"><a href="#dom-navigateevent-info">info</a></code> to <var>apiMethodTracker</var>'s <a href="#navigation-api-method-tracker-info" id="navigate-event-firing:navigation-api-method-tracker-info">info</a>. Otherwise, initialize it to
+    undefined.</p>
+<p class="note">At this point <var>apiMethodTracker</var>'s <a href="#navigation-api-method-tracker-info" id="navigate-event-firing:navigation-api-method-tracker-info-2">info</a> is no longer needed and can be nulled
+    out instead of keeping it alive for the lifetime of the <a href="#navigation-api-method-tracker" id="navigate-event-firing:navigation-api-method-tracker-3">navigation API method
+    tracker</a>.</p>
+<li><p>Initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-hasuavisualtransition"><a href="#dom-navigateevent-hasuavisualtransition">hasUAVisualTransition</a></code> to true if a visual
+   transition, to display a cached rendered state of the <var>document</var>'s <a href="browsing-the-web.html#latest-entry" id="navigate-event-firing:latest-entry">latest
+   entry</a>, was done by the user agent. Otherwise, initialize it to false.<li><p>Initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-sourceelement"><a href="#dom-navigateevent-sourceelement">sourceElement</a></code> to
+   <var>sourceElement</var>.<li><p>Set <var>event</var>'s <a href="#concept-navigateevent-abort-controller" id="navigate-event-firing:concept-navigateevent-abort-controller">abort
+   controller</a> to a <a data-x-internal="new" href="https://webidl.spec.whatwg.org/#new" id="navigate-event-firing:new-4">new</a> <code id="navigate-event-firing:abortcontroller"><a data-x-internal="abortcontroller" href="https://dom.spec.whatwg.org/#abortcontroller">AbortController</a></code> created in
+   <var>navigation</var>'s <a href="webappapis.html#concept-relevant-realm" id="navigate-event-firing:concept-relevant-realm-7">relevant realm</a>.<li><p>Initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-signal"><a href="#dom-navigateevent-signal">signal</a></code> to
+   <var>event</var>'s <a href="#concept-navigateevent-abort-controller" id="navigate-event-firing:concept-navigateevent-abort-controller-2">abort
+   controller</a>'s <a data-x-internal="concept-abortcontroller-signal" href="https://dom.spec.whatwg.org/#abortcontroller-signal" id="navigate-event-firing:concept-abortcontroller-signal">signal</a>.<li><p>Let <var>currentURL</var> be <var>document</var>'s <a data-x-internal="the-document's-address" href="https://dom.spec.whatwg.org/#concept-document-url" id="navigate-event-firing:the-document's-address">URL</a>.<li>
+<p>If all of the following are true:</p>
+<ul><li><p><var>event</var>'s <a href="#concept-navigateevent-classic-history-api-state" id="navigate-event-firing:concept-navigateevent-classic-history-api-state-4">classic history API state</a> is
+     null;<li><p><var>destination</var>'s <a href="#concept-navigationdestination-samedocument" id="navigate-event-firing:concept-navigationdestination-samedocument-6">is
+     same document</a> is true;<li><p><var>destination</var>'s <a href="#concept-navigationdestination-url" id="navigate-event-firing:concept-navigationdestination-url-5">URL</a>
+<a data-x-internal="concept-url-equals" href="https://url.spec.whatwg.org/#concept-url-equals" id="navigate-event-firing:concept-url-equals">equals</a> <var>currentURL</var> with <a data-x-internal="url-equals-exclude-fragments" href="https://url.spec.whatwg.org/#url-equals-exclude-fragments" id="navigate-event-firing:url-equals-exclude-fragments"><i>exclude fragments</i></a> set to true; and<li><p><var>destination</var>'s <a href="#concept-navigationdestination-url" id="navigate-event-firing:concept-navigationdestination-url-6">URL</a>'s
+     <a data-x-internal="concept-url-fragment" href="https://url.spec.whatwg.org/#concept-url-fragment" id="navigate-event-firing:concept-url-fragment">fragment</a> is not <a data-x-internal="identical-to" href="https://infra.spec.whatwg.org/#string-is" id="navigate-event-firing:identical-to">identical to</a>
+<var>currentURL</var>'s <a data-x-internal="concept-url-fragment" href="https://url.spec.whatwg.org/#concept-url-fragment" id="navigate-event-firing:concept-url-fragment-2">fragment</a>,</p></li></p></li></p></li></p></li></ul>
+<p>then initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-hashchange"><a href="#dom-navigateevent-hashchange">hashChange</a></code> to true. Otherwise, initialize it to
+    false.</p>
+<p class="note">The first condition here means that <code id="navigate-event-firing:dom-navigateevent-hashchange-2"><a href="#dom-navigateevent-hashchange">hashChange</a></code> will be true for <a href="browsing-the-web.html#navigate-fragid" id="navigate-event-firing:navigate-fragid">fragment navigations</a>, but false for cases like <code>history.pushState(undefined, "", "#fragment")</code>.</p>
+<li><p>If <var>userInvolvement</var> is not "<code id="navigate-event-firing:uni-none-3"><a href="browsing-the-web.html#uni-none">none</a></code>", then
+   initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-userinitiated"><a href="#dom-navigateevent-userinitiated">userInitiated</a></code>
+   to true. Otherwise, initialize it to false.<li><p>If <var>formDataEntryList</var> is not null, then initialize <var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-formdata"><a href="#dom-navigateevent-formdata">formData</a></code> to a <a data-x-internal="new" href="https://webidl.spec.whatwg.org/#new" id="navigate-event-firing:new-5">new</a> <code id="navigate-event-firing:formdata"><a data-x-internal="formdata" href="https://xhr.spec.whatwg.org/#formdata">FormData</a></code>
+   created in <var>navigation</var>'s <a href="webappapis.html#concept-relevant-realm" id="navigate-event-firing:concept-relevant-realm-8">relevant realm</a>,
+   associated to <var>formDataEntryList</var>. Otherwise, initialize it to null.<li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="navigate-event-firing:assert-7">Assert</a>: <var>navigation</var>'s <a href="#ongoing-navigate-event" id="navigate-event-firing:ongoing-navigate-event">ongoing <code>navigate</code> event</a> is null.<li><p>Set <var>navigation</var>'s <a href="#ongoing-navigate-event" id="navigate-event-firing:ongoing-navigate-event-2">ongoing <code>navigate</code>
+   event</a> to <var>event</var>.<li><p>Set <var>navigation</var>'s <a href="#focus-changed-during-ongoing-navigation" id="navigate-event-firing:focus-changed-during-ongoing-navigation">focus changed during ongoing navigation</a> to
+   false.<li><p>Set <var>navigation</var>'s <a href="#suppress-normal-scroll-restoration-during-ongoing-navigation" id="navigate-event-firing:suppress-normal-scroll-restoration-during-ongoing-navigation">suppress normal scroll restoration during ongoing
+   navigation</a> to false.<li><p>Let <var>dispatchResult</var> be the result of <a data-x-internal="concept-event-dispatch" href="https://dom.spec.whatwg.org/#concept-event-dispatch" id="navigate-event-firing:concept-event-dispatch">dispatching</a> <var>event</var> at
+   <var>navigation</var>.<li>
+<p>If <var>dispatchResult</var> is false:</p>
+<ol><li><p>If <var>navigationType</var> is "<code id="navigate-event-firing:dom-navigationtype-traverse-4"><a href="#dom-navigationtype-traverse">traverse</a></code>", then <a href="interaction.html#consume-history-action-user-activation" id="navigate-event-firing:consume-history-action-user-activation">consume history-action user
+     activation</a> given <var>navigation</var>'s <a href="webappapis.html#concept-relevant-global" id="navigate-event-firing:concept-relevant-global-6">relevant global object</a>.<li><p>If <var>event</var>'s <a href="#concept-navigateevent-abort-controller" id="navigate-event-firing:concept-navigateevent-abort-controller-3">abort
+     controller</a>'s <a data-x-internal="concept-abortcontroller-signal" href="https://dom.spec.whatwg.org/#abortcontroller-signal" id="navigate-event-firing:concept-abortcontroller-signal-2">signal</a> is not <a data-x-internal="abortsignal-aborted" href="https://dom.spec.whatwg.org/#abortsignal-aborted" id="navigate-event-firing:abortsignal-aborted">aborted</a>, then <a href="#abort-the-ongoing-navigation" id="navigate-event-firing:abort-the-ongoing-navigation">abort the ongoing navigation</a>
+     given <var>navigation</var>.<li><p>Return false.</p></li></p></li></p></li></ol>
+<li>
+<p>If <var>event</var>'s <a href="#concept-navigateevent-interception-state" id="navigate-event-firing:concept-navigateevent-interception-state">interception
+    state</a> is not "<code>none</code>":</p>
+<ol><li><p>Let <var>fromNHE</var> be the <a href="#navigation-current-entry" id="navigate-event-firing:navigation-current-entry">current
+     entry</a> of <var>navigation</var>.<li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="navigate-event-firing:assert-8">Assert</a>: <var>fromNHE</var> is not null.<li>
+<p>Set <var>navigation</var>'s <a href="#concept-navigation-transition" id="navigate-event-firing:concept-navigation-transition">transition</a>
+      to a <a data-x-internal="new" href="https://webidl.spec.whatwg.org/#new" id="navigate-event-firing:new-6">new</a> <code id="navigate-event-firing:navigationtransition"><a href="#navigationtransition">NavigationTransition</a></code> created in <var>navigation</var>'s
+      <a href="webappapis.html#concept-relevant-realm" id="navigate-event-firing:concept-relevant-realm-9">relevant realm</a>, with
+
+      <dl class="props"><dt><a href="#concept-navigationtransition-navigationtype" id="navigate-event-firing:concept-navigationtransition-navigationtype">navigation type</a><dd><var>navigationType</var><dt><a href="#concept-navigationtransition-from" id="navigate-event-firing:concept-navigationtransition-from">from entry</a><dd><var>fromNHE</var><dt><a href="#concept-navigationtransition-destination" id="navigate-event-firing:concept-navigationtransition-destination">destination</a><dd><var>event</var>'s <code id="navigate-event-firing:dom-navigateevent-destination-2"><a href="#dom-navigateevent-destination">destination</a></code><dt><a href="#concept-navigationtransition-committed" id="navigate-event-firing:concept-navigationtransition-committed">committed promise</a><dd>a new promise created in <var>navigation</var>'s <a href="webappapis.html#concept-relevant-realm" id="navigate-event-firing:concept-relevant-realm-10">relevant realm</a><dt><a href="#concept-navigationtransition-finished" id="navigate-event-firing:concept-navigationtransition-finished">finished promise</a><dd>a new promise created in <var>navigation</var>'s <a href="webappapis.html#concept-relevant-realm" id="navigate-event-firing:concept-relevant-realm-11">relevant realm</a></dd></dt></dd></dt></dd></dt></dd></dt></dd></dt></dl>
+<li>
+<p><a data-x-internal="mark-as-handled" href="https://webidl.spec.whatwg.org/#mark-a-promise-as-handled" id="navigate-event-firing:mark-as-handled">Mark as handled</a> <var>navigation</var>'s <a href="#concept-navigation-transition" id="navigate-event-firing:concept-navigation-transition-2">transition</a>'s <a href="#concept-navigationtransition-finished" id="navigate-event-firing:concept-navigationtransition-finished-2">finished promise</a>.</p>
+<p class="note">See the <a href="#note-mark-as-handled-navigation-api-finished">discussion
+      about other finished promises</a> to understand why this is done.</p>
+<li><p><a data-x-internal="mark-as-handled" href="https://webidl.spec.whatwg.org/#mark-a-promise-as-handled" id="navigate-event-firing:mark-as-handled-2">Mark as handled</a> <var>navigation</var>'s <a href="#concept-navigation-transition" id="navigate-event-firing:concept-navigation-transition-3">transition</a>'s <a href="#concept-navigationtransition-committed" id="navigate-event-firing:concept-navigationtransition-committed-2">committed promise</a>.</p></li></li></p></li></p></li></p></li></ol>
+<li><p>If <var>event</var>'s <a href="#concept-navigateevent-navigation-precommit-handler-list" id="navigate-event-firing:concept-navigateevent-navigation-precommit-handler-list">navigation precommit handler
+   list</a> <a data-x-internal="list-is-empty" href="https://infra.spec.whatwg.org/#list-is-empty" id="navigate-event-firing:list-is-empty-2">is empty</a> then <a href="#commit-a-navigate-event" id="navigate-event-firing:commit-a-navigate-event">commit</a> <var>event</var> given <var>apiMethodTracker</var>.<li>
+<p>Otherwise:</p>
+<ol><li><p>Let <var>precommitController</var> be a new <code id="navigate-event-firing:navigationprecommitcontroller"><a href="#navigationprecommitcontroller">NavigationPrecommitController</a></code>
+     created in <var>navigation</var>'s <a href="webappapis.html#concept-relevant-realm" id="navigate-event-firing:concept-relevant-realm-12">relevant realm</a>,
+     whose <a href="#concept-navigationprecommitcontroller-event" id="navigate-event-firing:concept-navigationprecommitcontroller-event">event</a> is
+     <var>event</var>.<li><p>Let <var>precommitPromisesList</var> be an empty <a data-x-internal="list" href="https://infra.spec.whatwg.org/#list" id="navigate-event-firing:list">list</a>.<li>
+<p><a data-x-internal="list-iterate" href="https://infra.spec.whatwg.org/#list-iterate" id="navigate-event-firing:list-iterate">For each</a> <var>handler</var> of <var>event</var>'s <a href="#concept-navigateevent-navigation-precommit-handler-list" id="navigate-event-firing:concept-navigateevent-navigation-precommit-handler-list-2">navigation precommit handler
+      list</a>:</p>
+<ol><li><p><a data-x-internal="list-append" href="https://infra.spec.whatwg.org/#list-append" id="navigate-event-firing:list-append">Append</a> the result of <a data-x-internal="es-invoking-callback-functions" href="https://webidl.spec.whatwg.org/#invoke-a-callback-function" id="navigate-event-firing:es-invoking-callback-functions">invoking</a> <var>handler</var> with
+       « <var>precommitController</var> » to <var>precommitPromisesList</var>.</p></li></ol>
+<li><p><a data-x-internal="wait-for-all" href="https://webidl.spec.whatwg.org/#wait-for-all" id="navigate-event-firing:wait-for-all">Wait for all</a> <var>precommitPromisesList</var> with the following success
+     steps: <a href="#commit-a-navigate-event" id="navigate-event-firing:commit-a-navigate-event-2">commit</a> <var>event</var> given
+     <var>apiMethodTracker</var>, and the following failure step given <var>reason</var>:
+     <a href="#process-navigate-event-handler-failure" id="navigate-event-firing:process-navigate-event-handler-failure">process navigate event handler failure</a> given <var>event</var> and
+     <var>reason</var>.</p></li></li></p></li></p></li></ol>
+<li><p>If <var>event</var>'s <a href="#concept-navigateevent-interception-state" id="navigate-event-firing:concept-navigateevent-interception-state-2">interception
+   state</a> is "<code>none</code>", then return true.<li><p>Return false.</p></li></p></li></li></p></li></li></li></p></li></p></li></p></li></p></li></p></li></p></li></p></li></li></p></li></p></li></p></li></p></li></p></li></li></p></li></p></li></p></li></p></li></li></li></p></li></p></li></p></li></li></li></p></li></li></ol>
+</div>

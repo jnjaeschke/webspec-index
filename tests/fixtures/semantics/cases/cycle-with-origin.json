@@ -1,0 +1,50 @@
+{
+  "id": "cycle-with-origin",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/cycle-with-origin.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "cycle_must_terminate": true,
+    "design_relationship_notes": [
+      {
+        "relation": "invoke",
+        "from_site": "R-step-1",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "S"
+        }
+      },
+      {
+        "relation": "invoke",
+        "from_site": "S-step-1",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "R"
+        }
+      }
+    ]
+  }
+}

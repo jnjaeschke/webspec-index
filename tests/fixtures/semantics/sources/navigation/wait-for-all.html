@@ -1,0 +1,61 @@
+<!-- Exact HTML subtree fetched from the canonical source; page retrieval is recorded in manifest.json. -->
+<div class="algorithm" data-algorithm="wait for all">
+<p>To <dfn class="dfn-paneled" data-dfn-type="dfn" data-export="" data-lt="wait for all|waiting for all" id="wait-for-all">wait for all</dfn> with a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①⓪">list</a> of
+    <code><a class="idl-code" data-link-type="interface" href="#idl-promise" id="ref-for-idl-promise①⑤">Promise</a>&lt;<var>T</var>&gt;</code> values <var>promises</var>, with success steps
+    <var>successSteps</var> that take a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①①">list</a> of <var>T</var> values and failure steps <var>failureSteps</var> that take a
+    rejection reason <code class="idl"><a data-link-type="idl" href="#idl-any" id="ref-for-idl-any①④">any</a></code> value, perform the following steps:</p>
+<ol>
+<li data-md="">
+<p>Let <var>fullfilledCount</var> be 0.</p>
+</li><li data-md="">
+<p>Let <var>rejected</var> be false.</p>
+</li><li data-md="">
+<p>Let <var>rejectionHandlerSteps</var> be the following steps given <var>arg</var>:</p>
+<ol>
+<li data-md="">
+<p>If <var>rejected</var> is true, abort these steps.</p>
+</li><li data-md="">
+<p>Set <var>rejected</var> to true.</p>
+</li><li data-md="">
+<p>Perform <var>failureSteps</var> given <var>arg</var>.</p>
+</li></ol>
+</li><li data-md="">
+<p>Let <var>rejectionHandler</var> be <a data-link-type="abstract-op" href="https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-createbuiltinfunction" id="ref-for-sec-createbuiltinfunction②">CreateBuiltinFunction</a>(<var>rejectionHandlerSteps</var>, 1, "", « »):</p>
+</li><li data-md="">
+<p>Let <var>total</var> be <var>promises</var>’s <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list-size" id="ref-for-list-size③">size</a>.</p>
+</li><li data-md="">
+<p>If <var>total</var> is 0, then:</p>
+<ol>
+<li data-md="">
+<p><a data-link-type="dfn" href="https://html.spec.whatwg.org/multipage/webappapis.html#queue-a-microtask" id="ref-for-queue-a-microtask">Queue a microtask</a> to perform <var>successSteps</var> given « ».</p>
+</li><li data-md="">
+<p>Return.</p>
+</li></ol>
+</li><li data-md="">
+<p>Let <var>index</var> be 0.</p>
+</li><li data-md="">
+<p>Let <var>result</var> be a <a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list" id="ref-for-list①②">list</a> containing <var>total</var> null values.</p>
+</li><li data-md="">
+<p><a data-link-type="dfn" href="https://infra.spec.whatwg.org/#list-iterate" id="ref-for-list-iterate⑧">For each</a> <var>promise</var> of <var>promises</var>:</p>
+<ol>
+<li data-md="">
+<p>Let <var>promiseIndex</var> be <var>index</var>.</p>
+</li><li data-md="">
+<p>Let <var>fulfillmentHandler</var> be the following steps given <var>arg</var>:</p>
+<ol>
+<li data-md="">
+<p>Set <var>result</var>[<var>promiseIndex</var>] to <var>arg</var>.</p>
+</li><li data-md="">
+<p>Set <var>fullfilledCount</var> to <var>fullfilledCount</var> + 1.</p>
+</li><li data-md="">
+<p>If <var>fullfilledCount</var> equals <var>total</var>, then perform <var>successSteps</var> given <var>result</var>.</p>
+</li></ol>
+</li><li data-md="">
+<p>Let <var>fulfillmentHandler</var> be <a data-link-type="abstract-op" href="https://tc39.es/ecma262/multipage/ordinary-and-exotic-objects-behaviours.html#sec-createbuiltinfunction" id="ref-for-sec-createbuiltinfunction③">CreateBuiltinFunction</a>(<var>fulfillmentHandler</var>, 1, "", « »):</p>
+</li><li data-md="">
+<p>Perform <a data-link-type="abstract-op" href="https://tc39.es/ecma262/multipage/control-abstraction-objects.html#sec-performpromisethen" id="ref-for-sec-performpromisethen①">PerformPromiseThen</a>(<var>promise</var>, <var>fulfillmentHandler</var>, <var>rejectionHandler</var>).</p>
+</li><li data-md="">
+<p>Set <var>index</var> to <var>index</var> + 1.</p>
+</li></ol>
+</li></ol>
+</div>

@@ -1,0 +1,31 @@
+{
+  "id": "unrelated-sibling",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/unrelated-sibling.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R",
+    "step_path": [
+      1
+    ]
+  },
+  "expect_local_effects": [],
+  "expect_effects": [],
+  "forbidden_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "b"
+      }
+    }
+  ],
+  "expect_issues": [],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "sibling_not_implicitly_reached": true
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "id": "two-invocation-modes",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/two-invocation-modes.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "inline",
+        "separate"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "branch_context_required": true,
+    "design_relationship_notes": [
+      {
+        "relation": "invoke",
+        "from_site": "R-step-2",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "R/A"
+        }
+      },
+      {
+        "relation": "schedule_body",
+        "from_site": "R-step-3",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "R/A"
+        }
+      }
+    ]
+  }
+}

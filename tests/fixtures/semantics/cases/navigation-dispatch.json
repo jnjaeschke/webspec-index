@@ -1,0 +1,68 @@
+{
+  "id": "navigation-dispatch",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/inner-navigate-event.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "inner-navigate-event-firing-algorithm"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.dispatch",
+      "params": {
+        "name": "navigate"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "callback-function"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.dispatch",
+      "params": {
+        "name": "navigate"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "callback-function"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [
+    {
+      "kind": "event.dispatch",
+      "params": {
+        "name": "type"
+      }
+    }
+  ],
+  "expect_issues": [
+    "missing_anchor",
+    "missing_spec"
+  ],
+  "metadata": {
+    "initialization_and_dispatch_are_distinct": true,
+    "path_feasibility": "unchecked",
+    "invocation_recognition_review": "The explicit dispatching verb is now recognized."
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "id": "direct-two-sites",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/direct-two-sites.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R",
+    "step_path": [
+      1
+    ]
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "b"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "b"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "negative": "A regex spanning both links must not assign one capture to both operations."
+  }
+}

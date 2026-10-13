@@ -1,0 +1,55 @@
+{
+  "id": "scheduling-port-message",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/scheduling-port-message.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "port message queue"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "message"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "port message queue"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "message"
+      },
+      "operation_count": 1,
+      "execution": [
+        "separate"
+      ]
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": []
+}

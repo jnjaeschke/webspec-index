@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "description": "Offline provenance for the pinned navigation acceptance excerpts.",
+  "source_policy": "Navigation files are HTML subtrees extracted from official pages fetched on 2026-09-13. snapshot_sha256 identifies the indexed snapshot used during investigation; retrieved_page_sha256 identifies the fetched source page used for each fixture.",
+  "snapshots": {
+    "HTML": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+    "WEBIDL": "bd4d0345c5a2164bccea124842afe4c6f1d7aa2373ce182bfd6f049055fdd05a"
+  },
+  "entries": [
+    {
+      "id": "navigate",
+      "spec": "HTML",
+      "anchor": "navigate",
+      "url": "https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate",
+      "snapshot_sha256": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+      "file": "navigation/navigate.html",
+      "fixture_sha256": "b296d57112e77b9caeec9b14c9214af938e1bd383122192ef4efce34e1b96b13",
+      "retrieved_page_sha256": "ef35e23aa268757746287189ff986cdd6394b60956060c009dfc0bd246d2f062",
+      "original_steps": [
+        "8",
+        "20"
+      ]
+    },
+    {
+      "id": "dom-navigation-traverseto",
+      "spec": "HTML",
+      "anchor": "dom-navigation-traverseto",
+      "url": "https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-traverseto",
+      "snapshot_sha256": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+      "file": "navigation/traverse-to.html",
+      "fixture_sha256": "758876f6c3b36a8d3b805e0884293f7520a2349cb3ffa46c03ece4f1c7df96a2",
+      "retrieved_page_sha256": "37df58729239ca8632c7a0d0d5bb8044df2e0e9a3c6cc7d20fafea17072158de",
+      "original_steps": [
+        "3"
+      ]
+    },
+    {
+      "id": "tn-append-session-history-traversal-steps",
+      "spec": "HTML",
+      "anchor": "tn-append-session-history-traversal-steps",
+      "url": "https://html.spec.whatwg.org/multipage/browsing-the-web.html#tn-append-session-history-traversal-steps",
+      "snapshot_sha256": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+      "file": "navigation/traverse-to.html",
+      "fixture_sha256": "758876f6c3b36a8d3b805e0884293f7520a2349cb3ffa46c03ece4f1c7df96a2",
+      "retrieved_page_sha256": "ef35e23aa268757746287189ff986cdd6394b60956060c009dfc0bd246d2f062",
+      "original_steps": [
+        "1"
+      ]
+    },
+    {
+      "id": "apply-the-history-step",
+      "spec": "HTML",
+      "anchor": "apply-the-history-step",
+      "url": "https://html.spec.whatwg.org/multipage/browsing-the-web.html#apply-the-history-step",
+      "snapshot_sha256": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+      "file": "navigation/apply-history-step.html",
+      "fixture_sha256": "8f44558c470ff3f7764dc29fd665d629ddb10be94547f63252f25f5c6dbe19e9",
+      "retrieved_page_sha256": "ef35e23aa268757746287189ff986cdd6394b60956060c009dfc0bd246d2f062",
+      "original_steps": [
+        "7.5",
+        "8.3",
+        "12",
+        "17"
+      ]
+    },
+    {
+      "id": "inner-navigate-event-firing-algorithm",
+      "spec": "HTML",
+      "anchor": "inner-navigate-event-firing-algorithm",
+      "url": "https://html.spec.whatwg.org/multipage/nav-history-apis.html#inner-navigate-event-firing-algorithm",
+      "snapshot_sha256": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+      "file": "navigation/inner-navigate-event.html",
+      "fixture_sha256": "2e917272b95789cf5b53bdde5df193cb67b56aa61f5dadcc6ae796b966b9e07f",
+      "retrieved_page_sha256": "37df58729239ca8632c7a0d0d5bb8044df2e0e9a3c6cc7d20fafea17072158de",
+      "original_steps": [
+        "10",
+        "27"
+      ]
+    },
+    {
+      "id": "update-document-for-history-step-application",
+      "spec": "HTML",
+      "anchor": "update-document-for-history-step-application",
+      "url": "https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application",
+      "snapshot_sha256": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+      "file": "navigation/update-document.html",
+      "fixture_sha256": "91d5376a84380792cd06f7d2ccaefa540b1575f6c1b12fd710f7532e49de48d4",
+      "retrieved_page_sha256": "ef35e23aa268757746287189ff986cdd6394b60956060c009dfc0bd246d2f062",
+      "original_steps": [
+        "6.3",
+        "6.5",
+        "8.4"
+      ]
+    },
+    {
+      "id": "wait-for-all",
+      "spec": "WEBIDL",
+      "anchor": "wait-for-all",
+      "url": "https://webidl.spec.whatwg.org/#wait-for-all",
+      "snapshot_sha256": "bd4d0345c5a2164bccea124842afe4c6f1d7aa2373ce182bfd6f049055fdd05a",
+      "file": "navigation/wait-for-all.html",
+      "fixture_sha256": "9c627a23f8ca7c2bf326bcb96c277edfc4fcef49c83fbe327095a90dcf3fbbc6",
+      "retrieved_page_sha256": "bd4d0345c5a2164bccea124842afe4c6f1d7aa2373ce182bfd6f049055fdd05a",
+      "original_steps": [
+        "6.1",
+        "9.4"
+      ]
+    },
+    {
+      "id": "performing-a-navigation-api-traversal",
+      "spec": "HTML",
+      "anchor": "performing-a-navigation-api-traversal",
+      "url": "https://html.spec.whatwg.org/multipage/nav-history-apis.html#performing-a-navigation-api-traversal",
+      "snapshot_sha256": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+      "file": "navigation/performing-navigation-api-traversal.html",
+      "fixture_sha256": "0c440c523ed48c416b321d72a3ffb51fd37d03aa7363a894ee358494674f507c",
+      "retrieved_page_sha256": "37df58729239ca8632c7a0d0d5bb8044df2e0e9a3c6cc7d20fafea17072158de",
+      "original_steps": [
+        "12"
+      ]
+    },
+    {
+      "id": "navigate-event-intercept-commit-handler-steps",
+      "spec": "HTML",
+      "anchor": "navigate-event-intercept-commit-handler-steps",
+      "url": "https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigate-event-intercept-commit-handler-steps",
+      "snapshot_sha256": "fd7d0e08037ac31655693c27e5723ae26d314f9bbc37f5d84bafb4bdae30fabe",
+      "file": "navigation/intercept-commit-handler.html",
+      "fixture_sha256": "5f8401034f73a8869b76599293ab9d22afd1817b79b72c450643157f074ae00e",
+      "retrieved_page_sha256": "37df58729239ca8632c7a0d0d5bb8044df2e0e9a3c6cc7d20fafea17072158de",
+      "original_steps": [
+        "1",
+        "2"
+      ]
+    }
+  ]
+}

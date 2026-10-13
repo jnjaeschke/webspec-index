@@ -1,0 +1,55 @@
+{
+  "id": "scheduling-queue-task",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/scheduling-queue-task.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": null
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "queued"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": null
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "queued"
+      },
+      "operation_count": 1,
+      "execution": [
+        "separate"
+      ]
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": []
+}

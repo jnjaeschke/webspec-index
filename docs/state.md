@@ -692,7 +692,7 @@ keeps 53 of 67.
 ## Writing `state/` YAML
 
 State declarations and verb rules supplement the structurally inferred object model. They
-live under `state/` in the same semantics package as effects rules. The first path component
+live under `data/semantics/state/`, in the same package as the effects rules. The first path component
 partitions files: `state/` files go to the state loader, every other file to the effects
 loader. Query-time `--rules` packages may contain **only** `rules`; `types` and `fields` in
 them are rejected.

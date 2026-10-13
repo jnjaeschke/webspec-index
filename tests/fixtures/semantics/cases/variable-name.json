@@ -1,0 +1,52 @@
+{
+  "id": "variable-name",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/variable-name.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R",
+    "step_path": [
+      1
+    ]
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": null
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": null
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "name"
+      }
+    }
+  ],
+  "expect_issues": [
+    "unresolved_argument"
+  ],
+  "metadata": {
+    "argument_expression": "name",
+    "path_feasibility": "unchecked"
+  }
+}

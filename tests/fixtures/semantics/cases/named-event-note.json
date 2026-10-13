@@ -1,0 +1,49 @@
+{
+  "id": "named-event-note",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/named-event-note.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R",
+    "step_path": [
+      1
+    ]
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "not-an-operation"
+      }
+    }
+  ],
+  "expect_issues": [],
+  "metadata": {
+    "note_and_example_content_excluded": true
+  }
+}

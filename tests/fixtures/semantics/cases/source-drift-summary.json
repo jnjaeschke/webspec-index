@@ -1,0 +1,28 @@
+{
+  "id": "source-drift-summary",
+  "sources": [
+    {
+      "spec": "WEBIDL",
+      "file": "sources/synthetic/source-drift-summary.html"
+    }
+  ],
+  "subject": {
+    "spec": "WEBIDL",
+    "anchor": "wait-for-all"
+  },
+  "expect_local_effects": [],
+  "expect_effects": [],
+  "forbidden_effects": [
+    {
+      "kind": "scheduling.promise-continuation",
+      "params": {}
+    }
+  ],
+  "expect_issues": [
+    "declaration_mismatch"
+  ],
+  "metadata": {
+    "declaration_active": false,
+    "source_drift": true
+  }
+}

@@ -1,0 +1,79 @@
+<!-- Extracted from the saved official page; provenance is recorded in manifest.json. -->
+<div data-algorithm="">
+  <p>To <dfn id="performing-a-navigation-api-traversal">perform a navigation API traversal</dfn>
+  given a <code id="navigation-api-initiating-navigations:navigation-2"><a href="#navigation">Navigation</a></code> <var>navigation</var>, a string <var>key</var>, and a
+  <code id="navigation-api-initiating-navigations:navigationoptions"><a href="#navigationoptions">NavigationOptions</a></code> <var>options</var>:</p>
+
+  <ol><li><p>Let <var>document</var> be <var>navigation</var>'s <a id="navigation-api-initiating-navigations:concept-relevant-global-3" href="webappapis.html#concept-relevant-global">relevant global object</a>'s
+   <a href="#concept-document-window" id="navigation-api-initiating-navigations:concept-document-window-3">associated <code>Document</code></a>.</p></li><li><p>If <var>document</var> is not <a id="navigation-api-initiating-navigations:fully-active-3" href="document-sequences.html#fully-active">fully active</a>, then return an <a href="#navigation-api-early-error-result" id="navigation-api-initiating-navigations:navigation-api-early-error-result-14">early error result</a> for an
+   <a id="navigation-api-initiating-navigations:invalidstateerror-10" href="https://webidl.spec.whatwg.org/#invalidstateerror" data-x-internal="invalidstateerror">"<code>InvalidStateError</code>"</a> <code id="navigation-api-initiating-navigations:domexception-14"><a data-x-internal="domexception" href="https://webidl.spec.whatwg.org/#dfn-DOMException">DOMException</a></code>.</p>
+
+   </li><li><p>If <var>document</var>'s <a id="navigation-api-initiating-navigations:unload-counter-3" href="document-lifecycle.html#unload-counter">unload counter</a> is greater than 0, then return an
+   <a href="#navigation-api-early-error-result" id="navigation-api-initiating-navigations:navigation-api-early-error-result-15">early error result</a> for an
+   <a id="navigation-api-initiating-navigations:invalidstateerror-11" href="https://webidl.spec.whatwg.org/#invalidstateerror" data-x-internal="invalidstateerror">"<code>InvalidStateError</code>"</a> <code id="navigation-api-initiating-navigations:domexception-15"><a data-x-internal="domexception" href="https://webidl.spec.whatwg.org/#dfn-DOMException">DOMException</a></code>.</p></li><li><p>Let <var>current</var> be the <a href="#navigation-current-entry" id="navigation-api-initiating-navigations:navigation-current-entry-2">current entry</a>
+   of <var>navigation</var>.</p></li><li><p>If <var>key</var> equals <var>current</var>'s <a href="#nhe-she" id="navigation-api-initiating-navigations:nhe-she-5">session history
+   entry</a>'s <a href="browsing-the-web.html#she-navigation-api-key" id="navigation-api-initiating-navigations:she-navigation-api-key-4">navigation API key</a>, then return «[
+   "<code id="navigation-api-initiating-navigations:dom-navigationresult-committed-13"><a href="#dom-navigationresult-committed">committed</a></code>" → <a id="navigation-api-initiating-navigations:a-promise-resolved-with" href="https://webidl.spec.whatwg.org/#a-promise-resolved-with" data-x-internal="a-promise-resolved-with">a promise resolved
+   with</a> <var>current</var>, "<code id="navigation-api-initiating-navigations:dom-navigationresult-finished-13"><a href="#dom-navigationresult-finished">finished</a></code>"
+   → <a id="navigation-api-initiating-navigations:a-promise-resolved-with-2" href="https://webidl.spec.whatwg.org/#a-promise-resolved-with" data-x-internal="a-promise-resolved-with">a promise resolved with</a> <var>current</var> ]».</p></li><li><p>If <var>navigation</var>'s <a href="#upcoming-traverse-api-method-trackers" id="navigation-api-initiating-navigations:upcoming-traverse-api-method-trackers">upcoming traverse API method
+   trackers</a>[<var>key</var>] <a href="https://infra.spec.whatwg.org/#map-exists" id="navigation-api-initiating-navigations:map-exists-5" data-x-internal="map-exists">exists</a>, then return a
+   <a href="#navigation-api-method-tracker-derived-result" id="navigation-api-initiating-navigations:navigation-api-method-tracker-derived-result-3">navigation API method tracker-derived result</a> for <var>navigation</var>'s
+   <a href="#upcoming-traverse-api-method-trackers" id="navigation-api-initiating-navigations:upcoming-traverse-api-method-trackers-2">upcoming traverse API method trackers</a>[<var>key</var>].</p></li><li><p>Let <var>info</var> be <var>options</var>["<code id="navigation-api-initiating-navigations:dom-navigationoptions-info-11"><a href="#dom-navigationoptions-info">info</a></code>"], if it <a href="https://infra.spec.whatwg.org/#map-exists" id="navigation-api-initiating-navigations:map-exists-6" data-x-internal="map-exists">exists</a>;
+   otherwise, undefined.</p></li><li><p>Let <var>apiMethodTracker</var> be the result of <a href="#add-an-upcoming-traverse-api-method-tracker" id="navigation-api-initiating-navigations:add-an-upcoming-traverse-api-method-tracker">adding an upcoming traverse API method tracker</a> for
+   <var>navigation</var> given <var>key</var> and <var>info</var>.</p></li><li><p>Let <var>navigable</var> be <var>document</var>'s <a id="navigation-api-initiating-navigations:node-navigable-3" href="document-sequences.html#node-navigable">node navigable</a>.</p></li><li><p>Let <var>traversable</var> be <var>navigable</var>'s <a href="document-sequences.html#nav-traversable" id="navigation-api-initiating-navigations:nav-traversable">traversable navigable</a>.</p></li><li><p>Let <var>sourceSnapshotParams</var> be the result of <a id="navigation-api-initiating-navigations:snapshotting-source-snapshot-params" href="browsing-the-web.html#snapshotting-source-snapshot-params">snapshotting source snapshot
+   params</a> given <var>document</var>.</p></li><li>
+    <p><a href="browsing-the-web.html#tn-append-session-history-traversal-steps" id="navigation-api-initiating-navigations:tn-append-session-history-traversal-steps">Append the following session history
+    traversal steps</a> to <var>traversable</var>:</p>
+
+    <ol><li><p>Let <var>navigableSHEs</var> be the result of <a id="navigation-api-initiating-navigations:getting-session-history-entries" href="browsing-the-web.html#getting-session-history-entries">getting session history
+     entries</a> given <var>navigable</var>.</p></li><li>
+      <p>Let <var>targetSHE</var> be the <a id="navigation-api-initiating-navigations:session-history-entry-7" href="browsing-the-web.html#session-history-entry">session history entry</a> in
+      <var>navigableSHEs</var> whose <a href="browsing-the-web.html#she-navigation-api-key" id="navigation-api-initiating-navigations:she-navigation-api-key-5">navigation API key</a>
+      is <var>key</var>. If no such entry exists:</p>
+
+      <ol><li><p><a id="navigation-api-initiating-navigations:queue-a-global-task" href="webappapis.html#queue-a-global-task">Queue a global task</a> on the <a id="navigation-api-initiating-navigations:navigation-and-traversal-task-source" href="webappapis.html#navigation-and-traversal-task-source">navigation and traversal task
+       source</a> given <var>navigation</var>'s <a id="navigation-api-initiating-navigations:concept-relevant-global-4" href="webappapis.html#concept-relevant-global">relevant global object</a> to
+       <a href="#reject-the-finished-promise" id="navigation-api-initiating-navigations:reject-the-finished-promise">reject the finished promise</a> for <var>apiMethodTracker</var> with an
+       <a id="navigation-api-initiating-navigations:invalidstateerror-12" href="https://webidl.spec.whatwg.org/#invalidstateerror" data-x-internal="invalidstateerror">"<code>InvalidStateError</code>"</a> <code id="navigation-api-initiating-navigations:domexception-16"><a data-x-internal="domexception" href="https://webidl.spec.whatwg.org/#dfn-DOMException">DOMException</a></code>.</p></li><li><p>Abort these steps.</p></li></ol>
+
+      <p class="note">This path is taken if <var>navigation</var>'s <a href="#navigation-entry-list" id="navigation-api-initiating-navigations:navigation-entry-list-5">entry list</a> was outdated compared to
+      <var>navigableSHEs</var>, which can occur for brief periods while all the relevant threads and
+      processes are being synchronized in reaction to a history change.</p>
+     </li><li>
+      <p>If <var>targetSHE</var> is <var>navigable</var>'s <a href="document-sequences.html#nav-active-history-entry" id="navigation-api-initiating-navigations:nav-active-history-entry">active session history entry</a>:</p>
+
+      <ol><li><p><a id="navigation-api-initiating-navigations:queue-a-global-task-2" href="webappapis.html#queue-a-global-task">Queue a global task</a> on the <a id="navigation-api-initiating-navigations:navigation-and-traversal-task-source-2" href="webappapis.html#navigation-and-traversal-task-source">navigation and traversal task
+       source</a> given <var>navigation</var>'s <a id="navigation-api-initiating-navigations:concept-relevant-global-5" href="webappapis.html#concept-relevant-global">relevant global object</a> to
+       <a href="#reject-the-finished-promise" id="navigation-api-initiating-navigations:reject-the-finished-promise-2">reject the finished promise</a> for <var>apiMethodTracker</var> with an
+       <a id="navigation-api-initiating-navigations:invalidstateerror-13" href="https://webidl.spec.whatwg.org/#invalidstateerror" data-x-internal="invalidstateerror">"<code>InvalidStateError</code>"</a> <code id="navigation-api-initiating-navigations:domexception-17"><a data-x-internal="domexception" href="https://webidl.spec.whatwg.org/#dfn-DOMException">DOMException</a></code>.</p></li><li><p>Abort these steps.</p></li></ol>
+
+      <p class="note">This can occur if a previously <a href="browsing-the-web.html#tn-append-session-history-traversal-steps" id="navigation-api-initiating-navigations:tn-append-session-history-traversal-steps-2">queued</a> traversal already took us to
+      this <a id="navigation-api-initiating-navigations:session-history-entry-8" href="browsing-the-web.html#session-history-entry">session history entry</a>.</p>
+     </li><li><p>Let <var>result</var> be the result of <a href="browsing-the-web.html#apply-the-traverse-history-step" id="navigation-api-initiating-navigations:apply-the-traverse-history-step-2">applying the traverse history step</a> given by <var>targetSHE</var>'s <a href="browsing-the-web.html#she-step" id="navigation-api-initiating-navigations:she-step">step</a> to <var>traversable</var>, given <var>sourceSnapshotParams</var>,
+     <var>navigable</var>, and "<code id="navigation-api-initiating-navigations:uni-none"><a href="browsing-the-web.html#uni-none">none</a></code>".</p></li><li><p>If <var>result</var> is "<code>canceled-by-beforeunload</code>", then
+     <a id="navigation-api-initiating-navigations:queue-a-global-task-3" href="webappapis.html#queue-a-global-task">queue a global task</a> on the <a id="navigation-api-initiating-navigations:navigation-and-traversal-task-source-3" href="webappapis.html#navigation-and-traversal-task-source">navigation and traversal task source</a> given
+     <var>navigation</var>'s <a id="navigation-api-initiating-navigations:concept-relevant-global-6" href="webappapis.html#concept-relevant-global">relevant global object</a> to <a href="#reject-the-finished-promise" id="navigation-api-initiating-navigations:reject-the-finished-promise-3">reject the finished
+     promise</a> for <var>apiMethodTracker</var> with a new
+     <a id="navigation-api-initiating-navigations:aborterror-2" href="https://webidl.spec.whatwg.org/#aborterror" data-x-internal="aborterror">"<code>AbortError</code>"</a> <code id="navigation-api-initiating-navigations:domexception-18"><a data-x-internal="domexception" href="https://webidl.spec.whatwg.org/#dfn-DOMException">DOMException</a></code> created in
+     <var>navigation</var>'s <a href="webappapis.html#concept-relevant-realm" id="navigation-api-initiating-navigations:concept-relevant-realm">relevant realm</a>.</p></li><li>
+      <p>If <var>result</var> is "<code>initiator-disallowed</code>", then <a id="navigation-api-initiating-navigations:queue-a-global-task-4" href="webappapis.html#queue-a-global-task">queue a
+      global task</a> on the <a id="navigation-api-initiating-navigations:navigation-and-traversal-task-source-4" href="webappapis.html#navigation-and-traversal-task-source">navigation and traversal task source</a> given
+      <var>navigation</var>'s <a id="navigation-api-initiating-navigations:concept-relevant-global-7" href="webappapis.html#concept-relevant-global">relevant global object</a> to <a href="#reject-the-finished-promise" id="navigation-api-initiating-navigations:reject-the-finished-promise-4">reject the finished
+      promise</a> for <var>apiMethodTracker</var> with a new
+      <a id="navigation-api-initiating-navigations:securityerror" href="https://webidl.spec.whatwg.org/#securityerror" data-x-internal="securityerror">"<code>SecurityError</code>"</a> <code id="navigation-api-initiating-navigations:domexception-19"><a data-x-internal="domexception" href="https://webidl.spec.whatwg.org/#dfn-DOMException">DOMException</a></code> created in
+      <var>navigation</var>'s <a href="webappapis.html#concept-relevant-realm" id="navigation-api-initiating-navigations:concept-relevant-realm-2">relevant realm</a>.</p>
+
+      <div class="note">
+       <p>When <var>result</var> is "<code>canceled-by-beforeunload</code>" or "<code>initiator-disallowed</code>", the <code id="navigation-api-initiating-navigations:event-navigate-2"><a href="indices.html#event-navigate">navigate</a></code>
+       event was never fired, <a href="#abort-the-ongoing-navigation" id="navigation-api-initiating-navigations:abort-the-ongoing-navigation">aborting the ongoing
+       navigation</a> would not be correct; it would result in a <code id="navigation-api-initiating-navigations:event-navigateerror"><a href="indices.html#event-navigateerror">navigateerror</a></code> event without a preceding <code id="navigation-api-initiating-navigations:event-navigate-3"><a href="indices.html#event-navigate">navigate</a></code> event.</p>
+
+       <p>In the "<code>canceled-by-navigate</code>" case, <code id="navigation-api-initiating-navigations:event-navigate-4"><a href="indices.html#event-navigate">navigate</a></code> <em>is</em> fired, but the <a href="#inner-navigate-event-firing-algorithm" id="navigation-api-initiating-navigations:inner-navigate-event-firing-algorithm">inner <code>navigate</code> event firing algorithm</a> will take care of
+       <a href="#abort-the-ongoing-navigation" id="navigation-api-initiating-navigations:abort-the-ongoing-navigation-2">aborting the ongoing navigation</a>.</p>
+      </div>
+     </li></ol>
+   </li><li><p>Return a <a href="#navigation-api-method-tracker-derived-result" id="navigation-api-initiating-navigations:navigation-api-method-tracker-derived-result-4">navigation API method tracker-derived result</a> for
+   <var>apiMethodTracker</var>.</p></li></ol>
+  </div>
+
+  

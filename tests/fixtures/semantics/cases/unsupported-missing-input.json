@@ -1,0 +1,62 @@
+{
+  "id": "unsupported-missing-input",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/intercept-commit-handler.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "navigate-event-intercept-commit-handler-steps"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "navigatesuccess"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "callback-function"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "navigatesuccess"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "callback-function"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor",
+    "missing_spec"
+  ],
+  "metadata": {
+    "missing_wait_for_all_source": true,
+    "missing_spec_visible": true,
+    "path_feasibility": "unchecked",
+    "invocation_recognition_review": "The invoking verb is now recognized; missing dependency diagnostics remain."
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "id": "navigate-entry-effects",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/navigate.html"
+    },
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/apply-history-step.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "navigate"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "navigation and traversal task source"
+      },
+      "operation_count": 3
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "traversal",
+        "source": null
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.parallel",
+      "params": {},
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "navigation and traversal task source"
+      },
+      "execution": [
+        "inline",
+        "separate"
+      ],
+      "operation_count": 3
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "traversal",
+        "source": null
+      },
+      "execution": [
+        "separate"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.parallel",
+      "params": {},
+      "execution": [
+        "inline",
+        "separate"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor",
+    "missing_spec"
+  ],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "direct_effect_survives_path_cap": true,
+    "design_relationship_notes": [
+      {
+        "relation": "invoke",
+        "from_site": "navigate-8",
+        "to_subject": {
+          "spec": "HTML",
+          "anchor": "apply-the-history-step"
+        }
+      }
+    ]
+  }
+}

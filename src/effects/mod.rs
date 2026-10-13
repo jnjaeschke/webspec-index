@@ -13,7 +13,7 @@ pub mod query;
 pub mod render;
 pub mod service;
 
-pub use bundled::{default_catalog, CATALOG_LOCK};
+pub use bundled::default_catalog;
 #[cfg(feature = "native")]
 pub use catalog::load_package;
 pub use catalog::{

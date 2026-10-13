@@ -1,0 +1,58 @@
+{
+  "id": "scheduling-append-sync-navigation",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/scheduling-append-sync-navigation.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "traversal",
+        "source": null
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "queued"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "traversal",
+        "source": null
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "queued"
+      },
+      "operation_count": 1,
+      "execution": [
+        "separate"
+      ]
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "invocation_recognition_review": "Append is now recognized as an invocation verb."
+  }
+}

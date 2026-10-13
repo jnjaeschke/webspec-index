@@ -14,6 +14,8 @@ use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser};
 use yaml_rust2::scanner::Marker;
 use yaml_rust2::{Yaml, YamlLoader};
 
+pub(crate) mod bundled;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogError {
     pub file: Option<String>,

@@ -1,0 +1,98 @@
+{
+  "id": "execution-context",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/execution-context.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": "prepare-script"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": "cleanup-script"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": "prepare-callback"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": "cleanup-callback"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": "prepare-script"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": "cleanup-script"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": "prepare-callback"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": "cleanup-callback"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": null
+      }
+    }
+  ],
+  "expect_issues": [],
+  "metadata": {
+    "context_is_not_author_code": true,
+    "invocation_recognition_review": "Prepare and clean are now recognized invocation verbs."
+  }
+}

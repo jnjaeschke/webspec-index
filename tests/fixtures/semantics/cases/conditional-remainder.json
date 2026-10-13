@@ -1,0 +1,70 @@
+{
+  "id": "conditional-remainder",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/conditional-remainder.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": null
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": null
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "inline",
+        "separate"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "no_unconditional_root_to_suffix": true,
+    "design_relationship_notes": [
+      {
+        "relation": "resume",
+        "from_site": "R-step-1",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "R/remainder-1"
+        }
+      }
+    ]
+  }
+}

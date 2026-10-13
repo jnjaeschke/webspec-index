@@ -1,0 +1,50 @@
+{
+  "id": "environment-switch",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/environment-switch.html"
+    },
+    {
+      "spec": "HTML",
+      "file": "sources/synthetic/host-enqueue-promise-job.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "environment": "web",
+    "generic_expected_issues": [
+      "unresolved_invocation"
+    ],
+    "path_feasibility": "unchecked",
+    "design_relationship_notes": [
+      {
+        "relation": "implements",
+        "from_site": "R-step-1",
+        "to_subject": {
+          "spec": "HTML",
+          "anchor": "hostenqueuepromisejob"
+        }
+      }
+    ]
+  }
+}

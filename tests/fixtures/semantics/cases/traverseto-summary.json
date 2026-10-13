@@ -1,0 +1,70 @@
+{
+  "id": "traverseto-summary",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/traverse-to.html"
+    },
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/performing-navigation-api-traversal.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "dom-navigation-traverseto"
+  },
+  "expect_local_effects": [],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "traversal",
+        "source": null
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "navigation and traversal task source"
+      },
+      "execution": [
+        "separate"
+      ],
+      "operation_count": 4
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor",
+    "missing_spec"
+  ],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "helper_scheduling_required": true,
+    "design_relationship_notes": [
+      {
+        "relation": "invoke",
+        "from_site": "traverseto-3",
+        "to_subject": {
+          "spec": "HTML",
+          "anchor": "performing-a-navigation-api-traversal"
+        }
+      },
+      {
+        "relation": "invoke",
+        "from_site": "traverseto-3",
+        "to_subject": {
+          "spec": "HTML",
+          "anchor": "tn-append-session-history-traversal-steps"
+        }
+      }
+    ],
+    "invocation_recognition_review": "Performing, firing, and append call forms are now recognized."
+  }
+}

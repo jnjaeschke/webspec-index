@@ -1,0 +1,19 @@
+{
+  "id": "scheduling-port-message-mention",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/scheduling-port-message-mention.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [],
+  "expect_effects": [],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "unsupported_structure"
+  ]
+}

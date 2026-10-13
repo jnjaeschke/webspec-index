@@ -1,0 +1,69 @@
+{
+  "id": "caller-isolation",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/caller-isolation.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "separate"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "b"
+      }
+    }
+  ],
+  "expect_issues": [],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "caller_body_isolation": true,
+    "design_relationship_notes": [
+      {
+        "relation": "schedule_body",
+        "from_site": "R-step-1",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "R/A"
+        }
+      }
+    ]
+  }
+}

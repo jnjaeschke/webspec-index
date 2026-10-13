@@ -1,0 +1,51 @@
+{
+  "id": "specialization-scope",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/specialization-scope.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [
+    {
+      "kind": "event.dispatch",
+      "params": {
+        "name": null
+      }
+    }
+  ],
+  "expect_issues": [],
+  "metadata": {
+    "owner_tests": [
+      "src/effects/engine.rs::operation_scoped_captures_keep_two_direct_occurrences_distinct"
+    ],
+    "path_feasibility": "unchecked",
+    "specialization_scope": "same_intrinsic_seed_only",
+    "negative": "The independent dispatch algorithm is not reachable from R and must not leak into R's summary."
+  }
+}

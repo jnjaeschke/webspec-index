@@ -1,0 +1,102 @@
+{
+  "id": "queued-event-boundary",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/update-document.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "update-document-for-history-step-application"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "popstate"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "hashchange"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "script.opportunity",
+      "params": {},
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "DOM manipulation task source"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "popstate"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "hashchange"
+      },
+      "execution": [
+        "separate"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "DOM manipulation task source"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "script.opportunity",
+      "params": {},
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor",
+    "missing_spec"
+  ],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "event_inside_queued_body_retains_boundary": true,
+    "design_relationship_notes": [
+      {
+        "relation": "schedule_body",
+        "from_site": "update-document-6-5",
+        "to_subject": {
+          "spec": "HTML",
+          "anchor": "anonymous-hashchange-body"
+        }
+      }
+    ]
+  }
+}

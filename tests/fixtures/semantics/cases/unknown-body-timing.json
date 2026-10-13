@@ -1,0 +1,44 @@
+{
+  "id": "unknown-body-timing",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/unknown-body-timing.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "unknown"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "unresolved_body_binding"
+  ],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "timing": "unknown",
+    "design_relationship_notes": [
+      {
+        "relation": "candidate_invoke",
+        "from_site": "R-step-2",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "R/A"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,380 @@
+{
+  "id": "scheduling-named-task-sources",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/scheduling-named-task-sources.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "embed task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "media element event task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "canvas blob serialization task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "speculation rules task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "JavaScript engine task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "microtask task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "DOM manipulation task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "user interaction task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "networking task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "navigation and traversal task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "rendering task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "timer task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "bitmap task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "remote event task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "posted message task source"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "port message queue"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "unshipped port message queue"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": null
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "queued"
+      },
+      "operation_count": 18
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "embed task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "media element event task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "canvas blob serialization task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "speculation rules task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "JavaScript engine task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "microtask task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "DOM manipulation task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "user interaction task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "networking task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "navigation and traversal task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "rendering task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "timer task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "bitmap task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "remote event task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "posted message task source"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "port message queue"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "unshipped port message queue"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": null
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "queued"
+      },
+      "operation_count": 18,
+      "execution": [
+        "separate"
+      ]
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor"
+  ]
+}

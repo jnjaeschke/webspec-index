@@ -1,0 +1,97 @@
+{
+  "id": "promise-empty-list-candidate",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/intercept-commit-handler.html"
+    },
+    {
+      "spec": "WEBIDL",
+      "file": "sources/navigation/wait-for-all.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "navigate-event-intercept-commit-handler-steps"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "navigatesuccess"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "callback-function"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.promise-continuation",
+      "params": {},
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "navigatesuccess"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "callback-function"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor",
+    "missing_spec",
+    "unresolved_body_binding"
+  ],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "candidate": true,
+    "known_empty_list_route_not_rejected": true,
+    "caller_precondition_is_preserved": true,
+    "design_relationship_notes": [
+      {
+        "relation": "candidate_invoke",
+        "from_site": "intercept-commit-2",
+        "to_subject": {
+          "spec": "WEBIDL",
+          "anchor": "wait-for-all"
+        }
+      }
+    ],
+    "invocation_recognition_review": "The invoking verb is now recognized; unresolved body bindings and unchecked feasibility remain."
+  }
+}

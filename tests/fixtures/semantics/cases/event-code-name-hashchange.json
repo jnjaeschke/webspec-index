@@ -1,0 +1,67 @@
+{
+  "id": "event-code-name-hashchange",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/update-document.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "update-document-for-history-step-application",
+    "step_path": [
+      6,
+      4,
+      5
+    ]
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "hashchange"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "DOM manipulation task source"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "hashchange"
+      },
+      "execution": [
+        "separate"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "DOM manipulation task source"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor",
+    "missing_spec"
+  ],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "note": "The fire operation is in the body passed to queue a global task, so its execution is separate at the containing step."
+  }
+}

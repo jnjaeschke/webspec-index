@@ -1,0 +1,70 @@
+{
+  "id": "history-update-modes",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/apply-history-step.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "apply-the-history-step"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "navigation and traversal task source"
+      },
+      "operation_count": 5
+    },
+    {
+      "kind": "scheduling.parallel",
+      "params": {},
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "task",
+        "source": "navigation and traversal task source"
+      },
+      "execution": [
+        "inline",
+        "separate"
+      ],
+      "operation_count": 6
+    },
+    {
+      "kind": "scheduling.parallel",
+      "params": {},
+      "execution": [
+        "separate"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor",
+    "missing_spec",
+    "unresolved_body_binding"
+  ],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "immediate_and_queued_body_invocations": true,
+    "design_relationship_notes": [
+      {
+        "relation": "invoke",
+        "from_site": "apply-history-8-3",
+        "to_subject": {
+          "spec": "HTML",
+          "anchor": "queue-a-global-task"
+        }
+      }
+    ]
+  }
+}

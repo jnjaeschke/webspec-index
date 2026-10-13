@@ -1,0 +1,82 @@
+{
+  "id": "inflected-event-names",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/inflected-event-names.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "beforeunload"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "error"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": null
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "beforeunload"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "error"
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": null
+      },
+      "operation_count": 1,
+      "execution": [
+        "inline"
+      ]
+    }
+  ],
+  "forbidden_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "name"
+      }
+    }
+  ],
+  "expect_issues": [
+    "unresolved_argument"
+  ],
+  "metadata": {
+    "path_feasibility": "unchecked"
+  }
+}

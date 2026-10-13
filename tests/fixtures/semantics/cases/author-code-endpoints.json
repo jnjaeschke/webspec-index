@@ -1,0 +1,90 @@
+{
+  "id": "author-code-endpoints",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/author-code-endpoints.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "callback-function"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "user-object-operation"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "classic-script"
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "module-script"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "callback-function"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "user-object-operation"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "classic-script"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": "module-script"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "author_code_is_opaque": true
+  }
+}

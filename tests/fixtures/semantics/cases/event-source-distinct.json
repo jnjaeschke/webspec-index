@@ -1,0 +1,47 @@
+{
+  "id": "event-source-distinct",
+  "sources": [
+    {
+      "spec": "HTML",
+      "file": "sources/navigation/update-document.html"
+    }
+  ],
+  "subject": {
+    "spec": "HTML",
+    "anchor": "update-document-for-history-step-application",
+    "step_path": [
+      6,
+      4,
+      3
+    ]
+  },
+  "expect_local_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "popstate"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "popstate"
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [
+    "missing_anchor"
+  ],
+  "metadata": {
+    "event_source": "update-document-for-history-step-application",
+    "navigation_instance_is_not_source": true
+  }
+}

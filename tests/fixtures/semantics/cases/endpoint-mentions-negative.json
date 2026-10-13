@@ -1,0 +1,53 @@
+{
+  "id": "endpoint-mentions-negative",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/endpoint-mentions-negative.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R",
+    "step_path": [
+      1
+    ]
+  },
+  "expect_local_effects": [],
+  "expect_effects": [],
+  "forbidden_effects": [
+    {
+      "kind": "event.dispatch",
+      "params": {
+        "name": null
+      }
+    },
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": null,
+        "source": null
+      }
+    },
+    {
+      "kind": "scheduling.parallel",
+      "params": {}
+    },
+    {
+      "kind": "script.invoke",
+      "params": {
+        "mechanism": null
+      }
+    },
+    {
+      "kind": "execution.context",
+      "params": {
+        "operation": null
+      }
+    }
+  ],
+  "expect_issues": [],
+  "metadata": {
+    "negative": "Known linked mentions do not execute endpoints."
+  }
+}

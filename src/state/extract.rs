@@ -51,20 +51,12 @@ pub struct StateInputs<'a> {
     pub body_nodes: Option<HashSet<ego_tree::NodeId>>,
 }
 
-const EMBEDDED: &str = include_str!("../../data/semantics/embedded.json");
-
 /// The reviewed catalog applied at index time: the `state/` files of the embedded
 /// semantics package.
 pub fn bundled_catalog() -> &'static StateCatalog {
     static CATALOG: OnceLock<StateCatalog> = OnceLock::new();
     CATALOG.get_or_init(|| {
-        let files: Vec<(String, String)> =
-            serde_json::from_str(EMBEDDED).expect("embedded semantics files are valid JSON");
-        let files: Vec<(&str, &str)> = files
-            .iter()
-            .map(|(path, text)| (path.as_str(), text.as_str()))
-            .collect();
-        load_state_files(&files).expect("bundled state catalog is valid")
+        load_state_files(crate::semantics::bundled::FILES).expect("bundled state catalog is valid")
     })
 }
 

@@ -1,16 +1,17 @@
-//! Validate an external webspec-semantics package without network or database access.
+//! Acceptance cases for the bundled semantics catalog: each case parses its
+//! spec excerpts, analyzes one subject, and compares the effects, their
+//! witnesses, and the issues reported. No network or database access.
 
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
-use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 use webspec_index::effects::{
-    analyze, load_catalog, load_package_files, AnalysisInput, AnalysisScope, DiscoveryBudgets,
-    Execution, ExplanationOptions, IndexedAnchor, SourceSpec, SubjectSelector,
+    analyze, default_catalog, AnalysisInput, AnalysisScope, Catalog, DiscoveryBudgets, Execution,
+    ExplanationOptions, IndexedAnchor, SourceSpec, SubjectSelector,
 };
 use webspec_index::parse::steps::{extract_step_structure, BodyKind};
 
@@ -34,7 +35,6 @@ struct Case {
 
 #[derive(Default, Deserialize)]
 struct CaseMetadata {
-    validation_layer: Option<String>,
     environment: Option<String>,
 }
 
@@ -64,52 +64,37 @@ struct ForbiddenEffect {
     params: Map<String, Value>,
 }
 
-fn main() -> Result<()> {
-    let root = env::args_os()
-        .nth(1)
-        .map(PathBuf::from)
-        .context("usage: cargo run --example validate_semantics -- /path/to/webspec-semantics")?;
-    let yaml = read_yaml(&root)?;
-    let yaml_refs = yaml
-        .iter()
-        .map(|(path, text)| (path.as_str(), text.as_str()))
-        .collect::<Vec<_>>();
-    let catalog = load_catalog([load_package_files(&yaml_refs)?])?;
-    let mut passed = 0;
-    let mut skipped = BTreeMap::<String, usize>::new();
-
-    for path in sorted_files(&root.join("cases"), "json")? {
-        let case: Case = serde_json::from_slice(&fs::read(&path)?)
-            .with_context(|| format!("parse {}", path.display()))?;
-        if case.id != path.file_stem().unwrap().to_string_lossy() {
-            bail!("{}: id does not match filename", path.display());
+#[test]
+fn semantics_cases() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/semantics");
+    let catalog = default_catalog(&[]).expect("bundled catalog loads");
+    let mut failures = Vec::new();
+    let mut count = 0;
+    for path in sorted_files(&root.join("cases"), "json").unwrap() {
+        count += 1;
+        let result = fs::read(&path)
+            .map_err(anyhow::Error::from)
+            .and_then(|bytes| Ok(serde_json::from_slice::<Case>(&bytes)?))
+            .and_then(|case| {
+                if case.id != path.file_stem().unwrap().to_string_lossy() {
+                    bail!("id does not match filename");
+                }
+                validate_case(&root, &case, &catalog)
+            });
+        if let Err(error) = result {
+            failures.push(format!("{}: {error:#}", path.display()));
         }
-        let layer = case
-            .metadata
-            .validation_layer
-            .as_deref()
-            .unwrap_or("unclassified");
-        if layer != "engine" {
-            *skipped.entry(layer.to_string()).or_default() += 1;
-            continue;
-        }
-        validate_case(&root, &case, &catalog).with_context(|| format!("case {}", case.id))?;
-        passed += 1;
     }
-    println!(
-        "validated {passed} engine cases through parser, catalog, analyzer, and witness checks"
+    assert!(count > 0, "no cases found");
+    assert!(
+        failures.is_empty(),
+        "{} of {count} cases failed:\n\n{}",
+        failures.len(),
+        failures.join("\n\n")
     );
-    for (layer, count) in skipped {
-        println!("skipped {count} {layer} cases (requires its owning test suite)");
-    }
-    Ok(())
 }
 
-fn validate_case(
-    root: &Path,
-    case: &Case,
-    catalog: &webspec_index::effects::Catalog,
-) -> Result<()> {
+fn validate_case(root: &Path, case: &Case, catalog: &Catalog) -> Result<()> {
     let mut html_by_spec = BTreeMap::<String, String>::new();
     for source in &case.sources {
         let path = root.join(&source.file);
@@ -365,24 +350,9 @@ fn validate_case(
     );
     let expected_issues = case.expect_issues.iter().cloned().collect::<BTreeSet<_>>();
     if actual_issues != expected_issues {
-        bail!(
-            "issues mismatch: expected {expected_issues:?}, actual {:#?}",
-            summary.issues
-        );
+        bail!("issues mismatch: expected {expected_issues:?}, actual {actual_issues:?}");
     }
     Ok(())
-}
-
-fn read_yaml(root: &Path) -> Result<Vec<(String, String)>> {
-    sorted_files(&root.join("effects"), "yaml")?
-        .into_iter()
-        .map(|path| {
-            Ok((
-                path.strip_prefix(root)?.to_string_lossy().into_owned(),
-                fs::read_to_string(path)?,
-            ))
-        })
-        .collect()
 }
 
 fn sorted_files(dir: &Path, extension: &str) -> Result<Vec<PathBuf>> {

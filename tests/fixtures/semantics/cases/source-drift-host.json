@@ -1,0 +1,37 @@
+{
+  "id": "source-drift-host",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/environment-switch.html"
+    },
+    {
+      "spec": "HTML",
+      "file": "sources/synthetic/source-drift-host.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [],
+  "expect_effects": [],
+  "forbidden_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      }
+    }
+  ],
+  "expect_issues": [
+    "declaration_mismatch",
+    "unsupported_structure"
+  ],
+  "metadata": {
+    "environment": "web",
+    "implementation_active": false,
+    "source_drift": true
+  }
+}

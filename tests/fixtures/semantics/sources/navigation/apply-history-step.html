@@ -1,0 +1,241 @@
+<!-- Exact HTML subtree fetched from the canonical source; page retrieval is recorded in manifest.json. -->
+<div data-algorithm="">
+<p id="update-the-session-history-with-the-new-page">To <dfn id="apply-the-history-step">apply the history step</dfn> given a
+  non-negative integer <var>step</var> to a <a href="document-sequences.html#traversable-navigable" id="updating-the-traversable:traversable-navigable-8">traversable navigable</a>
+<var>traversable</var>, with boolean <var>checkForCancelation</var>, <a href="#source-snapshot-params" id="updating-the-traversable:source-snapshot-params-4">source snapshot
+  params</a>-or-null <var>sourceSnapshotParams</var>, <a href="document-sequences.html#navigable" id="updating-the-traversable:navigable-7">navigable</a>-or-null
+  <var>initiatorToCheck</var>, <a href="#user-navigation-involvement" id="updating-the-traversable:user-navigation-involvement-5">user navigation involvement</a> <var>userInvolvement</var>,
+  and <code id="updating-the-traversable:navigationtype"><a href="nav-history-apis.html#navigationtype">NavigationType</a></code>-or-null <var>navigationType</var>, perform the following steps.
+  They return "<code>initiator-disallowed</code>", "<code>canceled-by-beforeunload</code>", "<code>canceled-by-navigate</code>", or
+  "<code>applied</code>".</p>
+<ol><li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="updating-the-traversable:assert">Assert</a>: This is running within <var>traversable</var>'s <a href="document-sequences.html#tn-session-history-traversal-queue" id="updating-the-traversable:tn-session-history-traversal-queue">session history traversal queue</a>.<li><p>Let <var>targetStep</var> be the result of <a href="#getting-the-used-step" id="updating-the-traversable:getting-the-used-step">getting the used step</a> given
+   <var>traversable</var> and <var>step</var>.<li>
+<p>If <var>initiatorToCheck</var> is not null:</p>
+<ol><li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="updating-the-traversable:assert-2">Assert</a>: <var>sourceSnapshotParams</var> is not null.<li><p><a data-x-internal="list-iterate" href="https://infra.spec.whatwg.org/#list-iterate" id="updating-the-traversable:list-iterate">For each</a> <var>navigable</var> of <a href="#get-all-navigables-whose-current-session-history-entry-will-change-or-reload" id="updating-the-traversable:get-all-navigables-whose-current-session-history-entry-will-change-or-reload">get all
+     navigables whose current session history entry will change or reload</a>: if
+     <var>initiatorToCheck</var> is not <a href="#allowed-to-navigate" id="updating-the-traversable:allowed-to-navigate">allowed by sandboxing to navigate</a>
+<var>navigable</var> given <var>sourceSnapshotParams</var>, then return "<code>initiator-disallowed</code>".</p></li></p></li></ol>
+<li><p>Let <var>navigablesCrossingDocuments</var> be the result of <a href="#getting-all-navigables-that-might-experience-a-cross-document-traversal" id="updating-the-traversable:getting-all-navigables-that-might-experience-a-cross-document-traversal">getting all navigables
+   that might experience a cross-document traversal</a> given <var>traversable</var> and
+   <var>targetStep</var>.<li><p>If <var>checkForCancelation</var> is true, and the result of <a href="#checking-if-unloading-is-canceled" id="updating-the-traversable:checking-if-unloading-is-canceled">checking if unloading
+   is canceled</a> given <var>navigablesCrossingDocuments</var>, <var>traversable</var>,
+   <var>targetStep</var>, and <var>userInvolvement</var> is not "<code>continue</code>",
+   then return that result.<li><p>Let <var>changingNavigables</var> be the result of <a href="#get-all-navigables-whose-current-session-history-entry-will-change-or-reload" id="updating-the-traversable:get-all-navigables-whose-current-session-history-entry-will-change-or-reload-2">get all navigables whose current
+   session history entry will change or reload</a> given <var>traversable</var> and
+   <var>targetStep</var>.<li><p>Let <var>nonchangingNavigablesThatStillNeedUpdates</var> be the result of <a href="#getting-all-navigables-that-only-need-history-object-length/index-update" id="updating-the-traversable:getting-all-navigables-that-only-need-history-object-length/index-update">getting
+   all navigables that only need history object length/index update</a> given
+   <var>traversable</var> and <var>targetStep</var>.<li>
+<p><a data-x-internal="list-iterate" href="https://infra.spec.whatwg.org/#list-iterate" id="updating-the-traversable:list-iterate-2">For each</a> <var>navigable</var> of
+    <var>changingNavigables</var>:</p>
+<ol><li><p>Let <var>targetEntry</var> be the result of <a href="#getting-the-target-history-entry" id="updating-the-traversable:getting-the-target-history-entry">getting the target history
+     entry</a> given <var>navigable</var> and <var>targetStep</var>.<li><p>Set <var>navigable</var>'s <a href="document-sequences.html#nav-current-history-entry" id="updating-the-traversable:nav-current-history-entry">current session
+     history entry</a> to <var>targetEntry</var>.<li>
+<p>If <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document">document</a> is not
+      <var>navigable</var>'s <a href="document-sequences.html#nav-document" id="updating-the-traversable:nav-document">active document</a>, then <a href="webappapis.html#queue-a-global-task" id="updating-the-traversable:queue-a-global-task">queue a
+      global task</a> on the <a href="webappapis.html#navigation-and-traversal-task-source" id="updating-the-traversable:navigation-and-traversal-task-source">navigation and traversal task source</a> of
+      <var>navigable</var>'s <a href="document-sequences.html#nav-window" id="updating-the-traversable:nav-window">active window</a> to run these steps:</p>
+<ol><li><p>Let <var>navigation</var> be <var>navigable</var>'s <a href="document-sequences.html#nav-window" id="updating-the-traversable:nav-window-2">active
+       window</a>'s <a href="nav-history-apis.html#window-navigation-api" id="updating-the-traversable:window-navigation-api">navigation API</a>.<li><p>Set <var>navigation</var>'s <a href="nav-history-apis.html#ongoing-navigate-event" id="updating-the-traversable:ongoing-navigate-event">ongoing <code>navigate</code> event</a> to null.<li><p>Set <var>navigation</var>'s <a href="nav-history-apis.html#ongoing-api-method-tracker" id="updating-the-traversable:ongoing-api-method-tracker">ongoing API method tracker</a> to null.</p></li></p></li></p></li></ol>
+<p class="note">This prevents the <code id="updating-the-traversable:event-navigateerror"><a href="indices.html#event-navigateerror">navigateerror</a></code>
+      event and the corresponding <a href="nav-history-apis.html#dom-navigateevent-signal" id="updating-the-traversable:dom-navigateevent-signal">signal</a> from firing
+      as a result of a successful cross-document navigation.</p>
+<li><p>Set <var>navigable</var>'s <a href="#ongoing-navigation" id="updating-the-traversable:ongoing-navigation">ongoing navigation</a> to "<code>traversal</code>".</p></li></li></p></li></p></li></ol>
+<li><p>Let <var>totalChangeJobs</var> be the <a data-x-internal="list-size" href="https://infra.spec.whatwg.org/#list-size" id="updating-the-traversable:list-size">size</a> of
+   <var>changingNavigables</var>.<li><p>Let <var>completedChangeJobs</var> be 0.<li>
+<p>Let <var>changingNavigableContinuations</var> be an empty <a data-x-internal="queue" href="https://infra.spec.whatwg.org/#queue" id="updating-the-traversable:queue">queue</a> of <a href="#changing-navigable-continuation-state" id="updating-the-traversable:changing-navigable-continuation-state">changing navigable continuation
+    states</a>.</p>
+<p class="note">This queue is used to split the operations on <var>changingNavigables</var>
+    into two parts. Specifically, <var>changingNavigableContinuations</var> holds data for the <a href="#continuations-dequeue">second part</a>.</p>
+<li>
+<p><a data-x-internal="list-iterate" href="https://infra.spec.whatwg.org/#list-iterate" id="updating-the-traversable:list-iterate-3">For each</a> <var>navigable</var> of
+    <var>changingNavigables</var>, <a href="webappapis.html#queue-a-global-task" id="updating-the-traversable:queue-a-global-task-2">queue a global task</a> on the <a href="webappapis.html#navigation-and-traversal-task-source" id="updating-the-traversable:navigation-and-traversal-task-source-2">navigation and
+    traversal task source</a> of <var>navigable</var>'s <a href="document-sequences.html#nav-window" id="updating-the-traversable:nav-window-3">active
+    window</a> to run the steps:</p>
+<p class="note">This set of steps are split into two parts to allow synchronous navigations to
+    be processed before documents unload. State is stored in
+    <var>changingNavigableContinuations</var> for the <a href="#continuations-dequeue">second
+    part</a>.</p>
+<ol><li><p>Let <var>displayedEntry</var> be <var>navigable</var>'s <a href="document-sequences.html#nav-active-history-entry" id="updating-the-traversable:nav-active-history-entry">active session history entry</a>.<li><p>Let <var>targetEntry</var> be <var>navigable</var>'s <a href="document-sequences.html#nav-current-history-entry" id="updating-the-traversable:nav-current-history-entry-2">current session history entry</a>.<li>
+<p>Let <var>changingNavigableContinuation</var> be a <a href="#changing-navigable-continuation-state" id="updating-the-traversable:changing-navigable-continuation-state-2">changing navigable continuation
+      state</a> with:</p>
+<dl class="props"><dt><a href="#changing-nav-continuation-displayed-document" id="updating-the-traversable:changing-nav-continuation-displayed-document">displayed document</a><dd><var>displayedEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-2">document</a><dt><a href="#changing-nav-continuation-target-entry" id="updating-the-traversable:changing-nav-continuation-target-entry">target entry</a><dd><var>targetEntry</var><dt><a href="#changing-nav-continuation-navigable" id="updating-the-traversable:changing-nav-continuation-navigable">navigable</a><dd><var>navigable</var><dt><a href="#changing-nav-continuation-update-only" id="updating-the-traversable:changing-nav-continuation-update-only">update-only</a><dd>false</dd></dt></dd></dt></dd></dt></dd></dt></dl>
+<li>
+<p>If <var>displayedEntry</var> is <var>targetEntry</var> and <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state">document state</a>'s <a href="#document-state-reload-pending" id="updating-the-traversable:document-state-reload-pending">reload pending</a> is false:</p>
+<ol><li><p>Set <var>changingNavigableContinuation</var>'s <a href="#changing-nav-continuation-update-only" id="updating-the-traversable:changing-nav-continuation-update-only-2">update-only</a> to true.<li><p><a data-x-internal="enqueue" href="https://infra.spec.whatwg.org/#queue-enqueue" id="updating-the-traversable:enqueue">Enqueue</a> <var>changingNavigableContinuation</var> on
+       <var>changingNavigableContinuations</var>.<li><p>Abort these steps.</p></li></p></li></p></li></ol>
+<p class="note">This case occurs due to a <a href="#finalize-a-same-document-navigation" id="updating-the-traversable:finalize-a-same-document-navigation">synchronous navigation</a> which already updated the <a href="document-sequences.html#nav-active-history-entry" id="updating-the-traversable:nav-active-history-entry-2">active session history entry</a>.</p>
+<li>
+<p>Switch on <var>navigationType</var>:</p>
+<dl class="switch"><dt>"<code id="updating-the-traversable:dom-navigationtype-reload-2"><a href="nav-history-apis.html#dom-navigationtype-reload">reload</a></code>"<dd><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="updating-the-traversable:assert-3">Assert</a>: <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-2">document state</a>'s <a href="#document-state-reload-pending" id="updating-the-traversable:document-state-reload-pending-2">reload pending</a> is true.<dt>"<code id="updating-the-traversable:dom-navigationtype-traverse-3"><a href="nav-history-apis.html#dom-navigationtype-traverse">traverse</a></code>"<dd><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="updating-the-traversable:assert-4">Assert</a>: <var>targetEntry</var>'s
+       <a href="#she-document-state" id="updating-the-traversable:she-document-state-3">document state</a>'s <a href="#document-state-ever-populated" id="updating-the-traversable:document-state-ever-populated">ever populated</a> is true.<dt>"<code id="updating-the-traversable:dom-navigationtype-replace"><a href="nav-history-apis.html#dom-navigationtype-replace">replace</a></code>"<dd><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="updating-the-traversable:assert-5">Assert</a>: <var>targetEntry</var>'s <a href="#she-step" id="updating-the-traversable:she-step">step</a>
+       is <var>displayedEntry</var>'s <a href="#she-step" id="updating-the-traversable:she-step-2">step</a> and
+       <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-4">document state</a>'s <a href="#document-state-ever-populated" id="updating-the-traversable:document-state-ever-populated-2">ever populated</a> is false.<dt>"<code id="updating-the-traversable:dom-navigationtype-push"><a href="nav-history-apis.html#dom-navigationtype-push">push</a></code>"<dd><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="updating-the-traversable:assert-6">Assert</a>: <var>targetEntry</var>'s <a href="#she-step" id="updating-the-traversable:she-step-3">step</a> is
+       <var>displayedEntry</var>'s <a href="#she-step" id="updating-the-traversable:she-step-4">step</a> + 1 and
+       <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-5">document state</a>'s <a href="#document-state-ever-populated" id="updating-the-traversable:document-state-ever-populated-3">ever populated</a> is false.</p></dd></dt></p></dd></dt></p></dd></dt></p></dd></dt></dl>
+<li><p>Let <var>oldOrigin</var> be <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-6">document state</a>'s <a href="#document-state-origin" id="updating-the-traversable:document-state-origin">origin</a>.<li id="descendant-navigable-traversal-navigate-events">
+<p>If all of the following are true:</p>
+<ul><li><p><var>navigable</var> is not <var>traversable</var>;<li><p><var>targetEntry</var> is not <var>navigable</var>'s <a href="document-sequences.html#nav-current-history-entry" id="updating-the-traversable:nav-current-history-entry-3">current session history entry</a>; and<li><p><var>oldOrigin</var> is the <a href="browsers.html#same-origin" id="updating-the-traversable:same-origin">same</a> as
+       <var>navigable</var>'s <a href="document-sequences.html#nav-current-history-entry" id="updating-the-traversable:nav-current-history-entry-4">current session history entry</a>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-7">document state</a>'s <a href="#document-state-origin" id="updating-the-traversable:document-state-origin-2">origin</a>,</p></li></p></li></p></li></ul>
+<p>then:</p>
+<ol><li><p>Let <var>navigation</var> be <var>navigable</var>'s <a href="document-sequences.html#nav-window" id="updating-the-traversable:nav-window-4">active window</a>'s <a href="nav-history-apis.html#window-navigation-api" id="updating-the-traversable:window-navigation-api-2">navigation API</a>.<li><p><a href="nav-history-apis.html#fire-a-traverse-navigate-event" id="updating-the-traversable:fire-a-traverse-navigate-event">Fire a traverse <code>navigate</code> event</a> at
+       <var>navigation</var> given <var>targetEntry</var> and <var>userInvolvement</var>.</p></li></p></li></ol>
+<li>
+<p>If <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-3">document</a> is null, or
+      <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-8">document state</a>'s <a href="#document-state-reload-pending" id="updating-the-traversable:document-state-reload-pending-3">reload pending</a> is true:</p>
+<ol><li><p>Let <var>navTimingType</var> be "<code id="updating-the-traversable:dom-navigationtimingtype-back_forward"><a data-x-internal="dom-navigationtimingtype-back_forward" href="https://w3c.github.io/navigation-timing/#dom-navigationtimingtype-back_forward">back_forward</a></code>" if
+       <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-4">document</a> is null; otherwise
+       "<code id="updating-the-traversable:dom-navigationtimingtype-reload"><a data-x-internal="dom-navigationtimingtype-reload" href="https://w3c.github.io/navigation-timing/#dom-navigationtimingtype-reload">reload</a></code>".<li><p>Let <var>targetSnapshotParams</var> be the result of <a href="#snapshotting-target-snapshot-params" id="updating-the-traversable:snapshotting-target-snapshot-params">snapshotting target
+       snapshot params</a> given <var>navigable</var>.<li><p>Let <var>potentiallyTargetSpecificSourceSnapshotParams</var> be
+       <var>sourceSnapshotParams</var>.<li>
+<p>If <var>potentiallyTargetSpecificSourceSnapshotParams</var> is null, then set it to the
+        result of <a href="#snapshotting-source-snapshot-params" id="updating-the-traversable:snapshotting-source-snapshot-params">snapshotting source snapshot params</a> given <var>navigable</var>'s
+        <a href="document-sequences.html#nav-document" id="updating-the-traversable:nav-document-2">active document</a>.</p>
+<p class="note">In this case there is no clear source of the traversal/reload. We treat this
+        situation as if <var>navigable</var> navigated itself, but note that some properties of
+        <var>targetEntry</var>'s original initiator are preserved in <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-9">document state</a>, such as the <a href="#document-state-initiator-origin" id="updating-the-traversable:document-state-initiator-origin">initiator origin</a> and <a href="#document-state-request-referrer" id="updating-the-traversable:document-state-request-referrer">referrer</a>, which will appropriately influence
+        the navigation.</p>
+<li><p>Set <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-10">document
+       state</a>'s <a href="#document-state-reload-pending" id="updating-the-traversable:document-state-reload-pending-4">reload pending</a> to
+       false.<li><p>Let <var>allowPOST</var> be <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-11">document state</a>'s <a href="#document-state-reload-pending" id="updating-the-traversable:document-state-reload-pending-5">reload pending</a>.</p>
+<li><p><a href="infrastructure.html#in-parallel" id="updating-the-traversable:in-parallel">In parallel</a>, <a href="#attempt-to-populate-the-history-entry's-document" id="updating-the-traversable:attempt-to-populate-the-history-entry's-document">attempt to populate the history entry's
+       document</a> for <var>targetEntry</var>, given <var>navigable</var>,
+       <var>potentiallyTargetSpecificSourceSnapshotParams</var>, <var>targetSnapshotParams</var>,
+       <var>userInvolvement</var>, with <i id="updating-the-traversable:attempt-to-populate-allow-post"><a href="#attempt-to-populate-allow-post">allowPOST</a></i> set
+       to <var>allowPOST</var> and <a href="#attempt-to-populate-completion-steps" id="updating-the-traversable:attempt-to-populate-completion-steps"><i>completionSteps</i></a> set to
+       <a href="webappapis.html#queue-a-global-task" id="updating-the-traversable:queue-a-global-task-3">queue a global task</a> on the <a href="webappapis.html#navigation-and-traversal-task-source" id="updating-the-traversable:navigation-and-traversal-task-source-3">navigation and traversal task source</a>
+       given <var>navigable</var>'s <a href="document-sequences.html#nav-window" id="updating-the-traversable:nav-window-5">active window</a> to run
+       <var>afterDocumentPopulated</var>.</p></li></li></p></li></li></p></li></p></li></p></li></ol>
+<p>Otherwise, run <var>afterDocumentPopulated</var> <a href="infrastructure.html#immediately" id="updating-the-traversable:immediately">immediately</a>.</p>
+<p>In both cases, let <var>afterDocumentPopulated</var> be the following steps:</p>
+<ol><li>
+<p>If <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-5">document</a> is null, then
+        set <var>changingNavigableContinuation</var>'s <a href="#changing-nav-continuation-update-only" id="updating-the-traversable:changing-nav-continuation-update-only-3">update-only</a> to true.</p>
+<p class="note">This means we tried to populate the document, but were unable to do so,
+        e.g. because of the server returning a 204.</p>
+<div class="note">
+<p>These kinds of failed navigations or traversals will not be signaled to the <a href="nav-history-apis.html#navigation-api">navigation API</a> (e.g., through the promises of any
+         <a href="nav-history-apis.html#navigation-api-method-tracker" id="updating-the-traversable:navigation-api-method-tracker">navigation API method tracker</a>, or the <code id="updating-the-traversable:event-navigateerror-2"><a href="indices.html#event-navigateerror">navigateerror</a></code> event). Doing so would leak information
+         about the timing of responses from other origins, in the cross-origin case, and providing
+         different results in the cross-origin vs. same-origin cases was deemed too confusing.</p>
+<p>However, implementations could use this opportunity to clear any promise handlers for
+         the <code id="updating-the-traversable:dom-navigationtransition-finished"><a href="nav-history-apis.html#dom-navigationtransition-finished">navigation.transition.finished</a></code>
+         promise, as they are guaranteed at this point to never run. And, they might wish to
+         <a data-x-internal="report-a-warning-to-the-console" href="https://console.spec.whatwg.org/#report-a-warning-to-the-console" id="updating-the-traversable:report-a-warning-to-the-console">report a warning to the console</a> if any part of the navigation API initiated
+         these navigations, to make it clear to the web developer why their promises will never
+         settle and events will never fire.</p>
+</div>
+<li>
+<p>If <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-6">document</a>'s <a data-x-internal="concept-document-origin" href="https://dom.spec.whatwg.org/#concept-document-origin" id="updating-the-traversable:concept-document-origin">origin</a> is not <var>oldOrigin</var>, then set
+        <var>targetEntry</var>'s <a href="#she-classic-history-api-state" id="updating-the-traversable:she-classic-history-api-state">classic history API
+        state</a> to <a href="structured-data.html#structuredserializeforstorage" id="updating-the-traversable:structuredserializeforstorage">StructuredSerializeForStorage</a>(null).</p>
+<p class="note">This clears history state when the origin changed vs a previous load of
+        <var>targetEntry</var> without a redirect occuring. This can happen due to a change in CSP
+        sandbox headers.</p>
+<li>
+<p>If all of the following are true:</p>
+<ul><li><p><var>navigable</var>'s <a href="document-sequences.html#nav-parent" id="updating-the-traversable:nav-parent">parent</a> is null;<li><p><var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-7">document</a>'s <a href="document-sequences.html#concept-document-bc" id="updating-the-traversable:concept-document-bc">browsing context</a> is not an <a href="document-sequences.html#auxiliary-browsing-context" id="updating-the-traversable:auxiliary-browsing-context">auxiliary browsing
+         context</a> whose <a href="document-sequences.html#opener-browsing-context" id="updating-the-traversable:opener-browsing-context">opener browsing context</a> is non-null; and<li><p><var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-8">document</a>'s <a data-x-internal="concept-document-origin" href="https://dom.spec.whatwg.org/#concept-document-origin" id="updating-the-traversable:concept-document-origin-2">origin</a> is not <var>oldOrigin</var>,</p></li></p></li></p></li></ul>
+<p>then set <var>targetEntry</var>'s <a href="#she-document-state" id="updating-the-traversable:she-document-state-12">document
+        state</a>'s <a href="#document-state-nav-target-name" id="updating-the-traversable:document-state-nav-target-name">navigable target name</a>
+        to the empty string.</p>
+<li>
+<p><a data-x-internal="enqueue" href="https://infra.spec.whatwg.org/#queue-enqueue" id="updating-the-traversable:enqueue-2">Enqueue</a> <var>changingNavigableContinuation</var> on
+        <var>changingNavigableContinuations</var>.</p>
+<p class="note">The rest of this job <a href="#continuations-dequeue">runs later</a> in
+        this algorithm.</p>
+</li></li></li></li></ol>
+</li></li></p></li></li></li></li></p></li></p></li></ol>
+<li><p>Let <var>navigablesThatMustWaitBeforeHandlingSyncNavigation</var> be an empty
+   <a data-x-internal="set" href="https://infra.spec.whatwg.org/#ordered-set" id="updating-the-traversable:set">set</a>.<li>
+<p>While <var>completedChangeJobs</var> does not equal <var>totalChangeJobs</var>:</p>
+<ol><li>
+<p>If <var>traversable</var>'s <a href="document-sequences.html#tn-running-nested-apply-history-step" id="updating-the-traversable:tn-running-nested-apply-history-step">running
+      nested apply history step</a> is false:</p>
+<ol><li id="sync-navigations-jump-queue">
+<p>While <var>traversable</var>'s <a href="document-sequences.html#tn-session-history-traversal-queue" id="updating-the-traversable:tn-session-history-traversal-queue-2">session
+        history traversal queue</a>'s <a href="#session-history-traversal-parallel-queue-algorithm-set" id="updating-the-traversable:session-history-traversal-parallel-queue-algorithm-set">algorithm set</a> <a data-x-internal="list-contains" href="https://infra.spec.whatwg.org/#list-contain" id="updating-the-traversable:list-contains">contains</a> one or more <a href="#session-history-traversal-parallel-queue-sync-nav-steps" id="updating-the-traversable:session-history-traversal-parallel-queue-sync-nav-steps">synchronous navigation
+        steps</a> with a <a href="#session-history-traversal-parallel-queue-sync-nav-steps-target-nav" id="updating-the-traversable:session-history-traversal-parallel-queue-sync-nav-steps-target-nav">target
+        navigable</a> not <a data-x-internal="list-contains" href="https://infra.spec.whatwg.org/#list-contain" id="updating-the-traversable:list-contains-2">contained</a> in
+        <var>navigablesThatMustWaitBeforeHandlingSyncNavigation</var>:</p>
+<ol><li><p>Let <var>steps</var> be the first <a data-x-internal="list-item" href="https://infra.spec.whatwg.org/#list-item" id="updating-the-traversable:list-item">item</a> in
+         <var>traversable</var>'s <a href="document-sequences.html#tn-session-history-traversal-queue" id="updating-the-traversable:tn-session-history-traversal-queue-3">session history
+         traversal queue</a>'s <a href="#session-history-traversal-parallel-queue-algorithm-set" id="updating-the-traversable:session-history-traversal-parallel-queue-algorithm-set-2">algorithm set</a> that
+         is <a href="#session-history-traversal-parallel-queue-sync-nav-steps" id="updating-the-traversable:session-history-traversal-parallel-queue-sync-nav-steps-2">synchronous
+         navigation steps</a> with a <a href="#session-history-traversal-parallel-queue-sync-nav-steps-target-nav" id="updating-the-traversable:session-history-traversal-parallel-queue-sync-nav-steps-target-nav-2">target
+         navigable</a> not <a data-x-internal="list-contains" href="https://infra.spec.whatwg.org/#list-contain" id="updating-the-traversable:list-contains-3">contained</a> in
+         <var>navigablesThatMustWaitBeforeHandlingSyncNavigation</var>.<li><p><a data-x-internal="list-remove" href="https://infra.spec.whatwg.org/#list-remove" id="updating-the-traversable:list-remove">Remove</a> <var>steps</var> from
+         <var>traversable</var>'s <a href="document-sequences.html#tn-session-history-traversal-queue" id="updating-the-traversable:tn-session-history-traversal-queue-4">session history
+         traversal queue</a>'s <a href="#session-history-traversal-parallel-queue-algorithm-set" id="updating-the-traversable:session-history-traversal-parallel-queue-algorithm-set-3">algorithm
+         set</a>.<li><p>Set <var>traversable</var>'s <a href="document-sequences.html#tn-running-nested-apply-history-step" id="updating-the-traversable:tn-running-nested-apply-history-step-2">running nested apply history step</a> to
+         true.<li><p>Run <var>steps</var>.<li><p>Set <var>traversable</var>'s <a href="document-sequences.html#tn-running-nested-apply-history-step" id="updating-the-traversable:tn-running-nested-apply-history-step-3">running nested apply history step</a> to
+         false.</p></li></p></li></p></li></p></li></p></li></ol>
+<p class="note">Synchronous navigations that are intended to take place before this
+        traversal jump the queue at this point, so they can be added to the correct place in
+        <var>traversable</var>'s <a href="document-sequences.html#tn-session-history-entries" id="updating-the-traversable:tn-session-history-entries">session history
+        entries</a> before this traversal potentially unloads their document. <a href="#sync-navigation-steps-queue-jumping-examples">More details can be found
+        here</a>.</p>
+</li></ol>
+<li id="continuations-dequeue"><p>Let <var>changingNavigableContinuation</var> be the result
+     of <a data-x-internal="dequeue" href="https://infra.spec.whatwg.org/#queue-dequeue" id="updating-the-traversable:dequeue">dequeuing</a> from
+     <var>changingNavigableContinuations</var>.<li><p>If <var>changingNavigableContinuation</var> is nothing, then
+     <a data-x-internal="continue" href="https://infra.spec.whatwg.org/#iteration-continue" id="updating-the-traversable:continue">continue</a>.<li><p>Let <var>displayedDocument</var> be <var>changingNavigableContinuation</var>'s <a href="#changing-nav-continuation-displayed-document" id="updating-the-traversable:changing-nav-continuation-displayed-document-2">displayed document</a>.<li><p>Let <var>targetEntry</var> be <var>changingNavigableContinuation</var>'s <a href="#changing-nav-continuation-target-entry" id="updating-the-traversable:changing-nav-continuation-target-entry-2">target entry</a>.<li><p>Let <var>navigable</var> be <var>changingNavigableContinuation</var>'s <a href="#changing-nav-continuation-navigable" id="updating-the-traversable:changing-nav-continuation-navigable-2">navigable</a>.<li>
+<p>Let (<var>scriptHistoryLength</var>, <var>scriptHistoryIndex</var>) be the result of
+      <a href="#getting-the-history-object-length-and-index" id="updating-the-traversable:getting-the-history-object-length-and-index">getting the history object length and index</a> given <var>traversable</var> and
+      <var>targetStep</var>.</p>
+<p class="note">These values might have changed since they were last calculated.</p>
+<li>
+<p><a data-x-internal="list-append" href="https://infra.spec.whatwg.org/#list-append" id="updating-the-traversable:list-append">Append</a> <var>navigable</var> to
+      <var>navigablesThatMustWaitBeforeHandlingSyncNavigation</var>.</p>
+<p class="note">Once a navigable has reached this point in traversal, additionally queued
+      synchronous navigation steps are likely to be intended to occur after this traversal rather
+      than before it, so they no longer jump the queue. <a href="#sync-navigation-steps-queue-jumping-examples">More details can be found here</a>.</p>
+<li><p>Let <var>entriesForNavigationAPI</var> be the result of <a href="#getting-session-history-entries-for-the-navigation-api" id="updating-the-traversable:getting-session-history-entries-for-the-navigation-api">getting session history
+     entries for the navigation API</a> given <var>navigable</var> and
+     <var>targetStep</var>.<li>
+<p>If <var>changingNavigableContinuation</var>'s <a href="#changing-nav-continuation-update-only" id="updating-the-traversable:changing-nav-continuation-update-only-4">update-only</a> is true, or
+      <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-9">document</a> is
+      <var>displayedDocument</var>:</p>
+<p class="note">This is a same-document navigation: we proceed without unloading.</p>
+<ol><li>
+<p>Set <var>navigable</var>'s <a href="#ongoing-navigation" id="updating-the-traversable:ongoing-navigation-2">ongoing navigation</a> to null.</p>
+<p class="note">This allows new <a href="#navigate" id="updating-the-traversable:navigate-2">navigations</a> of
+        <var>navigable</var> to start, whereas during the traversal they were blocked.</p>
+<li><p><a href="webappapis.html#queue-a-global-task" id="updating-the-traversable:queue-a-global-task-4">Queue a global task</a> on the <a href="webappapis.html#navigation-and-traversal-task-source" id="updating-the-traversable:navigation-and-traversal-task-source-4">navigation and traversal task
+       source</a> given <var>navigable</var>'s <a href="document-sequences.html#nav-window" id="updating-the-traversable:nav-window-6">active window</a> to
+       perform <var>afterPotentialUnloads</var>.</p></li></li></ol>
+<li>
+<p>Otherwise:</p>
+<ol><li><p><a data-x-internal="assert" href="https://infra.spec.whatwg.org/#assert" id="updating-the-traversable:assert-7">Assert</a>: <var>navigationType</var> is not null.<li><p><a href="#deactivate-a-document-for-a-cross-document-navigation" id="updating-the-traversable:deactivate-a-document-for-a-cross-document-navigation">Deactivate</a>
+<var>displayedDocument</var>, given <var>userInvolvement</var>, <var>targetEntry</var>,
+       <var>navigationType</var>, and <var>afterPotentialUnloads</var>.</p></li></p></li></ol>
+<li>
+<p>In both cases, let <var>afterPotentialUnloads</var> be the following steps:</p>
+<ol><li><p>Let <var>previousEntry</var> be <var>navigable</var>'s <a href="document-sequences.html#nav-active-history-entry" id="updating-the-traversable:nav-active-history-entry-3">active session history entry</a>.<li><p>If <var>changingNavigableContinuation</var>'s <a href="#changing-nav-continuation-update-only" id="updating-the-traversable:changing-nav-continuation-update-only-5">update-only</a> is false, then
+       <a href="#activate-history-entry" id="updating-the-traversable:activate-history-entry">activate history entry</a> <var>targetEntry</var> for
+       <var>navigable</var>.<li><p>Let <var>updateDocument</var> be an algorithm step which performs <a href="#update-document-for-history-step-application" id="updating-the-traversable:update-document-for-history-step-application">update
+       document for history step application</a> given <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-10">document</a>, <var>targetEntry</var>,
+       <var>changingNavigableContinuation</var>'s <a href="#changing-nav-continuation-update-only" id="updating-the-traversable:changing-nav-continuation-update-only-6">update-only</a>,
+       <var>scriptHistoryLength</var>, <var>scriptHistoryIndex</var>, <var>navigationType</var>,
+       <var>entriesForNavigationAPI</var>, and <var>previousEntry</var>.<li><p>If <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-11">document</a> is equal to
+       <var>displayedDocument</var>, then perform <var>updateDocument</var>.<li><p>Otherwise, <a href="webappapis.html#queue-a-global-task" id="updating-the-traversable:queue-a-global-task-5">queue a global task</a> on the <a href="webappapis.html#navigation-and-traversal-task-source" id="updating-the-traversable:navigation-and-traversal-task-source-5">navigation and traversal task
+       source</a> given <var>targetEntry</var>'s <a href="#she-document" id="updating-the-traversable:she-document-12">document</a>'s
+       <a href="webappapis.html#concept-relevant-global" id="updating-the-traversable:concept-relevant-global">relevant global object</a> to perform <var>updateDocument</var>.<li><p>Increment <var>completedChangeJobs</var>.</p></li></p></li></p></li></p></li></p></li></p></li></ol>
+</li></li></li></p></li></li></li></p></li></p></li></p></li></p></li></p></li></li></ol>
+<li>
+<p>Let <var>totalNonchangingJobs</var> be the <a data-x-internal="list-size" href="https://infra.spec.whatwg.org/#list-size" id="updating-the-traversable:list-size-2">size</a> of
+    <var>nonchangingNavigablesThatStillNeedUpdates</var>.</p>
+<p class="note">This step onwards deliberately waits for all the previous operations to
+    complete, as they include <a href="#sync-navigations-jump-queue">processing synchronous
+    navigations</a> which will also post tasks to update history length and index.</p>
+<li><p>Let <var>completedNonchangingJobs</var> be 0.<li><p>Let (<var>scriptHistoryLength</var>, <var>scriptHistoryIndex</var>) be the result of
+   <a href="#getting-the-history-object-length-and-index" id="updating-the-traversable:getting-the-history-object-length-and-index-2">getting the history object length and index</a> given <var>traversable</var> and
+   <var>targetStep</var>.<li>
+<p><a data-x-internal="list-iterate" href="https://infra.spec.whatwg.org/#list-iterate" id="updating-the-traversable:list-iterate-4">For each</a> <var>navigable</var> of
+    <var>nonchangingNavigablesThatStillNeedUpdates</var>, <a href="webappapis.html#queue-a-global-task" id="updating-the-traversable:queue-a-global-task-6">queue a global task</a> on the
+    <a href="webappapis.html#navigation-and-traversal-task-source" id="updating-the-traversable:navigation-and-traversal-task-source-6">navigation and traversal task source</a> given <var>navigable</var>'s <a href="document-sequences.html#nav-window" id="updating-the-traversable:nav-window-7">active window</a> to run the steps:</p>
+<ol><li><p>Let <var>document</var> be <var>navigable</var>'s <a href="document-sequences.html#nav-document" id="updating-the-traversable:nav-document-3">active
+     document</a>.<li><p>Set <var>document</var>'s <a href="nav-history-apis.html#doc-history" id="updating-the-traversable:doc-history">history object</a>'s <a href="nav-history-apis.html#concept-history-index" id="updating-the-traversable:concept-history-index">index</a> to <var>scriptHistoryIndex</var>.<li><p>Set <var>document</var>'s <a href="nav-history-apis.html#doc-history" id="updating-the-traversable:doc-history-2">history object</a>'s <a href="nav-history-apis.html#concept-history-length" id="updating-the-traversable:concept-history-length">length</a> to <var>scriptHistoryLength</var>.<li><p>Increment <var>completedNonchangingJobs</var>.</p></li></p></li></p></li></p></li></ol>
+<li><p>Wait for <var>completedNonchangingJobs</var> to equal
+   <var>totalNonchangingJobs</var>.<li><p>Set <var>traversable</var>'s <a href="document-sequences.html#tn-current-session-history-step" id="updating-the-traversable:tn-current-session-history-step-3">current
+   session history step</a> to <var>targetStep</var>.<li><p>Return "<code>applied</code>".</p></li></p></li></p></li></li></p></li></p></li></li></li></p></li></li></li></p></li></p></li></li></p></li></p></li></p></li></p></li></li></p></li></p></li></ol>
+</div>

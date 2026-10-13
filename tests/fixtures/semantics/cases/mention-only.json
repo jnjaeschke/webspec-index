@@ -1,0 +1,31 @@
+{
+  "id": "mention-only",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/mention-only.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R",
+    "step_path": [
+      1
+    ]
+  },
+  "expect_local_effects": [],
+  "expect_effects": [],
+  "forbidden_effects": [
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": null
+      }
+    }
+  ],
+  "expect_issues": [],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "negative": "A linked mention is not an invocation."
+  }
+}

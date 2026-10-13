@@ -1,0 +1,69 @@
+{
+  "id": "same-segment-queue",
+  "sources": [
+    {
+      "spec": "TEST",
+      "file": "sources/synthetic/same-segment-queue.html"
+    }
+  ],
+  "subject": {
+    "spec": "TEST",
+    "anchor": "R"
+  },
+  "expect_local_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      },
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "operation_count": 1
+    }
+  ],
+  "expect_effects": [
+    {
+      "kind": "scheduling.enqueue",
+      "params": {
+        "queue": "microtask",
+        "source": null
+      },
+      "execution": [
+        "inline"
+      ],
+      "operation_count": 1
+    },
+    {
+      "kind": "event.fire",
+      "params": {
+        "name": "a"
+      },
+      "execution": [
+        "separate"
+      ],
+      "operation_count": 1
+    }
+  ],
+  "forbidden_effects": [],
+  "expect_issues": [],
+  "metadata": {
+    "path_feasibility": "unchecked",
+    "distinct_operation_sites": true,
+    "design_relationship_notes": [
+      {
+        "relation": "schedule_body",
+        "from_site": "R-step-1",
+        "to_subject": {
+          "spec": "TEST",
+          "anchor": "R/anonymous-1"
+        }
+      }
+    ]
+  }
+}
