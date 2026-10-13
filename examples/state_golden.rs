@@ -9,6 +9,9 @@
 #[path = "../tests/state_golden.rs"]
 #[allow(dead_code)]
 mod golden;
+#[path = "../tests/state_ir_golden.rs"]
+#[allow(dead_code)]
+mod ir_golden;
 
 use std::collections::{BTreeSet, HashSet};
 use webspec_index::db::state::StoredCall;
@@ -84,6 +87,62 @@ fn is_typed(param: &Param) -> bool {
         TypeBasis::NameResolved | TypeBasis::DfnFor => true,
         TypeBasis::Unknown => false,
     }
+}
+
+/// Check the statement IR coverage floors from the SP3 plan against one snapshot.
+fn report_ir_floors(spec: &str, state: &StateSpec) -> bool {
+    let c = &state.coverage;
+    let pct = |part: u32, total: u32| 100.0 * part as f64 / total.max(1) as f64;
+    let to_params: u32 = c.to_params.values().sum();
+    let typed: u32 = ["explicit", "name_resolved", "dfn_for"]
+        .iter()
+        .filter_map(|basis| c.to_params.get(*basis))
+        .sum();
+    let (template_floor, typed_floor, idl_floor, head_floor, if_floor, assert_floor, foreach_floor) =
+        if spec == "HTML" {
+            (73.0, 88.0, 85.0, 93.0, 47.0, 67.0, 81.0)
+        } else {
+            (91.0, 78.0, 97.0, 98.0, 56.0, 57.0, 63.0)
+        };
+    let metrics = [
+        (
+            "template signatures",
+            c.template_signatures,
+            c.algorithms,
+            template_floor,
+        ),
+        ("To parameters typed", typed, to_params, typed_floor),
+        ("IDL from IDL", c.idl_from_idl, c.idl_signatures, idl_floor),
+        (
+            "step heads recognized",
+            c.steps_recognized,
+            c.steps,
+            head_floor,
+        ),
+        ("If conditions parsed", c.if_parsed, c.if_total, if_floor),
+        (
+            "Assert predicates parsed",
+            c.assert_parsed,
+            c.assert_total,
+            assert_floor,
+        ),
+        (
+            "For each loop variables bound",
+            c.foreach_bound,
+            c.foreach_total,
+            foreach_floor,
+        ),
+    ];
+    let mut ok = true;
+    for (name, part, total, floor) in metrics {
+        let percentage = pct(part, total);
+        println!("{spec} {name}: {part}/{total} ({percentage:.1}%), floor {floor:.0}%");
+        if percentage < floor {
+            println!("FLOOR {spec} {name}");
+            ok = false;
+        }
+    }
+    ok
 }
 
 /// The untyped `To`-form parameters for review: algorithm, parameter, type text.
@@ -521,8 +580,17 @@ fn main() {
         println!("GOLDEN {f}");
         exit = 1;
     }
+    let ir = ir_golden::check(&conn);
+    for failure in ir.failures {
+        println!("GOLDEN {failure}");
+        exit = 1;
+    }
+    println!("GAPS {}", ir.gaps.len());
     for (spec, snapshot) in ["HTML", "DOM"].into_iter().zip(snapshots) {
         let state = model(&conn, snapshot);
+        if !report_ir_floors(spec, &state) {
+            exit = 1;
+        }
         if !report("bundled", spec, &state, &bundled_floors(spec)) {
             exit = 1;
         }

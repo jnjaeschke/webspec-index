@@ -1,0 +1,63 @@
+# Known GOLDEN drift in the annotated excerpts for release 0.14; remove lines as the IR improves.
+call HTML#navigate:11 → HTML#stop-intersection-observing-a-lazy-loading-element: missing (have [])
+call HTML#navigate:11 → HTML#will-lazy-load-element-steps: missing (have [])
+call HTML#navigate:13.1 → HTML#same-origin: missing (have [])
+call HTML#navigate:13.1 → URL#concept-url-equals: missing (have [])
+call HTML#navigate:14 → HTML#the-navigation-must-be-a-replace: missing (have [])
+call HTML#navigate:15 → URL#concept-url-equals: missing (have [])
+call HTML#navigate:17 → HTML#snapshotting-target-snapshot-params: missing (have [])
+call HTML#navigate:21.2 → HTML#queue-a-global-task arg steps: expected navigate to a `javascript:` URL given *navigable*, *request*, *historyHandling*, *initiatorOriginSnapshot*, *userInvolvement*, *cspNavigationType*, *initialInsertion*, and *navigationId*, found (steps)
+call HTML#navigate:22 → HTML#same-origin-domain: missing (have [])
+call HTML#navigate:22.3 → HTML#structuredserializeforstorage: missing (have [])
+call HTML#navigate:23 → HTML#nav-container-document: missing (have ["reserve deferred fetch quota"])
+call HTML#navigate:24.1 → HTML#inclusive-descendant-navigables: missing (have ["checking if unloading is canceled"])
+call HTML#navigate:24.3 → HTML#queue-a-global-task arg steps: expected abort a document and its descendants given *navigable*'s active document, found (steps)
+call HTML#navigate:24.8.1 → HTML#clone-a-policy-container: missing (have [])
+call HTML#navigate:24.8.2 → HTML#nav-container-document: missing (have ["determining navigation params policy container"])
+call HTML#navigate:24.8.3 → HTML#csp-derived-sandboxing-flags: missing (have [])
+call HTML#navigate:24.8.3 → INFRA#set-union: missing (have [])
+call HTML#navigate:24.9 → HTML#attempt-to-populate-the-history-entry's-document arg completionSteps: expected the following step, found the following step:
+call HTML#navigate:24.9.1 → HTML#finalize-a-cross-document-navigation: missing (have [])
+call HTML#navigate:24.9.1 → HTML#nav-traversable: missing (have [])
+call HTML#navigate:24.9.1 → HTML#tn-append-session-history-traversal-steps: missing (have [])
+call HTML#navigate:6.2 → HTML#allowed-to-navigate: missing (have [])
+call HTML#navigate:6.2 → HTML#node-navigable: missing (have [])
+call HTML#navigate:8 → HTML#queue-a-global-task arg global: expected *navigable*'s active window, found *navigable*'s active window to continue these steps
+call HTML#navigate:8 → HTML#queue-a-global-task arg steps: expected continue these steps, found (steps)
+call HTML#time-marches-on:10 → HTML#prepare-an-event: missing (have [])
+call HTML#time-marches-on:11 → HTML#prepare-an-event: missing (have [])
+call HTML#time-marches-on:12 → HTML#prepare-an-event: missing (have [])
+call HTML#update-document-for-history-step-application:6.4.5 → HTML#queue-a-global-task arg steps: expected fire an event named `hashchange` at *document*'s relevant global object, using `HashChangeEvent`, with the `oldURL` attribute initialized to the serialization of *oldURL* and the `newURL` attribute initialized to the serialization of *entry*'s URL, found (steps)
+call HTML#update-document-for-history-step-application:6.4.5 → URL#concept-url-serializer: missing (have ["queue a global task", "fire an event"])
+call HTML#update-document-for-history-step-application:7 → HTML#she-document: missing (have [])
+call HTML#update-document-for-history-step-application:7.4 → HTML#same-origin: missing (have [])
+call HTML#update-document-for-history-step-application:7.4 → HTML#she-document: missing (have [])
+signature DOM#concept-create-element param document: expected ("document", "idl:Document", "positional:0", false, None, None), found ("document", "DOM#concept-document", "positional:0", false, None, None)
+signature DOM#concept-node-insert param child: expected ("child", "null | idl:Node", "positional:2", false, None, None), found ("child", "null | DOM#concept-node", "positional:2", false, None, None)
+signature DOM#concept-node-insert param node: expected ("node", "idl:Node", "positional:0", false, None, None), found ("node", "DOM#concept-node", "positional:0", false, None, None)
+signature DOM#concept-node-insert param parent: expected ("parent", "idl:Node", "positional:1", false, None, None), found ("parent", "DOM#concept-node", "positional:1", false, None, None)
+signature DOM#dom-event-initevent param bubbles: expected ("bubbles", "idl-type:boolean", "positional:1", true, Some("false"), None), found ("bubbles", "?", "positional:1", false, None, None)
+signature DOM#dom-event-initevent param cancelable: expected ("cancelable", "idl-type:boolean", "positional:2", true, Some("false"), None), found ("cancelable", "?", "positional:2", false, None, None)
+signature DOM#dom-event-initevent param type: expected ("type", "idl-type:DOMString", "positional:0", false, None, None), found ("type", "?", "positional:0", false, None, None)
+signature DOM#dom-event-initevent: expected returns Some("idl-type:undefined"), found None
+signature HTML#fallback-base-url: expected template ["head:the", "callee", "lit:of", "slot:0"], found Some(["slot:0", "lit:'s", "callee"])
+signature HTML#inner-navigate-event-firing-algorithm: expected returns None, found Some("boolean")
+signature HTML#prepare-an-event: missing
+statements HTML#navigate:11 #2: expected parent Some("if:then"), found None
+statements HTML#navigate:11: expected ["if", "call", "set"], found ["if", "set"]
+statements HTML#navigate:12 #2: expected parent Some("if:then"), found None
+statements HTML#navigate:12 #3: expected parent Some("if:then"), found None
+statements HTML#navigate:12: expected ["if", "call", "init", "return"], found ["if", "call"]
+statements HTML#navigate:21.2: expected ["call"], found ["call", "call"]
+statements HTML#navigate:24.3: expected ["call"], found ["call", "call"]
+statements HTML#navigate:24.9.1 #0: expected parent Some("outside:body"), found None
+statements HTML#navigate:24.9.1: expected ["call"], found []
+statements HTML#navigate:6.2.1 #1: expected parent Some("if:then"), found None
+statements HTML#navigate:6.2.1: expected ["if", "throw"], found ["if"]
+statements HTML#navigate:9 #2: expected parent Some("if:then"), found None
+statements HTML#navigate:9 #3: expected parent Some("if:then"), found None
+statements HTML#navigate:9: expected ["if", "call", "init", "return"], found ["if", "call"]
+statements HTML#update-document-for-history-step-application:6.4.5: expected ["if", "call"], found ["if", "call", "call"]
+statements HTML#update-document-for-history-step-application:7.4 #1: expected parent Some("otherwise:otherwise"), found Some("outside:then")
+statements HTML#update-document-for-history-step-application:7.4 #2: expected parent Some("otherwise:otherwise"), found Some("outside:then")
+statements HTML#update-document-for-history-step-application:8.4 #0: expected parent Some("outside:then"), found None

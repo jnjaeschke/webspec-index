@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::db::state::{self as db, StateSnapshot, StoredCall};
 use crate::parse::steps::AnchorTarget;
-use crate::state::bind::{bind, ArgValue, Binding, BindingIssue, BoundVia, Confidence};
+use crate::state::bind::{bind, ArgBinding, ArgValue, Binding, BindingIssue, BoundVia, Confidence};
 use crate::state::ir::CallForm;
 use crate::state::model::{Passing, ReviewItem, Signature, StateIssueCode, TemplatePiece};
 use crate::state::query::{
@@ -333,28 +333,16 @@ pub(crate) fn call_view(
     let mut defaulted = 0;
     let mut defaulted_named = true;
     for arg in &binding.args {
-        let value = match &arg.value {
-            ArgValue::Default(_) => {
+        let Some(value) = arg_value_text(&stored.source.text, arg) else {
+            if matches!(arg.value, ArgValue::Default(_)) {
                 defaulted += 1;
                 defaulted_named &= param(arg.param).is_some_and(|p| p.passing == Passing::Named);
-                continue;
             }
-            ArgValue::Unbound => continue,
-            // A named argument's span covers `name set to value`, not the value.
-            ArgValue::Expr(expr) if matches!(arg.via, BoundVia::Name(_)) => render::expr_text(expr),
-            ArgValue::Expr(expr) => arg
-                .span
-                .and_then(|span| stored.source.text.get(span.start..span.end))
-                .map_or_else(|| render::expr_text(expr), str::to_string),
-            // A body argument names a steps source, not text.
-            ArgValue::Body(_) => arg
-                .span
-                .and_then(|span| stored.source.text.get(span.start..span.end))
-                .map_or_else(|| "(steps)".to_string(), str::to_string),
+            continue;
         };
         args.push(ArgView {
             param: param(arg.param).map_or_else(|| arg.param.to_string(), |p| p.name.clone()),
-            value: one_line(&value),
+            value,
             via: arg.via.clone(),
         });
     }
@@ -373,6 +361,25 @@ pub(crate) fn call_view(
         issues: binding.issues.clone(),
         text: stored.source.text.clone(),
     }
+}
+
+/// Render a bound argument as shown by the algorithm view.
+pub fn arg_value_text(source_text: &str, arg: &ArgBinding) -> Option<String> {
+    let value = match &arg.value {
+        ArgValue::Default(_) | ArgValue::Unbound => return None,
+        // A named argument's span covers `name set to value`, not the value.
+        ArgValue::Expr(expr) if matches!(arg.via, BoundVia::Name(_)) => render::expr_text(expr),
+        ArgValue::Expr(expr) => arg
+            .span
+            .and_then(|span| source_text.get(span.start..span.end))
+            .map_or_else(|| render::expr_text(expr), str::to_string),
+        // A body argument names a steps source, not text.
+        ArgValue::Body(_) => arg
+            .span
+            .and_then(|span| source_text.get(span.start..span.end))
+            .map_or_else(|| "(steps)".to_string(), str::to_string),
+    };
+    Some(one_line(&value))
 }
 
 #[cfg(test)]
