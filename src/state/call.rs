@@ -1,6 +1,6 @@
 //! Call construction (§8.5): the callee, its region, named arguments and the
 //! execution hint.
-use crate::state::grammar::{Callability, Parser, Placeholder};
+use crate::state::grammar::{literal, Callability, Parser, Placeholder};
 use crate::state::ir::{
     call_id, ArgName, Call, CallForm, Callee, ExecutionHint, Expr, LinkRole, NamedArg, NamedForm,
     SourceContext, StatementSource,
@@ -246,10 +246,31 @@ impl Parser<'_> {
             }
         }
         let (name, name_link, after_name) = self.arg_name(pos)?;
-        let value_start = self.keyword(after_name, &[" set to "])?;
-        (value_start < end).then_some(NamedHead {
+        if let Some(value_start) = self.keyword(after_name, &[" set to "]) {
+            return (value_start < end).then_some(NamedHead {
+                name,
+                name_link,
+                form: NamedForm::SetTo,
+                value_start: Some(value_start),
+                end: value_start,
+            });
+        }
+
+        // Omitted `set to` is only unambiguous for linked parameter names and
+        // a single value atom. Keep text and variable names on the old path.
+        let link = name_link?;
+        let value_start = self.keyword(after_name, &[" "])?;
+        if value_start >= end {
+            return None;
+        }
+        let value_end = self.named_value_end(value_start, end);
+        let (trim_start, trim_end) = self.trimmed(value_start, value_end);
+        let is_variable = matches!(self.enc.placeholder(trim_start), Some((Placeholder::Var(_), after)) if after == trim_end);
+        let is_literal = literal(&self.enc.text[trim_start..trim_end])
+            .is_some_and(|literal| !matches!(literal, Literal::Undefined));
+        (is_variable || is_literal).then_some(NamedHead {
             name,
-            name_link,
+            name_link: Some(link),
             form: NamedForm::SetTo,
             value_start: Some(value_start),
             end: value_start,
@@ -358,6 +379,58 @@ mod tests {
         let id = p.call_at(0, CallForm::Imperative, None, end);
         let call = id.and_then(|id| p.out.calls.iter().find(|c| c.id == id).cloned());
         (src.clone(), call, p.out.roles.clone())
+    }
+
+    #[test]
+    fn linked_named_arguments_without_set_to() {
+        let e = env(&[("open-window", Callable::Template)]);
+        let (src, call, _) = call_of(
+            "<a href=\"#open-window\">Open</a> <var>url</var> with <a href=\"#exceptions-enabled\">exceptionsEnabled</a> true, and <a href=\"#navigation-hh\">historyHandling</a> \"replace\".",
+            &e,
+        );
+        let call = call.unwrap();
+        assert_eq!(call.named.len(), 2);
+        assert!(
+            matches!(&call.named[0].name, ArgName::ParamLink { target: Some(t), .. } if t.anchor == "exceptions-enabled")
+        );
+        assert_eq!(call.named[0].value, Expr::Literal(Literal::Bool(true)));
+        assert!(
+            matches!(&call.named[1].name, ArgName::ParamLink { target: Some(t), .. } if t.anchor == "navigation-hh")
+        );
+        assert!(
+            matches!(&call.named[1].value, Expr::Literal(Literal::String(value)) if value == "replace")
+        );
+        assert!(src.text[call.region.start..call.region.end].contains("*url*"));
+    }
+
+    #[test]
+    fn linked_named_argument_without_set_to_after_using() {
+        let e = env(&[("navigate", Callable::Template)]);
+        let (src, call, _) = call_of(
+            "<a href=\"#navigate\">Navigate</a> <var>navigable</var> to <var>url</var> using <var>browsingContext</var>'s associated document, with <a href=\"#exceptions-enabled\">exceptionsEnabled</a> true.",
+            &e,
+        );
+        let call = call.unwrap();
+        assert_eq!(call.named.len(), 1);
+        assert!(
+            matches!(&call.named[0].name, ArgName::ParamLink { target: Some(t), .. } if t.anchor == "exceptions-enabled")
+        );
+        assert_eq!(call.named[0].value, Expr::Literal(Literal::Bool(true)));
+        assert!(src.text[call.region.start..call.named[0].span.start]
+            .contains("*browsingContext*'s associated document"));
+        assert_eq!(call.region.end, call.named[0].span.end);
+    }
+
+    #[test]
+    fn unlinked_name_without_set_to_is_not_guessed() {
+        let e = env(&[("fetch", Callable::Template)]);
+        let (src, call, _) = call_of(
+            "<a href=\"#fetch\">Fetch</a> <var>request</var> with <var>x</var> true.",
+            &e,
+        );
+        let call = call.unwrap();
+        assert!(call.named.is_empty());
+        assert!(src.text[call.region.start..call.region.end].contains("*x* true"));
     }
 
     #[test]
