@@ -37,7 +37,10 @@ pub fn split_repo_base_url(owner: &str, repo: &str, path: &str) -> String {
     )
 }
 
-const WHATWG_SPECS: &[&str] = &[
+/// WHATWG living standards, each hosted at `https://{name}.spec.whatwg.org`.
+/// These are seeded from here rather than from `data/w3c_specs.json`, so no
+/// name here may also appear in that list.
+pub const WHATWG_SPECS: &[&str] = &[
     "COMPAT",
     "COMPRESSION",
     "CONSOLE",
@@ -46,11 +49,13 @@ const WHATWG_SPECS: &[&str] = &[
     "FETCH",
     "FS",
     "FULLSCREEN",
+    "HID",
     "HTML",
     "INFRA",
     "MIMESNIFF",
     "NOTIFICATIONS",
     "QUIRKS",
+    "SERIAL",
     "STORAGE",
     "STREAMS",
     "TESTUTILS",
@@ -508,6 +513,21 @@ mod tests {
     }
 
     #[test]
+    fn resolve_url_derives_moved_wicg_spec_names() {
+        let registry = SpecRegistry::new();
+        let (spec, anchor) = registry
+            .resolve_url("https://hid.spec.whatwg.org/#dom-hid-requestdevice")
+            .unwrap();
+        assert_eq!(spec, "HID");
+        assert_eq!(anchor, "dom-hid-requestdevice");
+
+        let (spec, _) = registry
+            .resolve_url("https://serial.spec.whatwg.org/#dom-serial-requestport")
+            .unwrap();
+        assert_eq!(spec, "SERIAL");
+    }
+
+    #[test]
     fn resolve_auto_url_unknown_domain_rejected() {
         let registry = SpecRegistry::new();
         assert!(registry.resolve_url("https://example.com/#foo").is_none());
@@ -567,6 +587,14 @@ mod tests {
 
         let (base, provider) = registry.infer_base_url_from_spec_name("FS").unwrap();
         assert_eq!(base, "https://fs.spec.whatwg.org");
+        assert_eq!(provider, "whatwg");
+
+        let (base, provider) = registry.infer_base_url_from_spec_name("HID").unwrap();
+        assert_eq!(base, "https://hid.spec.whatwg.org");
+        assert_eq!(provider, "whatwg");
+
+        let (base, provider) = registry.infer_base_url_from_spec_name("SERIAL").unwrap();
+        assert_eq!(base, "https://serial.spec.whatwg.org");
         assert_eq!(provider, "whatwg");
 
         let (base, provider) = registry.infer_base_url_from_spec_name("RFC9110").unwrap();

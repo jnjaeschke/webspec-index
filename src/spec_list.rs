@@ -9,6 +9,11 @@ const CSSWG_URL: &str = "https://github.com/w3c/csswg-drafts";
 const GROUPS_URL: &str = "https://github.com/w3c/groups";
 const BUNDLED_SPEC_LIST: &str = include_str!("../data/w3c_specs.json");
 
+/// (owner, repo) of incubations that moved to WHATWG and are now listed in
+/// `spec_registry::WHATWG_SPECS`. Their old repos may still advertise a
+/// `*.github.io` homepage, so skip them explicitly.
+const MOVED_TO_WHATWG: &[(&str, &str)] = &[("WICG", "webhid"), ("WICG", "serial")];
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecEntry {
     pub name: String,
@@ -64,6 +69,11 @@ pub fn update(
     let mut all = csswg;
     all.extend(standalone);
     resolve_collisions(&mut all);
+
+    // WHATWG specs are seeded from `WHATWG_SPECS` after this list; a duplicate
+    // name with a different URL would flip the base URL (and wipe the spec's
+    // indexed data) on every open.
+    all.retain(|e| !crate::spec_registry::WHATWG_SPECS.contains(&e.name.as_str()));
 
     let mut seen_names = std::collections::HashSet::new();
     let mut seen_urls = std::collections::HashSet::new();
@@ -185,6 +195,12 @@ fn collect_standalone(groups_dir: &Path) -> Result<Vec<SpecEntry>> {
             continue;
         }
         if owner == "WebAssembly" {
+            continue;
+        }
+        if MOVED_TO_WHATWG
+            .iter()
+            .any(|(o, rp)| o.eq_ignore_ascii_case(owner) && *rp == repo_name)
+        {
             continue;
         }
 
@@ -425,6 +441,40 @@ mod tests {
         std::fs::write(dir.path().join("repositories.json"), repos.to_string()).unwrap();
         let entries = collect_standalone(dir.path()).unwrap();
         assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn test_collect_standalone_skips_moved_to_whatwg() {
+        let repos = serde_json::json!([
+            make_repo(
+                "WICG",
+                "webhid",
+                "https://wicg.github.io/webhid/",
+                &["cg-report"]
+            ),
+            make_repo(
+                "WICG",
+                "serial",
+                "https://wicg.github.io/serial/",
+                &["cg-report"]
+            ),
+        ]);
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("repositories.json"), repos.to_string()).unwrap();
+        let entries = collect_standalone(dir.path()).unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn test_generated_list_excludes_whatwg_specs() {
+        let specs: Vec<SpecEntry> = serde_json::from_str(BUNDLED_SPEC_LIST).unwrap();
+        for s in &specs {
+            assert!(
+                !crate::spec_registry::WHATWG_SPECS.contains(&s.name.as_str()),
+                "{} is a WHATWG spec and must not be in data/w3c_specs.json",
+                s.name
+            );
+        }
     }
 
     #[test]
