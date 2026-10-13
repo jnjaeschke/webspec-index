@@ -3223,7 +3223,7 @@ dependencies = [
 
 [[package]]
 name = "webspec-index"
-version = "0.13.2"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3261,7 +3261,7 @@ dependencies = [
 
 [[package]]
 name = "webspec-index-python"
-version = "0.13.1"
+version = "0.14.0"
 dependencies = [
  "anyhow",
  "pyo3",
