@@ -85,6 +85,8 @@ The importer writes runtime YAML, an embedded file manifest, and provenance. Sou
 
 ## Mention classification
 
+The state IR exposes algorithm calls and link roles through `state <ALGORITHM> --calls`; effects still uses its verb rule until sub-project 4 replaces it with the IR's roles.
+
 A link in algorithm prose is classified as an invocation candidate or a concept mention. The engine combines two signals:
 
 1. **Target section type.** If the link target resolves to an algorithm section in the index (a structural algorithm body), the link is eligible for invocation. If the target resolves to a non-algorithm section (a definition, heading, or IDL anchor registered as an indexed anchor without a structural body), the link is a concept reference by default.

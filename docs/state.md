@@ -311,6 +311,157 @@ shows the member view: each member anchor and name, with the count of sites that
 remove it. Individual flag anchors like `HTML#sandboxed-scripts-browsing-context-flag` also
 resolve to the member view.
 
+## Algorithms
+
+An algorithm signature describes the parameters and optional return type stated by its intro. The
+signature form records where that information came from: `To`, “when steps say”, a given-list,
+IDL method/getter/setter/constructor, accessor, predicate, declared signature, or an Ecmarkup
+clause. Parameters retain their parsed type and type basis (`explicit`, resolved from the name,
+`dfn_for`, or unknown), whether they are optional, and any parsed default. Passing is positional
+(with an index), named (often linked to a parameter definition), or through a receiver (`this`).
+IDL and Ecmarkup signatures use the types stated by those sources. A missing or unrecognized type
+stays unknown or opaque and is reported; it is not inferred from call sites.
+Signature diagnostics identify `untyped_param`, `opaque_type`, `unparsed_intro_tail`,
+`idl_member_not_found`, and `duplicate_param` cases.
+
+The intro for `HTML#navigate` produces this call template and parameter list (real output):
+
+```sh
+webspec-index state HTML#navigate --format markdown
+```
+
+```markdown
+## HTML#navigate — navigate (algorithm)
+
+Call template: navigate {navigable} to {url} using {sourceDocument}, with named arguments
+
+| # | Parameter | Type | Passing | Default |
+|---|---|---|---|---|
+| 1 | navigable | navigable | positional | required |
+| 2 | url | URL | positional, after "to" | required |
+| 3 | sourceDocument | `Document` or null | positional, after "using" | null |
+| 4 | documentResource | POST resource, string, or null | named (HTML#navigation-resource) | null |
+| 5 | response | response or null | named (HTML#navigation-response) | null |
+| 6 | exceptionsEnabled | boolean | named (HTML#exceptions-enabled) | false |
+| 7 | historyHandling | `NavigationHistoryBehavior` | named (HTML#navigation-hh) | "`auto`" |
+| 8 | navigationAPIState | serialized state or null | named (HTML#navigation-navigation-api-state) | null |
+| 9 | formDataEntryList | entry list or null | named (HTML#navigation-form-data-entry-list) | null |
+| 10 | referrerPolicy | referrer policy | named (HTML#navigation-referrer-policy) | the empty string |
+| 11 | userInvolvement | user navigation involvement | named (HTML#navigation-user-involvement) | "`none`" |
+| 12 | sourceElement | `Element` | named (HTML#navigation-source-element) | null |
+| 13 | initialInsertion | boolean | named (HTML#navigation-initial-insertion) | false |
+| 14 | apiMethodTracker | navigation API method tracker or null | named (HTML#navigation-api-method-tracker-2) | null |
+
+Returns: not stated.
+
+Statements: 112 — init 30, let 22, if 21, call 14, set 11, return 5, otherwise 3, assert 2, continue_remaining 2, abort 1, in_parallel 1
+Opaque statements: 0 · unbound calls: 6
+Coverage: may · partial
+```
+
+Calls are recorded at recognized call positions in statements and expressions. The call form may be
+imperative, “result of”, gerund, possessive, predicate, set-to-be, or Ecmarkup. Named arguments
+retain their source form (set-to, flag-set, or attribute initialization), and the execution hint
+records inline or in-parallel execution. A link is not automatically a call: links outside call
+positions have other roles, and an algorithm linked as a value is an `AlgorithmValue`.
+
+Binding aligns the call region against the callee's template, then resolves named parameters using
+their parameter definitions. Only `given` and `with` are equivalent. Confidence is `exact` when
+the template and arguments align and parse, `partial` when some bindings are uncertain or missing,
+and `unbound` when there is no usable signature/template. Nothing is guessed from word order or
+matching caller-variable names. Unresolved values remain unbound or opaque.
+
+Binding issues are `missing_required_argument`, `unknown_named_argument`, `opaque_argument`,
+`trailing_text`, `receiver_unbound`, `template_mismatch`, `no_signature`, `no_template`, and
+`missing_spec`. A missing spec is represented in the result rather than failing the query.
+
+Control-flow statements include `if`/`otherwise`, loops, optional and parallel blocks, while/repeat,
+wait, run-steps, abort/terminate/throw, continue/break, and return. Nested statements point to their
+enclosing control statement through the parent chain; this records structure, not branch feasibility
+or guaranteed execution. Predicates include boolean combinations, comparisons, tests, membership,
+attribute checks and algorithm holds. If any atom of a predicate is not understood, the entire
+predicate is `Opaque` with its text; parsed fragments are not presented as a complete condition.
+Expressions preserve paths, literals, constructors, calls, algorithm references and unknown text.
+
+Variable origins identify parameters, `Let` declarations, loop variables, body parameters, or
+undeclared variables. Every link in a statement source has exactly one role: callee, algorithm
+value, parameter name, field, type, predicate, Infra operation, keyword, value, or unknown. Effects
+will consume these roles when its migration to the IR lands; until then its mention classifier uses
+the verb rule described below.
+
+Use the algorithm view flags to inspect calls, incoming callers, or opaque statements. `--limit N`
+caps the caller list (default 20). These examples are real local-index output; caller rows are
+trimmed with an ellipsis marker.
+
+```sh
+webspec-index state <ALGORITHM> [--calls] [--callers] [--opaque] [--limit N] [--format json|markdown]
+```
+
+```sh
+webspec-index state HTML#location-object-navigate --calls --format markdown
+```
+
+```markdown
+### Calls (1)
+- :4 navigate (HTML#navigate) — exact
+  navigable ← *navigable* · url ← *url* · sourceDocument ← *sourceDocument* · exceptionsEnabled ← true · historyHandling ← *historyHandling* · 9 named arguments defaulted
+```
+
+```sh
+webspec-index state DOM#concept-node-insert --callers --format markdown
+```
+
+```markdown
+### Callers (13)
+- DOM#concept-node-pre-insert
+  - :4 — exact · node ← *node* · parent ← *parent* · child ← *referenceChild* · 1 named argument defaulted
+- DOM#concept-node-replace
+  - :9 — exact · node ← *node* · parent ← *parent* · child ← *referenceChild* · suppressObservers ← true
+- DOM#concept-node-replace-all
+  - :6 — exact · node ← *node* · parent ← *parent* · child ← null · suppressObservers ← true
+… (10 more caller groups in the real output)
+```
+
+`--opaque` lists opaque statements with their step paths. The algorithm view reports statement
+counts, opaque-statement and unbound-call counts, and `may · complete|partial` coverage. “Complete”
+describes recognition coverage for this view; it does not establish that the algorithm always
+executes a particular path.
+
+`state --coverage SPEC` remains the per-spec coverage view for the stored state representation. It
+reports the existing field/declaration, write-resolution, statement-form and occurrence-class
+counters and review lists. The signature, call-binding and statement-parser percentages below are
+release coverage floors measured on the preserved HTML and DOM snapshots; they are not additional
+tables in this view:
+
+| Metric | HTML | DOM |
+|---|---:|---:|
+| Algorithms with a template signature | 73% | 91% |
+| `To` parameters typed, including by resolved name | 88% | 78% |
+| IDL steps with parameters from IDL | 85% | 97% |
+| Exact bindings to `To` targets with parameters | 70% | 80% |
+| Step heads recognized | 93% | 98% |
+| `If` conditions parsed | 47% | 56% |
+| `Assert` predicates parsed | 67% | 57% |
+| `For each` loop variables bound | 81% | 63% |
+
+These floors track different stages: template and type extraction, IDL sourcing, complete argument
+binding, statement-head recognition, predicate parsing, and loop-variable resolution. The `may`
+coverage label and these percentages describe recognition, not semantic completeness or execution
+certainty.
+
+Known limits, where the view under-reports rather than reports wrongly:
+
+- Calls inside conditions (`If url equals …`, `If … is allowed to navigate …`) are not yet listed.
+- Calls embedded in running prose (a lowercase "navigate …" inside a paragraph or bullet) are often
+  not recognized; step-leading calls are.
+- In "If X, then do Y and return", statements after the first in the inline branch may be missing.
+- A body argument whose steps follow as a separate list renders as `(steps)`.
+- Ecmarkup clauses retain only their last `<emu-alg>` block. Signatures are unaffected because they
+  come from the clause's opening intro paragraph.
+
+`tests/fixtures/state/ir/known_drift.txt` lists every difference between the IR and the
+hand-annotated golden excerpts that is still open.
+
 ## Slices and outlines
 
 Four flags of `query` cut a stored algorithm to a focused view. Every omitted step is counted in a
