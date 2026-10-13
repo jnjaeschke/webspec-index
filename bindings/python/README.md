@@ -64,9 +64,16 @@ coverage = wsi.state_coverage("HTML")
 print(coverage["counters"]["owner_resolved"], "/", coverage["counters"]["written_fields"])
 ```
 
-`state(selector, include_inits=True, unclassified=False, limit=None)` accepts the same
+`state(selector, include_inits=True, unclassified=False, limit=None, calls=False,
+callers=False, opaque=False)` accepts the same
 selectors as the CLI: `SPEC#anchor`, `TYPE`, `"TYPE.FIELD"`, `"TYPE.GLOB"`, or `"SPEC#GLOB"`.
 `state_coverage(spec)` returns the stored coverage counters for one spec.
+
+For an algorithm, request its signature and the calls it makes with `calls=True`:
+
+```python
+result = wsi.state("HTML#location-object-navigate", calls=True)
+```
 
 Possible specification effects use dedicated, versioned request dictionaries;
 the existing `query()` result remains unchanged:

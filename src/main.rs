@@ -893,7 +893,7 @@ Ex: query HTML#navigate --involving historyHandling|query HTML#navigate --feedin
 Ex: refs HTML#navigate -d incoming|refs Window.navigation|graph HTML#navigate --graph-format mermaid
 Ex: trace HTML#dom-location-assign HTML#event-navigateerror --format markdown|trace A B -d compact
 Ex: idl Window.navigation|idl Window.open()|idl HTML#dom-window-navigation
-Ex: state HTML#is-initial-about:blank|state "Element.node document"|state Document
+Ex: state HTML#is-initial-about:blank|state "Element.node document"|state Document|state HTML#navigate --calls
 Ex: query HTML#navigate --pr 1234|query HTML --pr 1234 --diff|query proposal-defer-import-eval --pr 85 --diff
 "#
     );

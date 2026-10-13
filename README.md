@@ -68,6 +68,10 @@ webspec-index state HTML#is-initial-about:blank --format markdown
 webspec-index state "Document.*sandbox*"
 webspec-index state Document
 
+# Algorithms: signature and call template, the calls it makes, and who calls it (bound to its parameters)
+webspec-index state HTML#navigate --calls --format markdown
+webspec-index state DOM#concept-event-fire --callers -l 5 --format markdown
+
 # Views: cut an algorithm to a focused subset — every omitted step is counted in a marker
 webspec-index query HTML#navigate --depth 1 --format markdown          # outline: top-level steps only
 webspec-index query HTML#navigate --involving historyHandling --format markdown  # steps that involve historyHandling and variables derived from it
