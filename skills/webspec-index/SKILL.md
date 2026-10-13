@@ -1,6 +1,6 @@
 ---
 name: webspec-index
-description: Use webspec-index to query WHATWG, W3C, IETF and TC39 web specifications from the command line
+description: Query WHATWG, W3C, IETF and TC39 web specifications from the command line. Use to read a spec section or algorithm, find which algorithms invoke a concept, trace a call chain, look up IDL, validate an anchor, or read a spec as changed by an open WHATWG PR.
 ---
 
 # webspec-index
@@ -11,7 +11,7 @@ Use `webspec-index` whenever you need to understand what a web spec says — alg
 
 ## Available specs
 
-Assume that all specs from WHATWG, W3C, IETF and TC39 are indexed. If in doubt, run `webspec-index specs` to list all spec names and their base URLs.
+Assume that all specs from WHATWG, W3C, IETF and TC39 are indexed. `webspec-index specs` lists every spec name and its base URL.
 
 ## Installation
 
@@ -318,9 +318,8 @@ webspec-index query 'HTML#navigate' --format json
 searchfox-cli --spec-refs 'https://html.spec.whatwg.org/#navigate'
 ```
 
-Always do this when the user asks questions like "where is X implemented", "which file handles Y",
-or "show me the Gecko code for Z". The `url` field in the `query` response is the value to pass
-to `--spec-refs` — no manual URL construction needed.
+For Gecko or SpiderMonkey implementation questions, pass the `url` field from the `query` response
+to `--spec-refs`; no manual URL construction needed.
 
 ### Implementing a feature from a spec PR
 
