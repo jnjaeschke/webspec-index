@@ -100,6 +100,7 @@ async fn main() -> Result<()> {
             algorithms: vec![],
             issues: vec![],
         };
+        let joined: String = pages.iter().map(|(_, html)| html.as_str()).collect();
         for (url, html) in pages {
             let parsed = parse::parse_spec(&html, &spec, &url)?;
             db::write::insert_sections_bulk(&tx, snapshot, &parsed.sections)?;
@@ -130,6 +131,22 @@ async fn main() -> Result<()> {
             parse::steps::STRUCTURE_VERSION,
             &serde_json::to_string(&structure)?,
         )?;
+        // A snapshot without a state model is not reusable, so the query would
+        // re-index the real spec over the fixture.
+        let parsed = parse::parse_spec(&joined, &spec, &base)?;
+        let document = scraper::Html::parse_document(&joined);
+        let state = webspec_index::state::extract_state(&webspec_index::state::StateInputs {
+            document: &document,
+            spec: &spec,
+            base_url: &base,
+            snapshot_sha: &sha,
+            structure: &structure,
+            sections: &parsed.sections,
+            idl_definitions: &parsed.idl_definitions,
+            catalog: webspec_index::state::extract::bundled_catalog(),
+            body_nodes: None,
+        });
+        webspec_index::db::state::store_state(&tx, snapshot, &state)?;
         let now = chrono::Utc::now().to_rfc3339();
         db::write::record_update_check(
             &tx,
