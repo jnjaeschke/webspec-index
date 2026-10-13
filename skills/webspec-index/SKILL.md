@@ -313,7 +313,55 @@ webspec-index refs 'HTML#navigate' --direction outgoing
 
 # Look up a referenced concept you don't understand
 webspec-index query 'INFRA#ordered-set'
+
+# See every algorithm it calls, with the arguments bound to each callee's parameters
+webspec-index state 'HTML#navigate' --calls --format markdown
 ```
+
+When `query` output ends with a line like `Written in 4 steps…` or `Called from 13 algorithms…`, run the
+command printed on that line.
+
+### A value ends up wrong
+
+When a bug or test failure comes down to a spec field holding the wrong value (a flag that stays set, a
+stale URL, a missing entry in a list), list every step that writes or initializes it, then read each
+writer:
+
+```bash
+webspec-index state 'HTML#ongoing-navigation' --format markdown
+webspec-index query 'HTML#navigate' --steps 24.8 --format markdown
+```
+
+A field set only at initialization never changes after construction; a writer under a guard changes it
+only when the guard holds.
+
+### Wrong arguments, or a missing call
+
+When Gecko's caller passes different arguments than the spec, or a call seems missing, compare against
+the spec's call sites. `--calls` shows what an algorithm calls and with which arguments; `--callers`
+shows every call into it, from every indexed spec:
+
+```bash
+webspec-index state 'HTML#location-object-navigate' --calls --format markdown
+webspec-index state 'DOM#concept-node-insert' --callers --format markdown
+```
+
+An `exact` binding is reliable; `N named arguments defaulted` means the spec relies on the defaults.
+The view can miss calls inside `If` conditions and in running prose, so confirm an absence with
+`refs --direction incoming --kind step` before concluding a call does not exist.
+
+### Event order and task timing
+
+When a test fails on which events fire, in what order, or whether something happens synchronously, list
+what the entry point may cause and through which task source:
+
+```bash
+webspec-index effects 'HTML#dom-location-assign' --compact --format markdown
+webspec-index effects 'HTML#dom-location-assign' --kind event.fire --format markdown
+```
+
+Then follow one effect to its site with `trace` and read the steps on the way. Effects are possible,
+not guaranteed: a guard on the route decides whether it happens.
 
 ### Finding the right spec section
 
