@@ -295,6 +295,7 @@ fn derive_spec_name_for_base_url(base_url: &str) -> Option<String> {
             _ => return None,
         }
     } else if host == "drafts.csswg.org"
+        || host == "drafts.css-houdini.org"
         || host == "w3c.github.io"
         || host == "wicg.github.io"
         || host == "webaudio.github.io"
@@ -360,7 +361,12 @@ fn auto_base_url_from_url(url: &str) -> Option<(String, String)> {
         }
     } else if matches!(
         host.as_str(),
-        "drafts.csswg.org" | "w3c.github.io" | "wicg.github.io" | "webaudio.github.io" | "tc39.es"
+        "drafts.csswg.org"
+            | "drafts.css-houdini.org"
+            | "w3c.github.io"
+            | "wicg.github.io"
+            | "webaudio.github.io"
+            | "tc39.es"
     ) {
         let mut segs = parsed.path_segments()?.filter(|s| !s.is_empty());
         let first = segs.next()?;
@@ -433,6 +439,7 @@ pub fn provider_for_base_url(base_url: &str) -> &'static str {
     if matches!(
         host.as_str(),
         "drafts.csswg.org"
+            | "drafts.css-houdini.org"
             | "w3c.github.io"
             | "wicg.github.io"
             | "webaudio.github.io"
@@ -476,6 +483,26 @@ pub fn resolve_auto_url(url: &str) -> Option<(String, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn resolve_houdini_urls() {
+        let registry = SpecRegistry::new();
+        for path in [
+            "css-paint-api",
+            "css-paint-api/",
+            "css-paint-api/index.html",
+        ] {
+            let url = format!("https://drafts.css-houdini.org/{path}#paint");
+            let (name, anchor, base_url) = registry.resolve_url_with_base(&url).unwrap();
+            assert_eq!(name, "CSS-PAINT-API");
+            assert_eq!(anchor, "paint");
+            assert_eq!(base_url, "https://drafts.css-houdini.org/css-paint-api");
+            assert_eq!(provider_for_base_url(&base_url), "w3c");
+        }
+        assert!(registry
+            .resolve_url("https://drafts.css-houdini.org/#paint")
+            .is_none());
+    }
 
     #[test]
     fn auto_spec_roundtrip() {

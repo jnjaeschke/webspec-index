@@ -800,12 +800,12 @@ enum Command {
         all: bool,
     },
 
-    /// Update the local W3C spec list from csswg-drafts and w3c/groups
+    /// Update the local W3C spec list from CSSWG, Houdini, and w3c/groups
     ///
-    /// Clones (or updates) csswg-drafts and w3c/groups, then regenerates
+    /// Clones (or updates) csswg-drafts, css-houdini-drafts, and w3c/groups, then regenerates
     /// data/w3c_specs.json. After running this command, rebuild to apply changes.
     #[command(long_about = "Update the local W3C spec list.\n\n\
-        Clones (or updates) the csswg-drafts and w3c/groups repositories,\n\
+        Clones (or updates) the csswg-drafts, css-houdini-drafts, and w3c/groups repositories,\n\
         then regenerates data/w3c_specs.json with all discovered specs.\n\
         Rebuild after running this to apply the new spec list.\n\n\
         Examples:\n  \
@@ -818,6 +818,13 @@ enum Command {
             help = "Path to csswg-drafts clone"
         )]
         csswg_dir: std::path::PathBuf,
+
+        #[arg(
+            long,
+            default_value = "css-houdini-drafts",
+            help = "Path to css-houdini-drafts clone"
+        )]
+        houdini_dir: std::path::PathBuf,
 
         #[arg(long, default_value = "groups", help = "Path to w3c/groups clone")]
         groups_dir: std::path::PathBuf,
@@ -1658,20 +1665,22 @@ async fn run(cli: Cli) -> anyhow::Result<ExitCode> {
 
         Command::UpdateSpecList {
             csswg_dir,
+            houdini_dir,
             groups_dir,
             output,
         } => {
-            let (csswg_count, standalone_count, entries) =
-                webspec_index::spec_list::update(&csswg_dir, &groups_dir, &output)?;
+            let (csswg_count, houdini_count, standalone_count, entries) =
+                webspec_index::spec_list::update(&csswg_dir, &houdini_dir, &groups_dir, &output)?;
             let conn = webspec_index::db::open_or_create_db()?;
             for e in &entries {
                 webspec_index::db::write::seed_spec(&conn, &e.name, &e.base_url, &e.provider)?;
             }
             eprintln!(
-                "wrote {} specs to {} ({} CSSWG + {} standalone); seeded DB",
-                csswg_count + standalone_count,
+                "wrote {} specs to {} ({} CSSWG + {} Houdini + {} standalone); seeded DB",
+                entries.len(),
                 output.display(),
                 csswg_count,
+                houdini_count,
                 standalone_count
             );
             Ok(ExitCode::SUCCESS)

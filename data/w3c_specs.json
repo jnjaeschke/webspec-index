@@ -180,6 +180,12 @@
     "github_repo": "w3c/beacon"
   },
   {
+    "name": "BOX-TREE-API",
+    "base_url": "https://drafts.css-houdini.org/box-tree-api",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
+  },
+  {
     "name": "CAPTURE",
     "base_url": "https://immersive-web.github.io/capture",
     "provider": "w3c",
@@ -400,6 +406,12 @@
     "base_url": "https://drafts.csswg.org/css-anchor-position-2",
     "provider": "w3c",
     "github_repo": "w3c/csswg-drafts"
+  },
+  {
+    "name": "CSS-ANIMATION-WORKLET-1",
+    "base_url": "https://drafts.css-houdini.org/css-animation-worklet-1",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
   },
   {
     "name": "CSS-ANIMATIONS-1",
@@ -714,6 +726,12 @@
     "github_repo": "w3c/csswg-drafts"
   },
   {
+    "name": "CSS-LAYOUT-API",
+    "base_url": "https://drafts.css-houdini.org/css-layout-api",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
+  },
+  {
     "name": "CSS-LINE-GRID-1",
     "base_url": "https://drafts.csswg.org/css-line-grid-1",
     "provider": "w3c",
@@ -834,6 +852,18 @@
     "github_repo": "w3c/csswg-drafts"
   },
   {
+    "name": "CSS-PAINT-API",
+    "base_url": "https://drafts.css-houdini.org/css-paint-api",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
+  },
+  {
+    "name": "CSS-PARSER-API",
+    "base_url": "https://drafts.css-houdini.org/css-parser-api",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
+  },
+  {
     "name": "CSS-POSITION-3",
     "base_url": "https://drafts.csswg.org/css-position-3",
     "provider": "w3c",
@@ -850,6 +880,12 @@
     "base_url": "https://drafts.csswg.org/css-print",
     "provider": "w3c",
     "github_repo": "w3c/csswg-drafts"
+  },
+  {
+    "name": "CSS-PROPERTIES-VALUES-API",
+    "base_url": "https://drafts.css-houdini.org/css-properties-values-api",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
   },
   {
     "name": "CSS-PSEUDO-4",
@@ -1006,6 +1042,18 @@
     "base_url": "https://drafts.csswg.org/css-transitions-2",
     "provider": "w3c",
     "github_repo": "w3c/csswg-drafts"
+  },
+  {
+    "name": "CSS-TYPED-OM",
+    "base_url": "https://drafts.css-houdini.org/css-typed-om",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
+  },
+  {
+    "name": "CSS-TYPED-OM-2",
+    "base_url": "https://drafts.css-houdini.org/css-typed-om-2",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
   },
   {
     "name": "CSS-UI-3",
@@ -1330,6 +1378,12 @@
     "base_url": "https://drafts.csswg.org/filter-effects-2",
     "provider": "w3c",
     "github_repo": "w3c/csswg-drafts"
+  },
+  {
+    "name": "FONT-METRICS-API",
+    "base_url": "https://drafts.css-houdini.org/font-metrics-api",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
   },
   {
     "name": "FXTF-DRAFTS",
@@ -3190,6 +3244,12 @@
     "base_url": "https://w3c.github.io/woff/woff2",
     "provider": "w3c",
     "github_repo": "w3c/woff"
+  },
+  {
+    "name": "WORKLETS",
+    "base_url": "https://drafts.css-houdini.org/worklets",
+    "provider": "w3c",
+    "github_repo": "w3c/css-houdini-drafts"
   },
   {
     "name": "WOT-ARCHITECTURE",

@@ -6,6 +6,7 @@ use std::path::Path;
 use std::process::Command;
 
 const CSSWG_URL: &str = "https://github.com/w3c/csswg-drafts";
+const HOUDINI_URL: &str = "https://github.com/w3c/css-houdini-drafts";
 const GROUPS_URL: &str = "https://github.com/w3c/groups";
 const BUNDLED_SPEC_LIST: &str = include_str!("../data/w3c_specs.json");
 
@@ -48,25 +49,34 @@ pub fn fetch_and_seed(conn: &Connection) -> Result<usize> {
     Ok(entries.len() + known.len())
 }
 
-/// Update the W3C spec list from csswg-drafts and w3c/groups.
+/// Update the W3C spec list from CSSWG, Houdini, and w3c/groups.
 ///
 /// This covers W3C specs only. WHATWG specs (HTML, DOM, Fetch, …) and TC39
 /// specs (ECMAScript, …) are small, stable lists hardcoded in their respective
 /// providers (`src/provider/whatwg.rs`, `src/provider/tc39.rs`).
 pub fn update(
     csswg_dir: &Path,
+    houdini_dir: &Path,
     groups_dir: &Path,
     output: &Path,
-) -> Result<(usize, usize, Vec<SpecEntry>)> {
+) -> Result<(usize, usize, usize, Vec<SpecEntry>)> {
     clone_or_update(CSSWG_URL, csswg_dir)?;
+    clone_or_update(HOUDINI_URL, houdini_dir)?;
     clone_or_update(GROUPS_URL, groups_dir)?;
 
-    let csswg = collect_csswg(csswg_dir);
+    let csswg = collect_drafts(csswg_dir, "https://drafts.csswg.org", "w3c/csswg-drafts");
+    let houdini = collect_drafts(
+        houdini_dir,
+        "https://drafts.css-houdini.org",
+        "w3c/css-houdini-drafts",
+    );
     let standalone = collect_standalone(groups_dir)?;
     let csswg_count = csswg.len();
+    let houdini_count = houdini.len();
     let standalone_count = standalone.len();
 
     let mut all = csswg;
+    all.extend(houdini);
     all.extend(standalone);
     resolve_collisions(&mut all);
 
@@ -87,7 +97,7 @@ pub fn update(
     std::fs::write(output, format!("{}\n", json))
         .with_context(|| format!("Failed to write {}", output.display()))?;
 
-    Ok((csswg_count, standalone_count, all))
+    Ok((csswg_count, houdini_count, standalone_count, all))
 }
 
 fn clone_or_update(url: &str, local_path: &Path) -> Result<()> {
@@ -113,13 +123,13 @@ fn clone_or_update(url: &str, local_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn collect_csswg(csswg_dir: &Path) -> Vec<SpecEntry> {
+fn collect_drafts(drafts_dir: &Path, base_url: &str, github_repo: &str) -> Vec<SpecEntry> {
     let mut entries = Vec::new();
     let skip = ["bin", "css-module"];
-    let read_dir = match std::fs::read_dir(csswg_dir) {
+    let read_dir = match std::fs::read_dir(drafts_dir) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("warning: cannot read {}: {}", csswg_dir.display(), e);
+            eprintln!("warning: cannot read {}: {}", drafts_dir.display(), e);
             return entries;
         }
     };
@@ -144,9 +154,9 @@ fn collect_csswg(csswg_dir: &Path) -> Vec<SpecEntry> {
         }
         entries.push(SpecEntry {
             name: dir_name.to_uppercase(),
-            base_url: format!("https://drafts.csswg.org/{}", dir_name),
+            base_url: format!("{base_url}/{dir_name}"),
             provider: "w3c".to_string(),
-            github_repo: "w3c/csswg-drafts".to_string(),
+            github_repo: github_repo.to_string(),
         });
     }
     entries
@@ -191,7 +201,7 @@ fn collect_standalone(groups_dir: &Path) -> Result<Vec<SpecEntry>> {
         if owner.is_empty() || repo_name.is_empty() {
             continue;
         }
-        if owner == "w3c" && repo_name == "csswg-drafts" {
+        if owner == "w3c" && matches!(repo_name, "csswg-drafts" | "css-houdini-drafts") {
             continue;
         }
         if owner == "WebAssembly" {
@@ -296,6 +306,63 @@ mod tests {
                 "repo-type": repo_types
             }
         })
+    }
+
+    #[test]
+    fn test_collect_houdini_drafts() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["css-paint-api", "css-typed-om-2", "bin", ".hidden"] {
+            let spec = dir.path().join(name);
+            std::fs::create_dir(&spec).unwrap();
+            std::fs::write(spec.join("Overview.bs"), "<h1>Spec</h1>").unwrap();
+        }
+        std::fs::create_dir(dir.path().join("images")).unwrap();
+        std::fs::write(dir.path().join("README.md"), "Not a spec").unwrap();
+        let entries = collect_drafts(
+            dir.path(),
+            "https://drafts.css-houdini.org",
+            "w3c/css-houdini-drafts",
+        );
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].name, "CSS-PAINT-API");
+        assert_eq!(
+            entries[0].base_url,
+            "https://drafts.css-houdini.org/css-paint-api"
+        );
+        assert_eq!(entries[1].name, "CSS-TYPED-OM-2");
+        for entry in entries {
+            assert_eq!(entry.provider, "w3c");
+            assert_eq!(entry.github_repo, "w3c/css-houdini-drafts");
+        }
+    }
+
+    #[test]
+    fn test_bundled_houdini_specs_are_seeded() {
+        let conn = crate::db::open_in_memory().unwrap();
+        fetch_and_seed(&conn).unwrap();
+        for slug in [
+            "box-tree-api",
+            "css-animation-worklet-1",
+            "css-layout-api",
+            "css-paint-api",
+            "css-parser-api",
+            "css-properties-values-api",
+            "css-typed-om",
+            "css-typed-om-2",
+            "font-metrics-api",
+            "worklets",
+        ] {
+            let name = slug.to_uppercase();
+            let (base_url, provider): (String, String) = conn
+                .query_row(
+                    "SELECT base_url, provider FROM specs WHERE name = ?1",
+                    [&name],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .unwrap();
+            assert_eq!(base_url, format!("https://drafts.css-houdini.org/{slug}"));
+            assert_eq!(provider, "w3c");
+        }
     }
 
     #[test]
@@ -416,13 +483,21 @@ mod tests {
     }
 
     #[test]
-    fn test_collect_standalone_skips_csswg_monorepo() {
-        let repos = serde_json::json!([make_repo(
-            "w3c",
-            "csswg-drafts",
-            "https://drafts.csswg.org/index.html",
-            &["rec-track"]
-        )]);
+    fn test_collect_standalone_skips_drafts_monorepos() {
+        let repos = serde_json::json!([
+            make_repo(
+                "w3c",
+                "csswg-drafts",
+                "https://drafts.csswg.org/index.html",
+                &["rec-track"]
+            ),
+            make_repo(
+                "w3c",
+                "css-houdini-drafts",
+                "https://w3c.github.io/css-houdini-drafts/",
+                &["rec-track"]
+            ),
+        ]);
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("repositories.json"), repos.to_string()).unwrap();
         let entries = collect_standalone(dir.path()).unwrap();
