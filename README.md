@@ -220,7 +220,23 @@ cd web && npm ci && npm run dev
 Drop [skills/webspec-index/](skills/webspec-index/SKILL.md) into your repo to teach the agent how to use the CLI.
 
 [skills/spec-trace/](skills/spec-trace/SKILL.md) builds on it: given a question about what a spec
-specifies, it traces the algorithm call chain with `paths` and produces a reviewable verdict.
+specifies, it traces the algorithm call chain with `trace` and produces a reviewable verdict.
+
+[skills/spec-triangulate/](skills/spec-triangulate/SKILL.md) cross-checks a behaviour across the
+spec, web-platform-tests and the Gecko, WebKit and Chromium implementations, and reports a sourced
+verdict for each place they disagree. Install it next to `skills/spec-trace/`, which it uses for the
+spec leg. It needs these tools on `PATH`, plus `curl` and `python3` 3.11+:
+
+- `webspec-index`: `cargo binstall webspec-index`
+- [`searchfox-cli`](https://crates.io/crates/searchfox-cli): `cargo install searchfox-cli`
+- [`chromium-search`](https://github.com/jclay/chromium-search):
+
+  ```bash
+  curl -o ~/.local/bin/chromium-search https://raw.githubusercontent.com/jclay/chromium-search/main/chromium-search.py
+  chmod +x ~/.local/bin/chromium-search
+  ```
+
+- [`gh`](https://cli.github.com), authenticated
 
 ## Editor Integration
 
