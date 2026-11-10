@@ -195,7 +195,7 @@ jobs:
         with:
           node-version: 24
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
       - name: Build wasm package
         run: ./crates/webspec-index-wasm/build.sh
         env:
@@ -226,7 +226,7 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+        run: cargo install wasm-bindgen-cli --version 0.2.130 --locked
       - name: Build wasm package
         run: ./crates/webspec-index-wasm/build.sh
         env:

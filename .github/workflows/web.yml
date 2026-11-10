@@ -24,7 +24,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   CC_wasm32_unknown_unknown: clang
-  WASM_BINDGEN_VERSION: 0.2.128
+  WASM_BINDGEN_VERSION: 0.2.130
 
 jobs:
   build:

@@ -9,7 +9,7 @@ chunked database over HTTP range requests from a browser worker.
 ./build.sh
 ```
 
-Requires `wasm-bindgen` 0.2.128 CLI and `clang` on `$PATH`. Output lands in
+Requires `wasm-bindgen` 0.2.130 CLI and `clang` on `$PATH`. Output lands in
 `pkg/`: `webspec_index_wasm.js` (ESM bindings) and `webspec_index_wasm_bg.wasm`.
 
 ## Exports

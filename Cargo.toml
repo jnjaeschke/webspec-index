@@ -63,7 +63,7 @@ markup5ever_rcdom = "0.38"
 reqwest = { version = "0.13", features = ["gzip", "json"], optional = true }
 
 # Database
-rusqlite = { version = "0.39", features = ["bundled", "backup"] }
+rusqlite = { version = "0.41", features = ["bundled", "backup"] }
 
 # Serialization
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
@@ -103,7 +103,7 @@ rayon = { version = "1", optional = true }
 dashmap = { version = "6", optional = true }
 
 # Version checking
-moz-cli-version-check = { version = "0.2", optional = true }
+moz-cli-version-check = { version = "0.3", optional = true }
 
 # SIGPIPE handling
 libc = { version = "0.2", optional = true }
@@ -112,8 +112,8 @@ libc = { version = "0.2", optional = true }
 similar = "2"
 
 # PDF parsing (ITU-T Recommendations)
-lopdf = { version = "0.36", optional = true }
-pdf-extract = { version = "0.9", optional = true }
+lopdf = { version = "0.42", optional = true }
+pdf-extract = { version = "0.12", optional = true }
 euclid = { version = "0.20.5", optional = true }
 
 [build-dependencies]
