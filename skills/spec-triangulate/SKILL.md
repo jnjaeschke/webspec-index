@@ -35,6 +35,25 @@ fact to report, never evidence that the agreeing side is right.
 instructions are in the webspec-index README. If a tool is missing, skip that leg, say so in the
 report's coverage line, and never fill the gap from memory or install the tool yourself.
 
+**Spec repositories.** `<spec repo>` is the spec's own source repository on GitHub: `whatwg/html`,
+`whatwg/dom`, `w3c/csswg-drafts`, `tc39/ecma262`, and so on. History lookups run git on its
+`<checkout>`, `~/.cache/spec-triangulate/repos/<spec repo>`, which is kept across runs. A user who
+already has a checkout can symlink it there
+(`ln -s ~/dev/html ~/.cache/spec-triangulate/repos/whatwg/html`). Before the first history lookup on
+a repository:
+
+1. `git -C <checkout> remote -v` gives `<remote>`, the remote whose URL is
+   `https://github.com/<spec repo>`; it need not be `origin`. If `<checkout>` does not exist, clone
+   it: `git clone --single-branch --no-tags --no-checkout https://github.com/<spec repo> <checkout>`.
+   Its remote is `origin`. Don't use `--filter=blob:none` or `--depth`: `log -S` and `log -L` read
+   every historical version of the file, which a partial clone fetches one blob per round trip, and a
+   shallow clone reports its oldest commit as the step's origin.
+2. `git -C <checkout> fetch <remote>`.
+3. `<ref>` is `<remote>/<default branch>`, the branch from
+   `gh api repos/<spec repo> --jq .default_branch`. Pass it to every `log` and `grep`. A linked
+   checkout is the user's working copy, so its `HEAD` and working tree can be on any branch: never
+   read them, and never run `checkout`, `switch`, `reset` or `pull` in it.
+
 Engine issue trackers (Bugzilla, issues.chromium.org, bugs.webkit.org) are never searched: they hold
 each engine's opinion. Open a tracker entry only when a code comment, a commit message or an
 engine-exported WPT change cites it. When the session has a dedicated tool for a source — `bmo-to-md`
@@ -76,10 +95,21 @@ or open. None of them is evidence.
    `gh search prs --repo <spec repo> '<algorithm name>' --merged` and
    `gh search issues --repo <spec repo> '<algorithm name>'`, then
    `gh pr view N --repo <spec repo> --comments` for the rationale. Search misses PRs that changed a
-   step without naming it; to date a step's text, clone the spec repo with `--filter=blob:none` into
-   the scratchpad and run `git -C <clone> log -S '<distinctive step text>' -- <source file>`. `<spec repo>` is
-   the spec's own source repository: `whatwg/html`, `whatwg/dom`, `w3c/csswg-drafts`,
-   `tc39/ecma262`, and so on.
+   step without naming it; to date a step's text, use the spec repository's checkout (see
+   Requirements). The source file holds the step with its markup (`Let <var>url</var> be a new`), so
+   find it first: `git -C <checkout> grep -n '<step phrase>' <ref> -- <source file>` gives its
+   source text and lines. Then run
+   `git -C <checkout> log -S '<distinctive source text>' <ref> -- <source file>`. `-S` matches the
+   exact string, so it finds nothing, or stops at an editorial commit, once the text was rewrapped or
+   re-indented. Then follow the step's lines instead:
+   `git -C <checkout> log -L <start>,<end>:<source file> --no-patch <ref>`. This is slow on
+   whatwg/html's `source`, so use it only after `-S`.
+5. **Pre-GitHub rationale.** Commits from before a spec moved to GitHub cite W3C Bugzilla instead
+   of issues (`Fixing http://www.w3.org/Bugs/Public/show_bug.cgi?id=N`); read the cited bug. When a
+   bug or commit points at chat discussion, read the WHATWG logs for the commit's date and the days
+   before it: `https://krijnhoetmer.github.io/irc-logs/whatwg/<YYYYMMDD>.html` (2006–2016),
+   `https://matrixlogs.bakkot.com/irc-whatwg/<YYYY-MM-DD>` (2016–2021),
+   `https://matrixlogs.bakkot.com/WHATWG/<YYYY-MM-DD>` (2021 on).
 
 ## Phase 2: Tests
 
@@ -269,6 +299,7 @@ Every factual sentence has a link you opened in this session.
 | Upstream WPT | `https://github.com/web-platform-tests/wpt/blob/<sha>/<path>#L<N>`, `<sha>` the wpt.fyi run's `full_revision_hash` from Phase 2 |
 | wpt.fyi | the per-test JSON URL from Phase 2 |
 | Issues, PRs, commits | their GitHub URLs |
+| W3C Bugzilla, WHATWG chat logs | the bug URL; the log page for the day plus the message's line anchor (`#l-N` on krijnhoetmer.github.io, `#LN` on matrixlogs.bakkot.com) |
 
 ## Red flags
 
