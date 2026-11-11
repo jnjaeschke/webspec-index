@@ -21,6 +21,9 @@ Query WHATWG, W3C, and TC39 web specifications from the command line.
 cargo binstall webspec-index
 ```
 
+GNU Linux release binaries target GLIBC 2.28 or newer on x86-64 and ARM64.
+The x86-64 musl release binary is statically linked and does not require GLIBC.
+
 Or build from source:
 
 ```bash
