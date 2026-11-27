@@ -1,0 +1,11 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "webspec-index",
+  "version": "0.15.0",
+  "description": "Query WHATWG/W3C/TC39 web specifications from the command line",
+  "license": "MIT",
+  "author": {
+    "name": "jnjaeschke"
+  },
+  "repository": "https://github.com/jnjaeschke/webspec-index"
+}

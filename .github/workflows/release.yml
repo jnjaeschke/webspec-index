@@ -38,11 +38,13 @@ jobs:
           PKG_VERSION=$(node -p "require('./editors/vscode/package.json').version")
           PY_CARGO_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' bindings/python/Cargo.toml | head -1)
           PY_PROJECT_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' bindings/python/pyproject.toml | head -1)
+          PLUGIN_VERSION=$(node -p "require('./.claude-plugin/plugin.json').version")
           echo "Tag version:               $TAG_VERSION"
           echo "Cargo.toml version:        $CARGO_VERSION"
           echo "package.json version:      $PKG_VERSION"
           echo "py Cargo.toml version:     $PY_CARGO_VERSION"
           echo "py pyproject.toml version: $PY_PROJECT_VERSION"
+          echo "plugin.json version:       $PLUGIN_VERSION"
           if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION does not match Cargo.toml version $CARGO_VERSION"
             exit 1
@@ -57,6 +59,10 @@ jobs:
           fi
           if [ "$TAG_VERSION" != "$PY_PROJECT_VERSION" ]; then
             echo "::error::Tag v$TAG_VERSION does not match bindings/python/pyproject.toml version $PY_PROJECT_VERSION"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$PLUGIN_VERSION" ]; then
+            echo "::error::Tag v$TAG_VERSION does not match .claude-plugin/plugin.json version $PLUGIN_VERSION"
             exit 1
           fi
 
