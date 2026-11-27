@@ -220,7 +220,7 @@ cd web && npm ci && npm run dev
 
 ### Skill files
 
-Drop [skills/webspec-index/](skills/webspec-index/SKILL.md) into your repo to teach the agent how to use the CLI.
+[skills/webspec-index/](skills/webspec-index/SKILL.md) teaches the agent how to use the CLI.
 
 [skills/spec-trace/](skills/spec-trace/SKILL.md) builds on it: given a question about what a spec
 specifies, it traces the algorithm call chain with `trace` and produces a reviewable verdict.
@@ -240,6 +240,23 @@ spec leg. It needs these tools on `PATH`, plus `curl` and `python3` 3.11+:
   ```
 
 - [`gh`](https://cli.github.com), authenticated
+
+In Claude Code, install the skills as the `webspec-index` plugin:
+
+```
+/plugin install webspec-index --marketplace jnjaeschke/webspec-index
+```
+
+On Claude Code before 2.1.275, run `/plugin marketplace add jnjaeschke/webspec-index`, then
+`/plugin install webspec-index@webspec-index`. The plugin's version follows the CLI's releases, so
+the skills update with each release: run `/plugin update webspec-index@webspec-index`, or turn on
+auto-update for the marketplace in `/plugin`.
+
+To work on the skills, start Claude Code with `claude --plugin-dir /path/to/webspec-index` (an
+absolute path to your checkout). For that session, it replaces the installed plugin, and
+`/reload-plugins` picks up edits.
+
+For other agents, drop the skill directories into your repo.
 
 ## Editor Integration
 

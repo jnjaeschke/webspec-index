@@ -1,0 +1,14 @@
+{
+  "name": "webspec-index",
+  "owner": {
+    "name": "jnjaeschke"
+  },
+  "description": "Query WHATWG/W3C/TC39 web specifications from the command line",
+  "plugins": [
+    {
+      "name": "webspec-index",
+      "source": "./",
+      "description": "Query WHATWG/W3C/TC39 web specifications from the command line"
+    }
+  ]
+}
